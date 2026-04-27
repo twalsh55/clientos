@@ -7,8 +7,8 @@ from datetime import date, datetime, timedelta
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
-import streamlit.components.v1 as components
 from streamlit.errors import StreamlitSecretNotFoundError
+from streamlit_autorefresh import st_autorefresh
 
 from src.adapters.notifications.telegram_notifier import TelegramNotificationError, TelegramNotifier
 from src.adapters.market_data.yfinance_provider import YFinanceMarketDataAdapter
@@ -67,16 +67,7 @@ def run_dashboard(
 
 
 def schedule_refresh(interval_seconds: int = REFRESH_INTERVAL_SECONDS) -> None:
-    components.html(
-        f"""
-        <script>
-        window.setTimeout(function() {{
-            window.parent.location.reload();
-        }}, {interval_seconds * 1000});
-        </script>
-        """,
-        height=0,
-    )
+    st_autorefresh(interval=interval_seconds * 1000, key="market_crash_monitor_refresh")
 
 
 def format_refresh_timestamp(refreshed_at: datetime) -> str:
@@ -111,7 +102,7 @@ def get_telegram_status() -> str:
     bot_token = get_secret("TELEGRAM_BOT_TOKEN")
     chat_id = get_secret("TELEGRAM_CHAT_ID")
     if not bot_token and not chat_id:
-        return "Telegram: not configured"
+        return "Telegram: missing Railway env vars"
     if not bot_token:
         return "Telegram: bot token missing"
     if not chat_id:
@@ -125,7 +116,7 @@ def get_telegram_status_style() -> tuple[str, str]:
     bot_token = get_secret("TELEGRAM_BOT_TOKEN")
     chat_id = get_secret("TELEGRAM_CHAT_ID")
     if not bot_token and not chat_id:
-        return "gray", "not configured"
+        return "gray", "missing Railway env vars"
     if not bot_token or not chat_id:
         return "orange", get_telegram_status().replace("Telegram: ", "")
 

@@ -213,17 +213,17 @@ def test_run_dashboard_logs_refresh_window(monkeypatch, caplog) -> None:
 def test_schedule_refresh_and_format_refresh_timestamp(monkeypatch) -> None:
     captured: dict[str, object] = {}
 
-    def fake_html(html: str, height: int) -> None:
-        captured["html"] = html
-        captured["height"] = height
+    def fake_autorefresh(interval: int, key: str) -> int:
+        captured["interval"] = interval
+        captured["key"] = key
+        return 1
 
-    monkeypatch.setattr(dashboard.components, "html", fake_html)
+    monkeypatch.setattr(dashboard, "st_autorefresh", fake_autorefresh)
 
     dashboard.schedule_refresh(interval_seconds=300)
 
-    assert "window.parent.location.reload();" in captured["html"]
-    assert "300000" in captured["html"]
-    assert captured["height"] == 0
+    assert captured["interval"] == 300000
+    assert captured["key"] == "market_crash_monitor_refresh"
     assert dashboard.format_refresh_timestamp(datetime(2024, 5, 6, 12, 30, tzinfo=timezone.utc)) == "2024-05-06 12:30:00 UTC"
 
 
@@ -277,7 +277,7 @@ def test_get_telegram_status_variants(monkeypatch) -> None:
     monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
     monkeypatch.setattr(dashboard, "st", fake_st)
 
-    assert dashboard.get_telegram_status() == "Telegram: not configured"
+    assert dashboard.get_telegram_status() == "Telegram: missing Railway env vars"
 
     fake_st.secrets = {"TELEGRAM_BOT_TOKEN": "secret-token"}
     assert dashboard.get_telegram_status() == "Telegram: chat ID missing"
@@ -298,7 +298,7 @@ def test_get_telegram_status_style_variants(monkeypatch) -> None:
     monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
     monkeypatch.setattr(dashboard, "st", fake_st)
 
-    assert dashboard.get_telegram_status_style() == ("gray", "not configured")
+    assert dashboard.get_telegram_status_style() == ("gray", "missing Railway env vars")
 
     fake_st.secrets = {"TELEGRAM_BOT_TOKEN": "secret-token"}
     assert dashboard.get_telegram_status_style() == ("orange", "chat ID missing")
