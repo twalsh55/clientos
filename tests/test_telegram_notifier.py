@@ -7,14 +7,18 @@ from src.adapters.notifications.telegram_notifier import TelegramNotificationErr
 
 
 class FakeResponse:
-    def __init__(self, status: int) -> None:
+    def __init__(self, status: int, body: str = '{"ok": true, "result": {"message_id": 1}}') -> None:
         self.status = status
+        self.body = body
 
     def __enter__(self) -> "FakeResponse":
         return self
 
     def __exit__(self, exc_type, exc, tb) -> bool:  # type: ignore[no-untyped-def]
         return False
+
+    def read(self) -> bytes:
+        return self.body.encode("utf-8")
 
 
 def test_telegram_notifier_sends_json_payload(monkeypatch) -> None:
@@ -52,6 +56,54 @@ def test_telegram_notifier_raises_on_http_error_status(monkeypatch) -> None:
         assert str(exc) == "Telegram API returned status 500"
     else:
         raise AssertionError("Expected TelegramNotificationError for HTTP failure")
+
+
+def test_telegram_notifier_raises_on_bot_api_error(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "src.adapters.notifications.telegram_notifier.request.urlopen",
+        lambda req, timeout: FakeResponse(status=200, body='{"ok": false, "description": "Bad Request: chat not found"}'),  # type: ignore[no-untyped-def]
+    )
+
+    notifier = TelegramNotifier(bot_token="bot-token", chat_id="chat-id")
+
+    try:
+        notifier.send_message("hello world")
+    except TelegramNotificationError as exc:
+        assert str(exc) == "Bad Request: chat not found"
+    else:
+        raise AssertionError("Expected TelegramNotificationError for bot API failure")
+
+
+def test_telegram_notifier_raises_on_invalid_json(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "src.adapters.notifications.telegram_notifier.request.urlopen",
+        lambda req, timeout: FakeResponse(status=200, body="not-json"),  # type: ignore[no-untyped-def]
+    )
+
+    notifier = TelegramNotifier(bot_token="bot-token", chat_id="chat-id")
+
+    try:
+        notifier.send_message("hello world")
+    except TelegramNotificationError as exc:
+        assert str(exc) == "Telegram API returned an invalid response."
+    else:
+        raise AssertionError("Expected TelegramNotificationError for invalid JSON")
+
+
+def test_telegram_notifier_raises_on_non_dict_json(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "src.adapters.notifications.telegram_notifier.request.urlopen",
+        lambda req, timeout: FakeResponse(status=200, body='["unexpected"]'),  # type: ignore[no-untyped-def]
+    )
+
+    notifier = TelegramNotifier(bot_token="bot-token", chat_id="chat-id")
+
+    try:
+        notifier.send_message("hello world")
+    except TelegramNotificationError as exc:
+        assert str(exc) == "Telegram API returned an invalid response."
+    else:
+        raise AssertionError("Expected TelegramNotificationError for non-dict JSON")
 
 
 def test_telegram_notifier_raises_on_network_error(monkeypatch) -> None:

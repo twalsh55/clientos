@@ -271,6 +271,63 @@ def test_get_secret_returns_none_when_streamlit_secrets_file_is_missing(monkeypa
     assert dashboard.get_secret("TELEGRAM_BOT_TOKEN") is None
 
 
+def test_get_telegram_status_variants(monkeypatch) -> None:
+    fake_st = FakeStreamlit([], slider_value=1)
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
+    monkeypatch.setattr(dashboard, "st", fake_st)
+
+    assert dashboard.get_telegram_status() == "Telegram: not configured"
+
+    fake_st.secrets = {"TELEGRAM_BOT_TOKEN": "secret-token"}
+    assert dashboard.get_telegram_status() == "Telegram: chat ID missing"
+
+    fake_st.secrets = {"TELEGRAM_CHAT_ID": "secret-chat"}
+    assert dashboard.get_telegram_status() == "Telegram: bot token missing"
+
+    fake_st.secrets = {"TELEGRAM_BOT_TOKEN": "secret-token", "TELEGRAM_CHAT_ID": "secret-chat"}
+    assert dashboard.get_telegram_status() == "Telegram: configured"
+
+    fake_st.session_state[dashboard.TELEGRAM_STATUS_KEY] = "startup message sent"
+    assert dashboard.get_telegram_status() == "Telegram: startup message sent"
+
+
+def test_get_telegram_status_style_variants(monkeypatch) -> None:
+    fake_st = FakeStreamlit([], slider_value=1)
+    monkeypatch.delenv("TELEGRAM_BOT_TOKEN", raising=False)
+    monkeypatch.delenv("TELEGRAM_CHAT_ID", raising=False)
+    monkeypatch.setattr(dashboard, "st", fake_st)
+
+    assert dashboard.get_telegram_status_style() == ("gray", "not configured")
+
+    fake_st.secrets = {"TELEGRAM_BOT_TOKEN": "secret-token"}
+    assert dashboard.get_telegram_status_style() == ("orange", "chat ID missing")
+
+    fake_st.secrets = {"TELEGRAM_CHAT_ID": "secret-chat"}
+    assert dashboard.get_telegram_status_style() == ("orange", "bot token missing")
+
+    fake_st.secrets = {"TELEGRAM_BOT_TOKEN": "secret-token", "TELEGRAM_CHAT_ID": "secret-chat"}
+    assert dashboard.get_telegram_status_style() == ("blue", "configured")
+
+    fake_st.session_state[dashboard.TELEGRAM_STATUS_KEY] = "startup message sent"
+    assert dashboard.get_telegram_status_style() == ("green", "startup message sent")
+
+    fake_st.session_state[dashboard.TELEGRAM_STATUS_KEY] = "alert sent"
+    assert dashboard.get_telegram_status_style() == ("green", "alert sent")
+
+
+def test_get_telegram_status_style_prefers_active_send_state(monkeypatch) -> None:
+    fake_st = FakeStreamlit([], slider_value=1)
+    fake_st.secrets = {"TELEGRAM_BOT_TOKEN": "secret-token", "TELEGRAM_CHAT_ID": "secret-chat"}
+    monkeypatch.setattr(dashboard, "st", fake_st)
+
+    fake_st.session_state[dashboard.TELEGRAM_STATUS_KEY] = "startup message sent"
+    assert dashboard.get_telegram_status_style() == ("green", "startup message sent")
+
+    fake_st.session_state[dashboard.TELEGRAM_STATUS_KEY] = "alert sent"
+    assert dashboard.get_telegram_status_style() == ("green", "alert sent")
+
+
 def test_get_secret_reads_from_streamlit_secrets(monkeypatch) -> None:
     fake_st = FakeStreamlit([], slider_value=1)
     fake_st.secrets = {"TELEGRAM_BOT_TOKEN": "secret-token"}
@@ -311,6 +368,7 @@ def test_maybe_send_telegram_alert_deduplicates_and_respects_threshold(monkeypat
     assert sent_messages[0][1] == "secret-chat"
     assert "Risk-Off" in sent_messages[0][2]
     assert fake_st.session_state[dashboard.LAST_ALERT_SIGNATURE_KEY] == dashboard.build_alert_signature(actionable, "SPY")
+    assert fake_st.session_state[dashboard.TELEGRAM_STATUS_KEY] == "alert sent"
 
 
 def test_maybe_send_telegram_alert_logs(monkeypatch, caplog) -> None:
@@ -364,6 +422,7 @@ def test_maybe_send_startup_telegram_message_sends_once_per_session(monkeypatch)
         ("secret-token", "secret-chat", "Market Crash Monitor started for SPY\nStartup time: 2024-05-06 12:30:00 UTC")
     ]
     assert fake_st.session_state[dashboard.STARTUP_MESSAGE_SENT_KEY] == "sent"
+    assert fake_st.session_state[dashboard.TELEGRAM_STATUS_KEY] == "startup message sent"
 
 
 def test_maybe_send_startup_telegram_message_logs(monkeypatch, caplog) -> None:
@@ -416,6 +475,25 @@ def test_maybe_send_telegram_alert_skips_without_credentials_and_warning_on_fail
     dashboard.render()
 
     assert fake_st.warnings == ["Unable to send Telegram notification."]
+
+
+def test_render_shows_telegram_status(monkeypatch) -> None:
+    fake_st = FakeStreamlit(["SPY", "SPY", "^VIX", "HYG", "^IRX", "^TNX"], slider_value=4)
+    fake_st.secrets = {"TELEGRAM_BOT_TOKEN": "secret-token", "TELEGRAM_CHAT_ID": "secret-chat"}
+    monkeypatch.setattr(dashboard, "st", fake_st)
+    monkeypatch.setattr(dashboard, "schedule_refresh", lambda: None)
+    monkeypatch.setattr(dashboard, "maybe_send_startup_telegram_message", lambda benchmark, refreshed_at: None)
+    monkeypatch.setattr(dashboard, "maybe_send_telegram_alert", lambda result, benchmark, refreshed_at: None)
+    monkeypatch.setattr(
+        dashboard,
+        "run_dashboard",
+        lambda *args: (make_result(True, False), datetime(2024, 5, 6, 12, 30, tzinfo=timezone.utc)),
+    )
+    monkeypatch.setattr(dashboard, "build_price_chart", lambda close, benchmark: {"benchmark": benchmark})
+
+    dashboard.render()
+
+    assert any("Telegram: configured" in message for message in fake_st.markdowns)
 
 
 def test_clear_dashboard_cache_calls_clear_when_available() -> None:

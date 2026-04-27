@@ -18,6 +18,7 @@ from src.domain.models import CAUTION_CUTOFF, DEFAULT_UNIVERSE, RISK_OFF_CUTOFF,
 REFRESH_INTERVAL_SECONDS = 300
 LAST_ALERT_SIGNATURE_KEY = "last_telegram_alert_signature"
 STARTUP_MESSAGE_SENT_KEY = "startup_telegram_message_sent"
+TELEGRAM_STATUS_KEY = "telegram_status_message"
 
 logger = logging.getLogger(__name__)
 
@@ -106,6 +107,36 @@ def get_secret(name: str) -> str | None:
     return str(secret_value) if secret_value else None
 
 
+def get_telegram_status() -> str:
+    bot_token = get_secret("TELEGRAM_BOT_TOKEN")
+    chat_id = get_secret("TELEGRAM_CHAT_ID")
+    if not bot_token and not chat_id:
+        return "Telegram: not configured"
+    if not bot_token:
+        return "Telegram: bot token missing"
+    if not chat_id:
+        return "Telegram: chat ID missing"
+
+    status = st.session_state.get(TELEGRAM_STATUS_KEY)
+    return f"Telegram: {status}" if status else "Telegram: configured"
+
+
+def get_telegram_status_style() -> tuple[str, str]:
+    bot_token = get_secret("TELEGRAM_BOT_TOKEN")
+    chat_id = get_secret("TELEGRAM_CHAT_ID")
+    if not bot_token and not chat_id:
+        return "gray", "not configured"
+    if not bot_token or not chat_id:
+        return "orange", get_telegram_status().replace("Telegram: ", "")
+
+    status = st.session_state.get(TELEGRAM_STATUS_KEY)
+    if status == "alert sent":
+        return "green", "alert sent"
+    if status == "startup message sent":
+        return "green", "startup message sent"
+    return "blue", "configured"
+
+
 def should_send_telegram_alert(result: object) -> bool:
     actions = getattr(result, "actions", [])
     score = getattr(result, "risk_score", 0.0)
@@ -154,6 +185,7 @@ def maybe_send_startup_telegram_message(benchmark: str, refreshed_at: datetime) 
     logger.info("Sending Telegram startup message for %s", benchmark)
     notifier.send_message(build_startup_message(benchmark, refreshed_at))
     st.session_state[STARTUP_MESSAGE_SENT_KEY] = "sent"
+    st.session_state[TELEGRAM_STATUS_KEY] = "startup message sent"
 
 
 def maybe_send_telegram_alert(result: object, benchmark: str, refreshed_at: datetime) -> None:
@@ -173,6 +205,7 @@ def maybe_send_telegram_alert(result: object, benchmark: str, refreshed_at: date
     logger.info("Sending Telegram alert for %s with signature %s", benchmark, signature)
     notifier.send_message(build_telegram_alert_message(result, benchmark, refreshed_at))
     st.session_state[LAST_ALERT_SIGNATURE_KEY] = signature
+    st.session_state[TELEGRAM_STATUS_KEY] = "alert sent"
 
 
 def render() -> None:
@@ -195,6 +228,8 @@ def render() -> None:
         long_yield_symbol = st.text_input("Long Yield Symbol", "^TNX").upper().strip()
         lookback_years = st.slider("Lookback (years)", min_value=1, max_value=10, value=4)
         force_refresh = st.button("Refresh Now")
+        status_color, status_text = get_telegram_status_style()
+        st.markdown(f":{status_color}[Telegram: {status_text}]")
 
     universe = [t.strip().upper() for t in universe_text.split(",") if t.strip()]
     end_date = date.today()

@@ -28,7 +28,19 @@ class TelegramNotifier:
         )
         try:
             with request.urlopen(req, timeout=10) as response:
+                body = response.read().decode("utf-8")
                 if response.status >= 400:
                     raise TelegramNotificationError(f"Telegram API returned status {response.status}")
+                try:
+                    data = json.loads(body)
+                except json.JSONDecodeError as exc:
+                    raise TelegramNotificationError("Telegram API returned an invalid response.") from exc
+
+                if not isinstance(data, dict):
+                    raise TelegramNotificationError("Telegram API returned an invalid response.")
+
+                if not data.get("ok", False):
+                    description = data.get("description") or "Telegram API returned an error."
+                    raise TelegramNotificationError(str(description))
         except OSError as exc:
             raise TelegramNotificationError("Unable to send Telegram notification.") from exc
