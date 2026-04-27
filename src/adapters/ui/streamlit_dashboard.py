@@ -1,14 +1,17 @@
 from __future__ import annotations
 
-from datetime import date, timedelta
+from datetime import date, datetime, timedelta
 
 import pandas as pd
 import plotly.graph_objects as go
 import streamlit as st
+import streamlit.components.v1 as components
 
 from src.adapters.market_data.yfinance_provider import YFinanceMarketDataAdapter
 from src.application.use_cases import BuildCrashDashboardUseCase
 from src.domain.models import CAUTION_CUTOFF, DEFAULT_UNIVERSE, RISK_OFF_CUTOFF, DashboardConfig
+
+REFRESH_INTERVAL_SECONDS = 300
 
 
 def build_price_chart(close: pd.DataFrame, benchmark: str) -> go.Figure:
@@ -34,7 +37,7 @@ def run_dashboard(
     long_yield_symbol: str,
     start_date: date,
     end_date: date,
-):
+) -> tuple[object, datetime]:
     config = DashboardConfig(
         universe=list(universe),
         benchmark=benchmark,
@@ -46,11 +49,35 @@ def run_dashboard(
         end_date=end_date,
     )
     use_case = BuildCrashDashboardUseCase(market_data=YFinanceMarketDataAdapter())
-    return use_case.execute(config)
+    return use_case.execute(config), datetime.now().astimezone()
+
+
+def schedule_refresh(interval_seconds: int = REFRESH_INTERVAL_SECONDS) -> None:
+    components.html(
+        f"""
+        <script>
+        window.setTimeout(function() {{
+            window.parent.location.reload();
+        }}, {interval_seconds * 1000});
+        </script>
+        """,
+        height=0,
+    )
+
+
+def format_refresh_timestamp(refreshed_at: datetime) -> str:
+    return refreshed_at.strftime("%Y-%m-%d %H:%M:%S %Z")
+
+
+def clear_dashboard_cache() -> None:
+    clear = getattr(run_dashboard, "clear", None)
+    if clear is not None:
+        clear()
 
 
 def render() -> None:
     st.set_page_config(page_title="Crash Monitor Dashboard", layout="wide")
+    schedule_refresh()
     st.title("Market Crash Monitor")
     st.caption(
         "Tracks stress indicators and provides systematic de-risk / dip-buy cues. "
@@ -66,13 +93,17 @@ def render() -> None:
         short_yield_symbol = st.text_input("Short Yield Symbol", "^IRX").upper().strip()
         long_yield_symbol = st.text_input("Long Yield Symbol", "^TNX").upper().strip()
         lookback_years = st.slider("Lookback (years)", min_value=1, max_value=10, value=4)
+        force_refresh = st.button("Refresh Now")
 
     universe = [t.strip().upper() for t in universe_text.split(",") if t.strip()]
     end_date = date.today()
     start_date = end_date - timedelta(days=365 * lookback_years)
 
+    if force_refresh:
+        clear_dashboard_cache()
+
     try:
-        result = run_dashboard(
+        result, refreshed_at = run_dashboard(
             tuple(universe),
             benchmark,
             vix_symbol,
@@ -85,6 +116,8 @@ def render() -> None:
     except ValueError as exc:
         st.error(str(exc))
         return
+
+    st.caption(f"Last refreshed: {format_refresh_timestamp(refreshed_at)}")
 
     metrics = result.metrics
     risk_color = "red" if result.risk_score >= RISK_OFF_CUTOFF else "orange" if result.risk_score >= CAUTION_CUTOFF else "green"
