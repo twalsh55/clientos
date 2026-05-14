@@ -43,6 +43,9 @@ Follow SOLID principles in all code changes:
 uv sync
 uv run uvicorn src.adapters.api.app:app --reload
 ./scripts/dev.sh
+./scripts/deploy_api.sh
+./scripts/deploy_web.sh
+./scripts/deploy_prod.sh
 cp .env.example .env
 pytest
 cd web && npm install
@@ -105,6 +108,10 @@ Notes:
 
 - Railway deploys the Python API from the repo root using `Dockerfile`, `railway.toml`, and `scripts/start_railway.sh`.
 - Vercel should use `web/` as the frontend project root.
+- Preferred release helpers:
+  - `./scripts/deploy_api.sh`
+  - `./scripts/deploy_web.sh`
+  - `./scripts/deploy_prod.sh`
 - Required frontend deployment env: `TRADE_API_BASE_URL` pointing at the deployed Railway API origin.
 - Required shared/auth env depends on environment:
   - API service: `DATABASE_URL`, Clerk variables, optional Telegram variables

@@ -46,6 +46,14 @@ cd web && npm run build
 cd web && npm run e2e
 ```
 
+Production deploy helpers:
+
+```bash
+./scripts/deploy_api.sh
+./scripts/deploy_web.sh
+./scripts/deploy_prod.sh
+```
+
 Environment template:
 
 ```bash
@@ -84,7 +92,7 @@ The root `Dockerfile`, `railway.toml`, and `scripts/start_railway.sh` now target
 Railway API deployment:
 
 ```bash
-railway up
+./scripts/deploy_api.sh
 ```
 
 Container behavior:
@@ -108,6 +116,18 @@ Vercel frontend deployment:
 - install command: `npm install`
 - build command: `npm run build`
 - output mode is already configured through `web/next.config.ts` with `output: "standalone"`
+
+Combined production release flow:
+
+```bash
+./scripts/deploy_prod.sh
+```
+
+This runs:
+
+- `scripts/deploy_api.sh` to deploy the FastAPI service with `npx @railway/cli@latest up`
+- `scripts/deploy_web.sh` to deploy the frontend with `npx vercel deploy --prod --yes --cwd web`
+- hosted smoke checks against `https://api.brivoly.com` and `https://www.brivoly.com`
 
 Required service environment variables:
 
