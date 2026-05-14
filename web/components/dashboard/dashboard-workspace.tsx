@@ -2,8 +2,8 @@
 
 import { useEffect, useState, useTransition } from "react";
 
-import { Button } from "@/components/ui/button";
 import { DashboardCharts } from "@/components/charts/dashboard-charts";
+import { Button } from "@/components/ui/button";
 import type { AccountSettings, DashboardFilters, DashboardSnapshot, SettingsBootstrap } from "@/lib/types";
 
 type DashboardWorkspaceProps = {
@@ -29,9 +29,8 @@ export function DashboardWorkspace({ initialDashboard, settings, bootstrap }: Da
       if (!customEvent.detail) {
         return;
       }
-      const nextFilters: DashboardFilters = {
-        ...customEvent.detail,
-      };
+
+      const nextFilters: DashboardFilters = { ...customEvent.detail };
       setFilters(nextFilters);
       setStatus("Saved defaults applied. Refreshing dashboard...");
       void refreshDashboard(nextFilters);
@@ -77,6 +76,7 @@ export function DashboardWorkspace({ initialDashboard, settings, bootstrap }: Da
     const payload = (await response.json().catch(() => null)) as DashboardResponse | null;
     const errorMessage =
       payload && "error" in payload && typeof payload.error === "string" ? payload.error : null;
+
     if (!response.ok || !payload || errorMessage) {
       setStatus(errorMessage || "Unable to refresh dashboard.");
       return;
@@ -96,6 +96,7 @@ export function DashboardWorkspace({ initialDashboard, settings, bootstrap }: Da
   const actions = dashboard?.actions ?? [];
   const riskScore = dashboard?.risk_score ?? null;
   const riskComponents = dashboard?.risk_components ?? {};
+  const metrics = dashboard?.metrics ?? {};
 
   return (
     <div className="space-y-6">
@@ -160,7 +161,9 @@ export function DashboardWorkspace({ initialDashboard, settings, bootstrap }: Da
               <div className="flex flex-wrap items-center justify-between gap-3">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Lookback window</p>
-                  <p className="mt-2 text-sm text-slate-600">Quick presets update the dashboard request without changing saved defaults.</p>
+                  <p className="mt-2 text-sm text-slate-600">
+                    Quick presets update the dashboard request without changing saved defaults.
+                  </p>
                 </div>
                 <div className="flex flex-wrap gap-2">
                   {LOOKBACK_PRESETS.map((years) => (
@@ -169,7 +172,9 @@ export function DashboardWorkspace({ initialDashboard, settings, bootstrap }: Da
                       type="button"
                       onClick={() => updateFilter("lookback_years", years)}
                       className={`rounded-full border px-4 py-2 text-sm transition ${
-                        filters.lookback_years === years ? "border-primary bg-primary text-primary-foreground" : "bg-white text-slate-700 hover:bg-secondary"
+                        filters.lookback_years === years
+                          ? "border-primary bg-primary text-primary-foreground"
+                          : "bg-white text-slate-700 hover:bg-secondary"
                       }`}
                     >
                       {years}Y
@@ -211,25 +216,18 @@ export function DashboardWorkspace({ initialDashboard, settings, bootstrap }: Da
             <InfoTile label="Universe size" value={String(filters.universe.length)} />
           </div>
 
-          <div className="mt-6 grid gap-3">
-            {actions.length > 0 ? (
-              actions.slice(0, 4).map((action) => (
-                <div key={action} className="rounded-2xl border bg-slate-50 px-4 py-3 text-sm leading-6 text-slate-700">
-                  {action}
-                </div>
-              ))
-            ) : (
-              <div className="rounded-2xl border border-dashed bg-slate-50 px-4 py-6 text-sm text-slate-500">
-                Action suggestions will appear here when the authenticated dashboard endpoint is reachable.
-              </div>
-            )}
+          <div className="mt-6 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+            <InfoTile label="252D Drawdown" value={formatMetricPercent(metrics.drawdown_252)} />
+            <InfoTile label="20D Vol (Ann.)" value={formatMetricPercent(metrics.vol20)} />
+            <InfoTile label="Breadth >200D" value={formatMetricPercent(metrics.breadth_ratio)} />
+            <InfoTile label="Yield Spread (L-S)" value={formatMetricSpread(metrics.yield_curve_spread)} />
           </div>
         </Panel>
 
         <Panel
           eyebrow="Snapshot"
           title="Risk components"
-          description="These values are now tied to the live dashboard refresh controls above."
+          description="These scores come directly from the Python crash-risk model and mirror the old dashboard calculations."
         >
           <div className="grid gap-3 sm:grid-cols-2">
             {Object.keys(riskComponents).length > 0 ? (
@@ -247,26 +245,126 @@ export function DashboardWorkspace({ initialDashboard, settings, bootstrap }: Da
           </div>
 
           <div className="mt-6 space-y-3">
-            {dashboard?.indicator_percentiles.slice(0, 4).map((indicator) => (
-              <div key={indicator.name} className="rounded-2xl border bg-slate-50 p-4">
-                <div className="flex items-center justify-between gap-3">
-                  <p className="text-sm font-semibold text-slate-900">{indicator.name}</p>
-                  <p className="text-sm text-slate-500">
-                    Current {indicator.current === null ? "N/A" : indicator.current.toFixed(2)}
-                  </p>
-                </div>
-                <div className="mt-3 grid grid-cols-3 gap-3 text-xs uppercase tracking-[0.18em] text-slate-400">
-                  <span>P5 {indicator.p5 === null ? "N/A" : indicator.p5.toFixed(2)}</span>
-                  <span>P50 {indicator.p50 === null ? "N/A" : indicator.p50.toFixed(2)}</span>
-                  <span>P95 {indicator.p95 === null ? "N/A" : indicator.p95.toFixed(2)}</span>
-                </div>
+            {Object.keys(riskComponents).length > 0 ? (
+              Object.entries(riskComponents)
+                .sort(([, left], [, right]) => right - left)
+                .map(([label, value]) => <ComponentMeter key={label} label={label} value={value} />)
+            ) : (
+              <div className="rounded-2xl border border-dashed bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                Risk component scores will populate after the first authenticated dashboard refresh.
               </div>
-            )) ?? null}
+            )}
           </div>
         </Panel>
       </section>
 
       <DashboardCharts dashboard={dashboard} />
+
+      <section className="grid gap-6 xl:grid-cols-[1.1fr_0.9fr]">
+        <Panel
+          eyebrow="Indicator Percentiles"
+          title="Full indicator table"
+          description="Current readings and rolling percentile bands from the Python risk model."
+        >
+          {dashboard?.indicator_percentiles.length ? (
+            <div className="overflow-hidden rounded-[1.5rem] border bg-slate-50">
+              <div className="grid grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))] gap-3 border-b bg-slate-100/80 px-4 py-3 text-[11px] font-semibold uppercase tracking-[0.2em] text-slate-500">
+                <span>Indicator</span>
+                <span>Current</span>
+                <span>P5</span>
+                <span>P50</span>
+                <span>P95</span>
+              </div>
+              <div className="divide-y">
+                {dashboard.indicator_percentiles.map((indicator) => (
+                  <div
+                    key={indicator.name}
+                    className="grid grid-cols-[minmax(0,2fr)_repeat(4,minmax(0,1fr))] gap-3 px-4 py-3 text-sm text-slate-700"
+                  >
+                    <span className="font-medium text-slate-900">{indicator.name}</span>
+                    <span>{formatIndicatorValue(indicator.current, indicator.name)}</span>
+                    <span>{formatIndicatorValue(indicator.p5, indicator.name)}</span>
+                    <span>{formatIndicatorValue(indicator.p50, indicator.name)}</span>
+                    <span>{formatIndicatorValue(indicator.p95, indicator.name)}</span>
+                  </div>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-[1.5rem] border border-dashed bg-slate-50 px-4 py-12 text-center text-sm text-slate-500">
+              Indicator percentiles will appear once an authenticated dashboard snapshot is available.
+            </div>
+          )}
+        </Panel>
+
+        <Panel
+          eyebrow="Readout"
+          title="Latest calculated state"
+          description="The same quick operational readout the old dashboard surfaced for market conditions."
+        >
+          <div className="space-y-3">
+            {[
+              ["Price", formatMetricNumber(metrics.price)],
+              ["50D MA", formatMetricNumber(metrics.ma50)],
+              ["200D MA", formatMetricNumber(metrics.ma200)],
+              ["RSI(14)", formatMetricNumber(metrics.rsi14)],
+              ["VIX", formatMetricNumber(metrics.vix)],
+              ["Risk Proxy / 50D MA", formatMetricNumber(metrics.risk_proxy)],
+              ["Buyer Participation (20D)", formatMetricPercent(metrics.buyer_participation_20d)],
+              ["New High Ratio (252D)", formatMetricPercent(metrics.new_high_ratio_252)],
+              ["Buyer Exhaustion", formatMetricNumber(metrics.buyer_exhaustion)],
+            ].map(([label, value]) => (
+              <InfoRow key={label} label={label} value={value} />
+            ))}
+          </div>
+        </Panel>
+      </section>
+
+      <section className="grid gap-6 xl:grid-cols-[1fr_1fr]">
+        <Panel
+          eyebrow="Guidance"
+          title="Systematic action cues"
+          description="These suggestions are generated from the same Python regime rules that drove the prior app."
+        >
+          <div className="space-y-3">
+            {actions.length > 0 ? (
+              actions.map((action, index) => (
+                <div key={action} className="flex gap-3 rounded-2xl border bg-slate-50 p-4">
+                  <div className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-slate-900 text-sm font-semibold text-white">
+                    {index + 1}
+                  </div>
+                  <p className="text-sm leading-6 text-slate-700">{action}</p>
+                </div>
+              ))
+            ) : (
+              <div className="rounded-2xl border border-dashed bg-slate-50 px-4 py-6 text-sm text-slate-500">
+                Guidance will populate once the crash-risk engine returns a live snapshot.
+              </div>
+            )}
+          </div>
+        </Panel>
+
+        <Panel
+          eyebrow="Filters"
+          title="Current dashboard inputs"
+          description="These are the symbols and settings currently feeding the Python calculation layer."
+        >
+          <div className="space-y-3">
+            {[
+              ["Universe", filters.universe.join(", ") || "N/A"],
+              ["Benchmark", dashboard?.config.benchmark ?? filters.benchmark],
+              ["Fear Gauge", dashboard?.config.vix_symbol ?? filters.vix_symbol],
+              ["Risk Proxy", dashboard?.config.risk_proxy ?? filters.risk_proxy],
+              ["Short Yield", dashboard?.config.short_yield_symbol ?? filters.short_yield_symbol],
+              ["Long Yield", dashboard?.config.long_yield_symbol ?? filters.long_yield_symbol],
+              ["Start Date", dashboard?.config.start_date ?? "Pending"],
+              ["End Date", dashboard?.config.end_date ?? "Pending"],
+            ].map(([label, value]) => (
+              <InfoRow key={label} label={label} value={value} />
+            ))}
+          </div>
+        </Panel>
+      </section>
     </div>
   );
 }
@@ -405,6 +503,35 @@ function InfoTile({
   );
 }
 
+function ComponentMeter({ label, value }: { label: string; value: number }) {
+  const clampedValue = Math.max(0, Math.min(value, 100));
+  return (
+    <div className="rounded-2xl border bg-slate-50 p-4">
+      <div className="flex items-center justify-between gap-3">
+        <p className="text-sm font-semibold text-slate-900">{label}</p>
+        <p className="text-sm text-slate-500">{clampedValue.toFixed(1)}</p>
+      </div>
+      <div className="mt-3 h-2.5 overflow-hidden rounded-full bg-slate-200">
+        <div
+          className={`h-full rounded-full ${
+            clampedValue >= 70 ? "bg-rose-500" : clampedValue >= 50 ? "bg-amber-500" : "bg-emerald-500"
+          }`}
+          style={{ width: `${clampedValue}%` }}
+        />
+      </div>
+    </div>
+  );
+}
+
+function InfoRow({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="flex items-center justify-between gap-4 rounded-2xl border bg-slate-50 px-4 py-3">
+      <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</span>
+      <span className="text-sm font-medium text-slate-900">{value}</span>
+    </div>
+  );
+}
+
 function inputClassName(hasError: boolean) {
   return `w-full rounded-2xl border bg-white px-4 py-3 text-sm outline-none transition focus:border-primary ${
     hasError ? "border-rose-300" : ""
@@ -420,4 +547,43 @@ function formatDateTime(value: string) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function formatMetricNumber(value: number | undefined) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "N/A";
+  }
+  return value.toFixed(2);
+}
+
+function formatMetricPercent(value: number | undefined) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "N/A";
+  }
+  return `${(value * 100).toFixed(1)}%`;
+}
+
+function formatMetricSpread(value: number | undefined) {
+  if (typeof value !== "number" || Number.isNaN(value)) {
+    return "N/A";
+  }
+  return `${value.toFixed(2)}%`;
+}
+
+function formatIndicatorValue(value: number | null, indicatorName: string) {
+  if (value === null || Number.isNaN(value)) {
+    return "N/A";
+  }
+
+  if (
+    indicatorName.includes("Drawdown") ||
+    indicatorName.includes("Vol") ||
+    indicatorName.includes("Breadth") ||
+    indicatorName.includes("Ratio") ||
+    indicatorName.includes("Participation")
+  ) {
+    return `${(value * 100).toFixed(1)}%`;
+  }
+
+  return value.toFixed(2);
 }

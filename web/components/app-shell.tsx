@@ -11,7 +11,7 @@ const navItems = [
   { label: "Overview", href: "#overview" },
   { label: "Alerts", href: "#alerts" },
   { label: "Settings", href: "#settings" },
-  { label: "Migration", href: "#migration" },
+  { label: "Contracts", href: "#migration" },
 ];
 
 type AppShellProps = {
@@ -29,9 +29,9 @@ export function AppShell({ data }: AppShellProps) {
         <div className="space-y-3">
           <BrandLockup size="lg" priority />
           <p className="text-xs font-semibold uppercase tracking-[0.28em] text-cyan-300">Trade Control</p>
-          <h1 className="text-3xl font-semibold tracking-tight">Migration Console</h1>
+          <h1 className="text-3xl font-semibold tracking-tight">Crash Monitor</h1>
           <p className="text-sm leading-6 text-slate-300">
-            Next.js is taking over the product surface while Python remains the operational core.
+            Monitor market stress, participation, and crash-risk cues while Python remains the calculation engine.
           </p>
         </div>
         <nav className="mt-8 space-y-2">
@@ -66,14 +66,14 @@ export function AppShell({ data }: AppShellProps) {
             <div className="max-w-3xl space-y-4">
               <div className="inline-flex items-center gap-2 rounded-full border bg-slate-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.24em] text-slate-500">
                 <span className="h-2 w-2 rounded-full bg-emerald-500" />
-                API + UI migration
+                Live market dashboard
               </div>
               <h2 className="text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
-                The new app shell is talking to the Python backend through typed contracts.
+                Systematic crash-risk monitoring with live charts, percentiles, and action cues.
               </h2>
               <p className="max-w-2xl text-base leading-7 text-slate-600">
-                This page is intentionally product-shaped rather than a throwaway placeholder. It uses the new
-                endpoints for bootstrap settings, session state, dashboard configuration, and alert history.
+                The dashboard pulls price history, breadth, volatility, yield, and participation signals from the
+                Python backend so the web app behaves like the original product instead of a migration stub.
               </p>
             </div>
 
@@ -207,15 +207,15 @@ export function AppShell({ data }: AppShellProps) {
           <Panel
             eyebrow="Alert History"
             title="Recent feed"
-            description="This now supports client-side refresh through the Next.js proxy route while keeping Python as the source of truth."
+            description="Refreshes through the Next.js proxy route while keeping Python as the source of truth."
           >
             <AlertsPanel initialItems={alertItems} />
           </Panel>
 
           <Panel
             eyebrow="Signals"
-            title="What is currently wired"
-            description="The frontend now has its own refreshable data plane through local API routes while Python remains the source of truth."
+            title="Live dashboard plumbing"
+            description="The frontend refreshes through local API routes while the Python backend owns the calculations."
           >
             <ul className="space-y-3 text-sm leading-6 text-slate-700">
               <li>Dashboard filters refresh live through <code>/api/dashboard</code>.</li>
@@ -230,7 +230,7 @@ export function AppShell({ data }: AppShellProps) {
           <Panel
             eyebrow="Settings"
             title="User dashboard defaults"
-            description="The frontend can now persist settings changes through the local Next.js proxy and trigger a fresh server-rendered dashboard snapshot."
+            description="Persist settings changes through the local Next.js proxy and trigger a fresh dashboard snapshot."
           >
             <SettingsEditor
               initialSettings={settings}
@@ -239,19 +239,21 @@ export function AppShell({ data }: AppShellProps) {
             />
           </Panel>
 
-          <Panel
-            eyebrow="Migration"
-            title="What is already real"
-            description="This shell is no longer static scaffolding. The contracts below are live and covered by the Python test suite."
-          >
-            <ul className="space-y-3 text-sm leading-6 text-slate-700">
-              <li><code>GET /api/session</code> for auth bootstrap</li>
-              <li><code>GET /api/dashboard</code> for snapshot data</li>
-              <li><code>GET /api/dashboard?...filters</code> for interactive refresh</li>
-              <li><code>GET/PUT /api/account/settings</code> for user defaults</li>
-              <li><code>GET /api/alerts/history</code> for the alert feed</li>
-            </ul>
-          </Panel>
+          <div id="migration">
+            <Panel
+              eyebrow="Contracts"
+              title="Active API surface"
+              description="These routes now power the live web app and are covered by the Python test suite."
+            >
+              <ul className="space-y-3 text-sm leading-6 text-slate-700">
+                <li><code>GET /api/session</code> for auth bootstrap</li>
+                <li><code>GET /api/dashboard</code> for snapshot data</li>
+                <li><code>GET /api/dashboard?...filters</code> for interactive refresh</li>
+                <li><code>GET/PUT /api/account/settings</code> for user defaults</li>
+                <li><code>GET /api/alerts/history</code> for the alert feed</li>
+              </ul>
+            </Panel>
+          </div>
         </section>
       </div>
     </main>
