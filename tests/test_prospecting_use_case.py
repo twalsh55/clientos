@@ -109,11 +109,14 @@ def test_daily_prospecting_use_case_shortlists_and_emails() -> None:
     ]
     assert drafter.calls[0][2] == "https://www.brivoly.com"
     assert email_delivery.sent[0][0] == "tom.mg.walsh@gmail.com"
-    assert "invoice reconciliation workflow tool" in email_delivery.sent[0][2]
-    assert "Summary:" in email_delivery.sent[0][2]
+    assert "Potential app concepts:" in email_delivery.sent[0][2]
+    assert "Description: draft for 1" in email_delivery.sent[0][2]
+    assert "Observed workflow signal:" in email_delivery.sent[0][2]
     assert "Decision summary:" in email_delivery.sent[0][2]
     assert "Audit detail mode: concise" in email_delivery.sent[0][2]
-    assert "Opportunity idea:" in email_delivery.sent[0][2]
+    assert "Title:" not in email_delivery.sent[0][2]
+    assert "\nURL:" not in email_delivery.sent[0][2]
+    assert "Author:" not in email_delivery.sent[0][2]
 
 
 def test_daily_prospecting_use_case_handles_empty_shortlist() -> None:
@@ -202,8 +205,8 @@ def test_format_digest_email_truncates_long_body() -> None:
     body = format_digest_email(config, digest)
 
     assert "..." in body
-    assert "Opportunity idea:" in body
-    assert "Summary:" in body
+    assert "Description: reply" in body
+    assert "Observed workflow signal:" in body
     assert "Audit detail mode: concise" in body
 
 
@@ -239,7 +242,8 @@ def test_format_digest_email_uses_source_label_for_shortlisted_posts() -> None:
 
     body = format_digest_email(DailyProspectingConfig(recipient_email="tom.mg.walsh@gmail.com"), digest)
 
-    assert "1. hackernews post" in body
+    assert "1. App concept" in body
+    assert "Source mix: hackernews via query 'query'" in body
 
 
 def test_format_digest_email_includes_full_audit_when_verbose() -> None:

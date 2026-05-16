@@ -172,23 +172,18 @@ def format_digest_email(config: DailyProspectingConfig, digest: ProspectingDiges
         lines.extend([f"Reference URL: {config.app_url}", ""])
 
     if digest.shortlisted_posts:
-        lines.extend(["Shortlisted opportunity signals:", ""])
+        lines.extend(["Potential app concepts:", ""])
 
     for index, item in enumerate(digest.shortlisted_posts, start=1):
         excerpt = _summarize_post_text(item.post.title, item.post.body, max_length=180)
         lines.extend(
             [
-                f"{index}. {item.post.source} post",
-                f"Title: {item.post.title}",
-                f"Author: {item.post.author}",
-                f"Posted at: {item.post.created_at.isoformat()}",
-                f"URL: {item.post.permalink}",
-                f"Matched query: {item.matched_query}",
-                f"Score: {item.score}",
-                f"Reasons: {', '.join(item.reasons)}",
-                f"Summary: {excerpt or '(no body text)'}",
-                "Opportunity idea:",
-                item.suggested_reply,
+                f"{index}. App concept",
+                f"Description: {item.suggested_reply}",
+                f"Why it looks promising: {', '.join(item.reasons)}",
+                f"Observed workflow signal: {excerpt or item.post.title}",
+                f"Source mix: {item.post.source} via query '{item.matched_query}'",
+                f"Opportunity score: {item.score}",
                 "",
             ]
         )
@@ -220,7 +215,7 @@ def format_digest_email(config: DailyProspectingConfig, digest: ProspectingDiges
         lines.extend(
             [
                 "Audit detail mode: concise",
-                "Only the most relevant shortlisted results are shown in full.",
+                "Only synthesized app concepts are shown in full.",
                 "",
             ]
         )
