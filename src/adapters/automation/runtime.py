@@ -14,7 +14,7 @@ from pathlib import Path
 from src.adapters.notifications.smtp_email_notifier import EmailNotificationError
 from src.adapters.llm.openai_prospect_drafter import OpenAIProspectDrafterError
 from src.adapters.operator_briefing.runtime import run_daily_operator_briefing_job
-from src.adapters.prospecting.runtime import parse_positive_int, run_prospecting_job
+from src.adapters.prospecting.runtime import is_placeholder_openai_key, parse_positive_int, run_prospecting_job
 from src.adapters.social.reddit_lead_source import RedditLeadSourceError
 from src.application.automation import (
     AutomationHeartbeat,
@@ -182,9 +182,10 @@ def run_worker_from_env(max_iterations: int | None = None) -> int:
 
 
 def _run_prospect_job() -> AutomationJobResult:
+    fallback_suffix = ""
+    placeholder_suffix = ""
     try:
         digest = run_prospecting_job()
-        fallback_suffix = ""
     except OpenAIProspectDrafterError as exc:
         if os.getenv("AUTOMATION_ALLOW_TEMPLATE_FALLBACK", "true").strip().lower() == "false":
             return AutomationJobResult(status="failed", detail=str(exc))
@@ -192,11 +193,14 @@ def _run_prospect_job() -> AutomationJobResult:
         fallback_suffix = " fallback=template"
     except (ValueError, EmailNotificationError, RedditLeadSourceError, RuntimeError) as exc:
         return AutomationJobResult(status="failed", detail=str(exc))
+    openai_api_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if openai_api_key and is_placeholder_openai_key(openai_api_key):
+        placeholder_suffix = " openai_key=placeholder"
     return AutomationJobResult(
         status="ok",
         detail=(
             f"profile={digest.profile} scanned={digest.scanned_post_count} shortlisted={digest.shortlisted_count} "
-            f"token_usage={_format_token_usage(digest.token_usage)}{fallback_suffix}"
+            f"token_usage={_format_token_usage(digest.token_usage)}{fallback_suffix}{placeholder_suffix}"
         ),
     )
 

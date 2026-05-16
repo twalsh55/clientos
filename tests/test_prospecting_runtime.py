@@ -13,6 +13,7 @@ from src.adapters.prospecting.runtime import (
     collect_prospecting_config_errors,
     has_configured_smtp_delivery,
     has_configured_telegram_delivery,
+    is_placeholder_openai_key,
     parse_positive_int,
     required_env,
     run_prospecting_job,
@@ -77,10 +78,18 @@ def test_build_drafter_from_env_uses_template_without_api_key(monkeypatch) -> No
 
 
 def test_build_drafter_from_env_uses_openai_when_api_key_present(monkeypatch) -> None:
-    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test-realistic-key-1234567890")
     drafter = build_drafter_from_env()
     assert drafter.__class__.__name__ == "OpenAIProspectDrafter"
     assert drafter.model == "gpt-5.4"
+
+
+def test_build_drafter_from_env_uses_template_for_placeholder_api_key(monkeypatch) -> None:
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-...")
+    assert build_drafter_from_env().__class__.__name__ == "TemplateProspectDrafter"
+    assert is_placeholder_openai_key("sk-...") is True
+    assert is_placeholder_openai_key("your-openai-api-key") is True
+    assert is_placeholder_openai_key("sk-test-realistic-key-1234567890") is False
 
 
 def test_build_lead_source_from_env_uses_custom_user_agent(monkeypatch) -> None:
@@ -164,12 +173,14 @@ def test_build_digest_delivery_from_env_requires_at_least_one_channel(monkeypatc
 def test_collect_prospecting_config_errors_reports_missing_and_invalid_fields(monkeypatch) -> None:
     for name in ("SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD", "SMTP_FROM_EMAIL", "TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID"):
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-...")
     monkeypatch.setenv("PROSPECT_MAX_MATCHES", "abc")
     monkeypatch.setenv("PROSPECT_PERIODIC_INTERVAL_MINUTES", "bad")
     monkeypatch.setenv("SMTP_PORT", "0")
 
     errors = collect_prospecting_config_errors()
 
+    assert "OPENAI_API_KEY looks like a placeholder. Replace it with a real OpenAI API key." in errors
     assert "Missing SMTP delivery settings and Telegram delivery fallback is unavailable" in errors
     assert "PROSPECT_MAX_MATCHES must be an integer" in errors
     assert "PROSPECT_PERIODIC_INTERVAL_MINUTES must be an integer" in errors
@@ -179,6 +190,7 @@ def test_collect_prospecting_config_errors_reports_missing_and_invalid_fields(mo
 def test_collect_prospecting_config_errors_allows_telegram_fallback(monkeypatch) -> None:
     for name in ("SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD", "SMTP_FROM_EMAIL"):
         monkeypatch.delenv(name, raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "bot")
     monkeypatch.setenv("TELEGRAM_CHAT_ID", "chat")
     assert collect_prospecting_config_errors() == []

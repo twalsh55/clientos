@@ -29,6 +29,11 @@ from src.application.prospecting import (
 DEFAULT_RECIPIENT = "tom.mg.walsh@gmail.com"
 
 
+def is_placeholder_openai_key(api_key: str) -> bool:
+    normalized = api_key.strip()
+    return normalized in {"sk-...", "sk-placeholder", "your-openai-api-key"} or len(normalized) < 20
+
+
 def build_config_from_env() -> DailyProspectingConfig:
     profile = os.getenv("PROSPECT_PROFILE", "general").strip().lower() or "general"
     search_terms_env = os.getenv("PROSPECT_REDDIT_SEARCH_TERMS", "").strip()
@@ -80,7 +85,7 @@ def build_digest_delivery_from_env() -> EmailDeliveryPort:
 
 def build_drafter_from_env() -> OpenAIProspectDrafter | TemplateProspectDrafter:
     api_key = os.getenv("OPENAI_API_KEY", "").strip()
-    if not api_key:
+    if not api_key or is_placeholder_openai_key(api_key):
         return TemplateProspectDrafter()
     return OpenAIProspectDrafter(
         api_key=api_key,
@@ -126,6 +131,9 @@ def run_prospecting_job() -> ProspectingDigest:
 
 def collect_prospecting_config_errors() -> list[str]:
     errors: list[str] = []
+    raw_openai_key = os.getenv("OPENAI_API_KEY", "").strip()
+    if raw_openai_key and is_placeholder_openai_key(raw_openai_key):
+        errors.append("OPENAI_API_KEY looks like a placeholder. Replace it with a real OpenAI API key.")
     if not has_configured_smtp_delivery() and not has_configured_telegram_delivery():
         errors.append("Missing SMTP delivery settings and Telegram delivery fallback is unavailable")
 

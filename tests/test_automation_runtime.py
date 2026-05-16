@@ -219,6 +219,11 @@ def test_automation_job_runners_report_success_and_failure(monkeypatch) -> None:
     assert result.status == "ok"
     assert "profile=crm_direction" in result.detail
 
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-...")
+    monkeypatch.setattr("src.adapters.automation.runtime.run_prospecting_job", lambda: digest)
+    result = _run_prospect_job()
+    assert "openai_key=placeholder" in result.detail
+
     calls = {"count": 0}
 
     def flaky_prospect():
