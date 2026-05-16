@@ -69,10 +69,25 @@ def test_build_drafter_from_env_uses_openai_when_api_key_present(monkeypatch) ->
 
 def test_build_lead_source_from_env_uses_custom_user_agent(monkeypatch) -> None:
     monkeypatch.setenv("PROSPECT_REDDIT_USER_AGENT", "custom-agent")
+    monkeypatch.setenv("PROSPECT_PUBLIC_SEARCH_USER_AGENT", "public-agent")
     source = build_lead_source_from_env()
     assert source.__class__.__name__ == "CompositeLeadSource"
     assert source.sources[0].user_agent == "custom-agent"
     assert source.sources[1].__class__.__name__ == "HackerNewsLeadSource"
+    assert source.sources[2].__class__.__name__ == "XLeadSource"
+    assert source.sources[2].user_agent == "public-agent"
+    assert source.sources[3].__class__.__name__ == "DiscordLeadSource"
+
+
+def test_build_lead_source_from_env_respects_toggles(monkeypatch) -> None:
+    monkeypatch.setenv("PROSPECT_ENABLE_REDDIT_SOURCE", "false")
+    monkeypatch.setenv("PROSPECT_ENABLE_HACKER_NEWS_SOURCE", "false")
+    monkeypatch.setenv("PROSPECT_ENABLE_X_SOURCE", "true")
+    monkeypatch.setenv("PROSPECT_ENABLE_DISCORD_SOURCE", "false")
+
+    source = build_lead_source_from_env()
+
+    assert [item.__class__.__name__ for item in source.sources] == ["XLeadSource"]
 
 
 def test_build_telegram_digest_notifier_from_env_requires_telegram(monkeypatch) -> None:

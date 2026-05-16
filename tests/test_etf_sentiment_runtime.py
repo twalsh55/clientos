@@ -236,13 +236,19 @@ def test_load_sentiment_queries_from_env_uses_defaults_and_override(monkeypatch)
 def test_build_signal_sources_from_env_respects_toggles(monkeypatch) -> None:
     monkeypatch.delenv("ETF_SENTIMENT_ENABLE_REDDIT_SIGNALS", raising=False)
     monkeypatch.delenv("ETF_SENTIMENT_ENABLE_NEWS_SIGNALS", raising=False)
+    monkeypatch.delenv("ETF_SENTIMENT_ENABLE_X_SIGNALS", raising=False)
+    monkeypatch.delenv("ETF_SENTIMENT_ENABLE_DISCORD_SIGNALS", raising=False)
     assert [source.__class__.__name__ for source in build_signal_sources_from_env()] == [
         "RedditDiscussionSource",
         "GoogleNewsRSSSource",
+        "XDiscussionSource",
+        "DiscordDiscussionSource",
     ]
 
     monkeypatch.setenv("ETF_SENTIMENT_ENABLE_REDDIT_SIGNALS", "false")
     monkeypatch.setenv("ETF_SENTIMENT_ENABLE_NEWS_SIGNALS", "false")
+    monkeypatch.setenv("ETF_SENTIMENT_ENABLE_X_SIGNALS", "false")
+    monkeypatch.setenv("ETF_SENTIMENT_ENABLE_DISCORD_SIGNALS", "false")
     assert build_signal_sources_from_env() == ()
 
 

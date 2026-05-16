@@ -8,8 +8,10 @@ from src.adapters.notifications.smtp_email_notifier import SMTPEmailNotifier
 from src.adapters.notifications.telegram_digest_notifier import TelegramDigestNotifier
 from src.adapters.notifications.telegram_notifier import TelegramNotifier
 from src.adapters.social.composite_lead_source import CompositeLeadSource
+from src.adapters.social.discord_lead_source import DiscordLeadSource
 from src.adapters.social.hacker_news_lead_source import HackerNewsLeadSource
 from src.adapters.social.reddit_lead_source import RedditLeadSource
+from src.adapters.social.x_lead_source import XLeadSource
 from src.application.ports import EmailDeliveryPort
 from src.application.prospecting import (
     DEFAULT_APP_SUMMARY,
@@ -79,12 +81,17 @@ def build_drafter_from_env() -> OpenAIProspectDrafter | TemplateProspectDrafter:
 
 
 def build_lead_source_from_env() -> CompositeLeadSource:
-    return CompositeLeadSource(
-        sources=(
-            RedditLeadSource(user_agent=os.getenv("PROSPECT_REDDIT_USER_AGENT", "brivoly-prospecting-bot/0.1")),
-            HackerNewsLeadSource(),
-        )
-    )
+    user_agent = os.getenv("PROSPECT_PUBLIC_SEARCH_USER_AGENT", "trade-prospecting-bot/0.1").strip() or "trade-prospecting-bot/0.1"
+    sources = []
+    if os.getenv("PROSPECT_ENABLE_REDDIT_SOURCE", "true").strip().lower() != "false":
+        sources.append(RedditLeadSource(user_agent=os.getenv("PROSPECT_REDDIT_USER_AGENT", user_agent)))
+    if os.getenv("PROSPECT_ENABLE_HACKER_NEWS_SOURCE", "true").strip().lower() != "false":
+        sources.append(HackerNewsLeadSource())
+    if os.getenv("PROSPECT_ENABLE_X_SOURCE", "true").strip().lower() != "false":
+        sources.append(XLeadSource(user_agent=user_agent))
+    if os.getenv("PROSPECT_ENABLE_DISCORD_SOURCE", "true").strip().lower() != "false":
+        sources.append(DiscordLeadSource(user_agent=user_agent))
+    return CompositeLeadSource(sources=tuple(sources))
 
 
 def build_telegram_digest_notifier_from_env() -> TelegramDigestNotifier:

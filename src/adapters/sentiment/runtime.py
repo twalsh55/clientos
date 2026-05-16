@@ -14,8 +14,10 @@ from src.adapters.notifications.composite_email_notifier import CompositeEmailNo
 from src.adapters.notifications.smtp_email_notifier import SMTPEmailNotifier
 from src.adapters.notifications.telegram_digest_notifier import TelegramDigestNotifier
 from src.adapters.notifications.telegram_notifier import TelegramNotifier
+from src.adapters.sentiment.sources.discord_search import DiscordDiscussionSource
 from src.adapters.sentiment.sources.google_news_rss import GoogleNewsRSSSource, SentimentSignal
 from src.adapters.sentiment.sources.reddit_discussion import RedditDiscussionSource
+from src.adapters.sentiment.sources.x_search import XDiscussionSource
 from src.application.ports import EmailDeliveryPort
 
 DEFAULT_ETF_PROMPT_FILE = Path(__file__).resolve().parents[3] / "prompts" / "ETF_SENTIMENT.md"
@@ -315,16 +317,22 @@ def build_sentiment_signal_snapshot(
 def build_signal_sources_from_env() -> tuple[SentimentSignalSource, ...]:
     reddit_enabled = os.getenv("ETF_SENTIMENT_ENABLE_REDDIT_SIGNALS", "true").strip().lower() != "false"
     news_enabled = os.getenv("ETF_SENTIMENT_ENABLE_NEWS_SIGNALS", "true").strip().lower() != "false"
+    x_enabled = os.getenv("ETF_SENTIMENT_ENABLE_X_SIGNALS", "true").strip().lower() != "false"
+    discord_enabled = os.getenv("ETF_SENTIMENT_ENABLE_DISCORD_SIGNALS", "true").strip().lower() != "false"
+    user_agent = os.getenv("ETF_SENTIMENT_PUBLIC_SEARCH_USER_AGENT", "brivoly-etf-sentiment-bot/0.1").strip() or "brivoly-etf-sentiment-bot/0.1"
     sources: list[SentimentSignalSource] = []
     if reddit_enabled:
         sources.append(
             RedditDiscussionSource(
-                user_agent=os.getenv("ETF_SENTIMENT_REDDIT_USER_AGENT", "brivoly-etf-sentiment-bot/0.1").strip()
-                or "brivoly-etf-sentiment-bot/0.1"
+                user_agent=os.getenv("ETF_SENTIMENT_REDDIT_USER_AGENT", user_agent).strip() or user_agent
             )
         )
     if news_enabled:
         sources.append(GoogleNewsRSSSource())
+    if x_enabled:
+        sources.append(XDiscussionSource(user_agent=user_agent))
+    if discord_enabled:
+        sources.append(DiscordDiscussionSource(user_agent=user_agent))
     return tuple(sources)
 
 
