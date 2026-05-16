@@ -208,12 +208,13 @@ There is now a low-cost daily prospecting job for testing outreach ideas without
 
 What it does:
 
-- searches Reddit and Hacker News for recent posts that look relevant to the app
+- searches Reddit and Hacker News for recent workflow-pain discussions
 - scores posts with local heuristics first to avoid unnecessary model usage
-- uses OpenAI only for a tiny drafting step when `OPENAI_API_KEY` is configured
+- uses OpenAI only for a small opportunity-idea drafting step when `OPENAI_API_KEY` is configured
 - sends a plain-text email digest to `tom.mg.walsh@gmail.com` by default
 - falls back to Telegram digest delivery when SMTP is not configured but Telegram is
 - never posts to Reddit, Hacker News, or any other social network
+- does not draft public replies or posting suggestions; it returns SaaS ideas only
 
 Required email settings:
 
@@ -264,7 +265,7 @@ Useful prospecting settings:
 
 ```bash
 PROSPECT_EMAIL_RECIPIENT=tom.mg.walsh@gmail.com
-PROSPECT_REDDIT_SEARCH_TERMS=looking for stock market crash app,portfolio risk dashboard,market crash alert tool
+PROSPECT_REDDIT_SEARCH_TERMS=i wish there was a tool for,how are you solving this manually,spreadsheet workflow problem
 PROSPECT_REDDIT_LIMIT_PER_TERM=8
 PROSPECT_MAX_MATCHES=5
 PROSPECT_MIN_SCORE=12

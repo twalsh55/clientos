@@ -455,7 +455,11 @@ def _build_prospecting_status_message() -> str:
     openai_enabled = bool(os.getenv("OPENAI_API_KEY", "").strip())
     if errors:
         return "Prospecting agent is not ready:\n- " + "\n- ".join(errors)
-    model_line = "OpenAI drafting enabled." if openai_enabled else "OpenAI drafting disabled; template replies will be used."
+    model_line = (
+        "OpenAI idea drafting enabled."
+        if openai_enabled
+        else "OpenAI idea drafting disabled; template opportunity ideas will be used."
+    )
     return f"Prospecting agent is ready.\n{model_line}"
 
 
@@ -464,7 +468,7 @@ def _run_prospecting_from_telegram(notifier: TelegramNotifier) -> None:
         digest = run_prospecting_job()
         notifier.send_message(
             f"Prospecting finished. Scanned {digest.scanned_post_count} posts, shortlisted "
-            f"{digest.shortlisted_count}, and emailed the digest."
+            f"{digest.shortlisted_count} opportunity signals, and sent the digest."
         )
     except (EmailNotificationError, RedditLeadSourceError, TelegramNotificationError, ValueError, RuntimeError) as exc:
         try:

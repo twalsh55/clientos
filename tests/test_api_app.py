@@ -282,10 +282,10 @@ def test_build_prospecting_status_message_reports_errors_and_modes(monkeypatch) 
 
     monkeypatch.setattr("src.adapters.api.app.collect_prospecting_config_errors", lambda: [])
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
-    assert _build_prospecting_status_message() == "Prospecting agent is ready.\nOpenAI drafting disabled; template replies will be used."
+    assert _build_prospecting_status_message() == "Prospecting agent is ready.\nOpenAI idea drafting disabled; template opportunity ideas will be used."
 
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-    assert _build_prospecting_status_message() == "Prospecting agent is ready.\nOpenAI drafting enabled."
+    assert _build_prospecting_status_message() == "Prospecting agent is ready.\nOpenAI idea drafting enabled."
 
 
 def test_build_etf_sentiment_status_message_reports_errors_and_modes(monkeypatch) -> None:
@@ -314,7 +314,7 @@ def test_run_prospecting_from_telegram_sends_success_and_failure_updates(monkeyp
         lambda: type("Digest", (), {"scanned_post_count": 7, "shortlisted_count": 2})(),
     )
     _run_prospecting_from_telegram(FakeNotifier())  # type: ignore[arg-type]
-    assert sent[-1] == "Prospecting finished. Scanned 7 posts, shortlisted 2, and emailed the digest."
+    assert sent[-1] == "Prospecting finished. Scanned 7 posts, shortlisted 2 opportunity signals, and sent the digest."
 
     monkeypatch.setattr("src.adapters.api.app.run_prospecting_job", lambda: (_ for _ in ()).throw(ValueError("broken")))
     _run_prospecting_from_telegram(FakeNotifier())  # type: ignore[arg-type]
@@ -416,7 +416,7 @@ def test_telegram_webhook_handles_commands_and_guards(monkeypatch) -> None:
         json={"message": {"text": "/prospect status", "chat": {"id": 123}}},
     )
     assert response.json() == {"ok": True, "handled": True, "command": "/prospect status"}
-    assert sent[-1] == "Prospecting agent is ready.\nOpenAI drafting disabled; template replies will be used."
+    assert sent[-1] == "Prospecting agent is ready.\nOpenAI idea drafting disabled; template opportunity ideas will be used."
 
     response = client.post(
         "/api/telegram/webhook",

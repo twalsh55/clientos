@@ -59,21 +59,21 @@ def make_post(external_id: str, title: str, body: str, day: int) -> SocialPost:
 def test_daily_prospecting_use_case_shortlists_and_emails() -> None:
     matching_post = make_post(
         "1",
-        "Looking for a market crash dashboard tool?",
-        "Need help monitoring my portfolio risk during volatility.",
+        "I wish there was a better invoice reconciliation workflow tool?",
+        "Need help replacing spreadsheets and manual CSV checks for this recurring process.",
         14,
     )
     duplicate_post = make_post(
         "1",
-        "Looking for a market crash dashboard tool?",
-        "Need help monitoring my portfolio risk during volatility.",
+        "I wish there was a better invoice reconciliation workflow tool?",
+        "Need help replacing spreadsheets and manual CSV checks for this recurring process.",
         14,
     )
-    weaker_post = make_post("2", "Daily recap", "Just posting a market summary.", 13)
+    weaker_post = make_post("2", "Daily recap", "Just posting a general summary.", 13)
     lead_source = StubLeadSource(
         {
-            "looking for stock market crash app": [matching_post, weaker_post],
-            "portfolio risk dashboard": [duplicate_post],
+            "i wish there was a tool for": [matching_post, weaker_post],
+            "spreadsheet workflow problem": [duplicate_post],
         }
     )
     drafter = StubDrafter()
@@ -89,15 +89,15 @@ def test_daily_prospecting_use_case_shortlists_and_emails() -> None:
         DailyProspectingConfig(
             recipient_email="tom.mg.walsh@gmail.com",
             app_url="https://www.brivoly.com",
-            search_terms=("looking for stock market crash app", "portfolio risk dashboard"),
+            search_terms=("i wish there was a tool for", "spreadsheet workflow problem"),
             per_term_limit=5,
             max_matches=2,
         )
     )
 
     assert lead_source.calls == [
-        ("looking for stock market crash app", 5),
-        ("portfolio risk dashboard", 5),
+        ("i wish there was a tool for", 5),
+        ("spreadsheet workflow problem", 5),
     ]
     assert digest.scanned_post_count == 3
     assert digest.shortlisted_count == 1
@@ -109,14 +109,15 @@ def test_daily_prospecting_use_case_shortlists_and_emails() -> None:
     ]
     assert drafter.calls[0][2] == "https://www.brivoly.com"
     assert email_delivery.sent[0][0] == "tom.mg.walsh@gmail.com"
-    assert "Looking for a market crash dashboard tool?" in email_delivery.sent[0][2]
+    assert "invoice reconciliation workflow tool" in email_delivery.sent[0][2]
     assert "Summary:" in email_delivery.sent[0][2]
     assert "Decision summary:" in email_delivery.sent[0][2]
     assert "Audit detail mode: concise" in email_delivery.sent[0][2]
+    assert "Opportunity idea:" in email_delivery.sent[0][2]
 
 
 def test_daily_prospecting_use_case_handles_empty_shortlist() -> None:
-    lead_source = StubLeadSource({"market crash alert tool": []})
+    lead_source = StubLeadSource({"spreadsheet workflow problem": []})
     drafter = StubDrafter()
     email_delivery = StubEmailDelivery()
     use_case = RunDailyProspectingUseCase(
@@ -129,19 +130,19 @@ def test_daily_prospecting_use_case_handles_empty_shortlist() -> None:
     digest = use_case.execute(
         DailyProspectingConfig(
             recipient_email="tom.mg.walsh@gmail.com",
-            search_terms=("market crash alert tool",),
+            search_terms=("spreadsheet workflow problem",),
         )
     )
 
     assert digest.shortlisted_count == 0
     assert drafter.calls[0][1] == ()
-    assert "No strong social posts were found today." in email_delivery.sent[0][2]
+    assert "No strong SaaS opportunity signals were found today." in email_delivery.sent[0][2]
     assert "Audit detail mode: concise" in email_delivery.sent[0][2]
 
 
 def test_daily_prospecting_use_case_records_excluded_keyword_reason() -> None:
     excluded_post = make_post("3", "Hiring quant trader", "This job opening is for a trading startup.", 14)
-    lead_source = StubLeadSource({"portfolio risk dashboard": [excluded_post]})
+    lead_source = StubLeadSource({"spreadsheet workflow problem": [excluded_post]})
     drafter = StubDrafter()
     email_delivery = StubEmailDelivery()
     use_case = RunDailyProspectingUseCase(
@@ -154,7 +155,7 @@ def test_daily_prospecting_use_case_records_excluded_keyword_reason() -> None:
     digest = use_case.execute(
         DailyProspectingConfig(
             recipient_email="tom.mg.walsh@gmail.com",
-            search_terms=("portfolio risk dashboard",),
+            search_terms=("spreadsheet workflow problem",),
         )
     )
 
@@ -201,7 +202,7 @@ def test_format_digest_email_truncates_long_body() -> None:
     body = format_digest_email(config, digest)
 
     assert "..." in body
-    assert "Suggested promo reply:" in body
+    assert "Opportunity idea:" in body
     assert "Summary:" in body
     assert "Audit detail mode: concise" in body
 
@@ -276,8 +277,8 @@ def test_format_digest_email_includes_full_audit_when_verbose() -> None:
 def test_daily_prospecting_use_case_applies_top_five_and_min_score() -> None:
     lead_source = StubLeadSource(
         {
-            "portfolio risk dashboard": [
-                make_post(str(index), f"Looking for a crash dashboard tool? #{index}", "I need a tool to monitor portfolio risk during volatility.", 14)
+            "spreadsheet workflow problem": [
+                make_post(str(index), f"I wish there was a better operations workflow tool? #{index}", "I need help replacing spreadsheets and manual reporting with automation.", 14)
                 for index in range(1, 8)
             ]
         }
@@ -294,7 +295,7 @@ def test_daily_prospecting_use_case_applies_top_five_and_min_score() -> None:
     digest = use_case.execute(
         DailyProspectingConfig(
             recipient_email="tom.mg.walsh@gmail.com",
-            search_terms=("portfolio risk dashboard",),
+            search_terms=("spreadsheet workflow problem",),
             max_matches=5,
             min_score=12,
         )

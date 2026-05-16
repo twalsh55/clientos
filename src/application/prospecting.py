@@ -8,14 +8,15 @@ from src.application.ports import EmailDeliveryPort, ProspectDraftingPort, Socia
 from src.domain.prospecting import ProspectMatch, SocialPost, score_social_post
 
 DEFAULT_PROSPECT_SEARCH_TERMS = (
-    "looking for stock market crash app",
-    "portfolio risk dashboard",
-    "market crash alert tool",
+    "i wish there was a tool for",
+    "how are you solving this manually",
+    "spreadsheet workflow problem",
 )
 
 DEFAULT_APP_SUMMARY = (
-    "Brivoly is a SaaS app for tracking market crash risk with a dashboard, risk signals, "
-    "and alerts for investors who want to monitor portfolio conditions."
+    "You are researching boring, profitable SaaS opportunities for a solo indie hacker. "
+    "Focus on painful, recurring, monetizable workflows with low operational complexity. "
+    "Do not suggest posting, replying, or promoting anything publicly."
 )
 
 
@@ -168,10 +169,10 @@ def format_digest_email(config: DailyProspectingConfig, digest: ProspectingDiges
     ]
 
     if config.app_url:
-        lines.extend([f"App URL for drafting context: {config.app_url}", ""])
+        lines.extend([f"Reference URL: {config.app_url}", ""])
 
     if digest.shortlisted_posts:
-        lines.extend(["Shortlisted matches:", ""])
+        lines.extend(["Shortlisted opportunity signals:", ""])
 
     for index, item in enumerate(digest.shortlisted_posts, start=1):
         excerpt = _summarize_post_text(item.post.title, item.post.body, max_length=180)
@@ -186,14 +187,14 @@ def format_digest_email(config: DailyProspectingConfig, digest: ProspectingDiges
                 f"Score: {item.score}",
                 f"Reasons: {', '.join(item.reasons)}",
                 f"Summary: {excerpt or '(no body text)'}",
-                "Suggested promo reply:",
+                "Opportunity idea:",
                 item.suggested_reply,
                 "",
             ]
         )
 
     if not digest.shortlisted_posts:
-        lines.extend(["No strong social posts were found today.", ""])
+        lines.extend(["No strong SaaS opportunity signals were found today.", ""])
 
     if config.verbose_audit:
         lines.extend(["Full audit trail:", ""])

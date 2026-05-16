@@ -8,7 +8,7 @@ from src.domain.prospecting import ProspectMatch
 
 
 class OpenAIProspectDrafterError(RuntimeError):
-    """Raised when promotional reply drafting fails."""
+    """Raised when opportunity idea drafting fails."""
 
 
 class OpenAIProspectDrafter:
@@ -47,11 +47,12 @@ class OpenAIProspectDrafter:
             ],
         }
         instructions = (
-            "You are helping with low-volume outbound research for a SaaS app. "
-            "For each post, write one concise, helpful promotional reply under 70 words. "
-            "Do not claim you already use the product. Do not be pushy. "
+            "You are helping with SaaS opportunity discovery for a solo founder. "
+            "For each post, write one concise opportunity idea under 90 words describing a plausible SaaS product or feature, "
+            "the workflow pain it addresses, and why it may be monetizable. "
+            "Do not suggest posting, replying, outreach, or promotion. "
             "Return JSON only in the form "
-            '{"drafts":[{"post_id":"...","reply":"..."}]}.'
+            '{"drafts":[{"post_id":"...","idea":"..."}]}.'
         )
 
         try:
@@ -73,7 +74,7 @@ class OpenAIProspectDrafter:
             response.raise_for_status()
             payload = response.json()
         except (httpx.HTTPError, ValueError) as exc:
-            raise OpenAIProspectDrafterError("Unable to generate promotional drafts.") from exc
+            raise OpenAIProspectDrafterError("Unable to generate opportunity ideas.") from exc
 
         content = _extract_text_from_response(payload)
         try:
@@ -90,7 +91,9 @@ class OpenAIProspectDrafter:
             if not isinstance(item, dict):
                 continue
             post_id = item.get("post_id")
-            reply = item.get("reply")
+            reply = item.get("idea")
+            if not isinstance(reply, str):
+                reply = item.get("reply")
             if isinstance(post_id, str) and isinstance(reply, str):
                 replies_by_id[post_id] = reply.strip()
 
@@ -111,11 +114,11 @@ class TemplateProspectDrafter:
 
 
 def _build_template_reply(post_title: str, app_url: str | None) -> str:
-    app_link = f" You can check it here: {app_url}" if app_url else ""
+    app_link = f" Reference: {app_url}" if app_url else ""
     return (
-        f"If you're comparing tools for this kind of workflow, I built a small app focused on "
-        f"crash-risk monitoring and investor alerts. It may be useful for the problem behind "
-        f"'{post_title}'. Happy to share it if that would help.{app_link}"
+        f"Potential SaaS idea: build a lightweight workflow tool around the pain implied by "
+        f"'{post_title}', with a focus on recurring admin reduction, clearer reporting, or better automation. "
+        f"Prioritize narrow ROI, simple onboarding, and low-support execution.{app_link}"
     )
 
 
