@@ -45,7 +45,7 @@ Current source coverage:
 
 ### Prompt / operator docs
 
-- Updated `PROSPECT.md` to reflect current prospecting behavior and operator intent
+- Updated `prompts/PROSPECT.md` to reflect current prospecting behavior and operator intent
 - Updated `README.md` and `.env.example` to document the current prospecting and Telegram setup
 
 ### Additional source work completed locally
@@ -65,7 +65,7 @@ Latest pushed commits:
 
 Current uncommitted changes:
 
-- `PROSPECT.md`
+- `prompts/PROSPECT.md`
 - `README.md`
 - `src/adapters/prospecting/runtime.py`
 - `tests/test_prospecting_runtime.py`
@@ -209,7 +209,7 @@ Current production prospecting defaults already configured on Railway:
 Likely next commit after review:
 
 ```bash
-git add PROSPECT.md README.md src/adapters/prospecting/runtime.py tests/test_prospecting_runtime.py src/adapters/social/composite_lead_source.py src/adapters/social/hacker_news_lead_source.py tests/test_composite_lead_source.py tests/test_hacker_news_lead_source.py
+git add prompts/PROSPECT.md README.md src/adapters/prospecting/runtime.py tests/test_prospecting_runtime.py src/adapters/social/composite_lead_source.py src/adapters/social/hacker_news_lead_source.py tests/test_composite_lead_source.py tests/test_hacker_news_lead_source.py
 git commit -m "Add Hacker News source to prospecting agent"
 git push origin master
 ```

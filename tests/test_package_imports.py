@@ -12,6 +12,7 @@ import src.adapters.market_data
 import src.adapters.notifications
 import src.adapters.persistence
 import src.adapters.prospecting
+import src.adapters.sentiment
 import src.adapters.social
 import src.application
 import src.domain
@@ -28,6 +29,7 @@ def test_package_modules_import() -> None:
     assert src.adapters.notifications.__doc__ == "Notification adapters."
     assert src.adapters.persistence.__doc__ == "Persistence adapters."
     assert src.adapters.prospecting.__doc__ == "Prospecting runtime adapters."
+    assert src.adapters.sentiment.__doc__ == "ETF sentiment runtime adapters."
     assert src.adapters.social.__doc__ == "Social lead-source adapters."
     assert src.application.__doc__ == "Application layer: use-cases and ports."
     assert src.domain.__doc__ == "Domain layer: pure market-risk rules and models."

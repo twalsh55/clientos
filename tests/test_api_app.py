@@ -12,9 +12,11 @@ from src.adapters.api.app import (
     ApiDependencies,
     _DisabledBillingPort,
     _TelegramCommand,
+    _build_etf_sentiment_status_message,
     _build_prospecting_status_message,
     _extract_telegram_command,
     _normalize_universe,
+    _run_etf_sentiment_from_telegram,
     _run_prospecting_from_telegram,
     create_app,
 )
@@ -286,6 +288,20 @@ def test_build_prospecting_status_message_reports_errors_and_modes(monkeypatch) 
     assert _build_prospecting_status_message() == "Prospecting agent is ready.\nOpenAI drafting enabled."
 
 
+def test_build_etf_sentiment_status_message_reports_errors_and_modes(monkeypatch) -> None:
+    monkeypatch.setattr("src.adapters.api.app.collect_etf_sentiment_config_errors", lambda: ["Missing prompt"])
+    assert _build_etf_sentiment_status_message() == "ETF sentiment agent is not ready:\n- Missing prompt"
+
+    monkeypatch.setattr("src.adapters.api.app.collect_etf_sentiment_config_errors", lambda: [])
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    assert _build_etf_sentiment_status_message() == (
+        "ETF sentiment agent is ready.\nOpenAI analysis disabled; price-action template mode will be used."
+    )
+
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    assert _build_etf_sentiment_status_message() == "ETF sentiment agent is ready.\nOpenAI analysis enabled."
+
+
 def test_run_prospecting_from_telegram_sends_success_and_failure_updates(monkeypatch) -> None:
     sent: list[str] = []
 
@@ -317,6 +333,34 @@ def test_run_prospecting_from_telegram_sends_success_and_failure_updates(monkeyp
     _run_prospecting_from_telegram(FailingNotifier())  # type: ignore[arg-type]
 
 
+def test_run_etf_sentiment_from_telegram_sends_success_and_failure_updates(monkeypatch) -> None:
+    sent: list[str] = []
+
+    class FakeNotifier:
+        def send_message(self, text: str) -> None:
+            sent.append(text)
+
+    monkeypatch.setattr("src.adapters.api.app.run_etf_sentiment_job", lambda: "ETF Sentiment Brief")
+    _run_etf_sentiment_from_telegram(FakeNotifier())  # type: ignore[arg-type]
+    assert sent[-1] == "ETF Sentiment Brief"
+
+    monkeypatch.setattr("src.adapters.api.app.run_etf_sentiment_job", lambda: (_ for _ in ()).throw(ValueError("broken")))
+    _run_etf_sentiment_from_telegram(FakeNotifier())  # type: ignore[arg-type]
+    assert sent[-1] == "ETF sentiment run failed: broken"
+
+    class FailingNotifier:
+        calls = 0
+
+        def send_message(self, text: str) -> None:
+            self.calls += 1
+            raise __import__("src.adapters.notifications.telegram_notifier", fromlist=["TelegramNotificationError"]).TelegramNotificationError(
+                "down"
+            )
+
+    monkeypatch.setattr("src.adapters.api.app.run_etf_sentiment_job", lambda: (_ for _ in ()).throw(ValueError("broken")))
+    _run_etf_sentiment_from_telegram(FailingNotifier())  # type: ignore[arg-type]
+
+
 def test_telegram_webhook_handles_commands_and_guards(monkeypatch) -> None:
     client = make_client(user=make_user())
     sent: list[str] = []
@@ -335,7 +379,9 @@ def test_telegram_webhook_handles_commands_and_guards(monkeypatch) -> None:
     monkeypatch.setenv("TELEGRAM_WEBHOOK_SECRET", "secret")
     monkeypatch.setattr("src.adapters.api.app.TelegramNotifier", FakeNotifier)
     monkeypatch.setattr("src.adapters.api.app._run_prospecting_from_telegram", lambda notifier: tasks.append("ran"))
+    monkeypatch.setattr("src.adapters.api.app._run_etf_sentiment_from_telegram", lambda notifier: tasks.append("sentiment"))
     monkeypatch.setattr("src.adapters.api.app.collect_prospecting_config_errors", lambda: [])
+    monkeypatch.setattr("src.adapters.api.app.collect_etf_sentiment_config_errors", lambda: [])
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
 
     response = client.post("/api/telegram/webhook", headers={"X-Telegram-Bot-Api-Secret-Token": "secret"}, json={})
@@ -371,6 +417,23 @@ def test_telegram_webhook_handles_commands_and_guards(monkeypatch) -> None:
     )
     assert response.json() == {"ok": True, "handled": True, "command": "/prospect status"}
     assert sent[-1] == "Prospecting agent is ready.\nOpenAI drafting disabled; template replies will be used."
+
+    response = client.post(
+        "/api/telegram/webhook",
+        headers={"X-Telegram-Bot-Api-Secret-Token": "secret"},
+        json={"message": {"text": "/sentiment", "chat": {"id": 123}}},
+    )
+    assert response.json() == {"ok": True, "handled": True, "command": "/sentiment"}
+    assert sent[-1] == "Starting the ETF sentiment run now. I will send a follow-up when it finishes."
+    assert tasks == ["ran", "sentiment"]
+
+    response = client.post(
+        "/api/telegram/webhook",
+        headers={"X-Telegram-Bot-Api-Secret-Token": "secret"},
+        json={"message": {"text": "/sentiment status", "chat": {"id": 123}}},
+    )
+    assert response.json() == {"ok": True, "handled": True, "command": "/sentiment status"}
+    assert sent[-1] == "ETF sentiment agent is ready.\nOpenAI analysis disabled; price-action template mode will be used."
 
     response = client.post(
         "/api/telegram/webhook",
@@ -421,6 +484,12 @@ def test_telegram_webhook_status_can_report_errors(monkeypatch) -> None:
 
     assert response.json() == {"ok": True, "handled": True, "command": "/prospect status"}
     assert sent[-1] == "Prospecting agent is not ready:\n- Missing SMTP_HOST"
+
+    monkeypatch.setattr("src.adapters.api.app.collect_etf_sentiment_config_errors", lambda: ["Missing prompt"])
+    response = client.post("/api/telegram/webhook", json={"message": {"text": "/sentiment status", "chat": {"id": 123}}})
+
+    assert response.json() == {"ok": True, "handled": True, "command": "/sentiment status"}
+    assert sent[-1] == "ETF sentiment agent is not ready:\n- Missing prompt"
 
 
 def test_billing_routes_round_trip_overview_checkout_and_portal_urls() -> None:

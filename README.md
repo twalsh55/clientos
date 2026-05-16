@@ -198,6 +198,8 @@ Telegram-triggered prospecting:
 - supported bot commands from the allowed chat:
   - `/prospect`
   - `/prospect status`
+  - `/sentiment`
+  - `/sentiment status`
   - `/help`
 
 ## Daily Prospecting Agent
@@ -232,7 +234,18 @@ Optional AI settings:
 OPENAI_API_KEY=sk-...
 PROSPECT_OPENAI_MODEL=gpt-5-nano
 PROSPECT_OPENAI_MAX_OUTPUT_TOKENS=500
+ETF_SENTIMENT_OPENAI_MODEL=gpt-5-nano
+ETF_SENTIMENT_OPENAI_MAX_OUTPUT_TOKENS=900
+ETF_SENTIMENT_LOOKBACK_DAYS=400
+ETF_SENTIMENT_PROMPT_FILE=prompts/ETF_SENTIMENT.md
 ```
+
+ETF sentiment Telegram brief:
+
+- `/sentiment` runs a server-side ETF sentiment snapshot and sends the result back to the configured Telegram chat
+- `/sentiment status` reports whether the ETF sentiment agent is ready and whether it will use OpenAI or template mode
+- when `OPENAI_API_KEY` is missing, the agent still works in price-action template mode using `yfinance` ETF proxies
+- the prompt source lives at `prompts/ETF_SENTIMENT.md`
 
 Run it manually:
 

@@ -31,6 +31,7 @@ from src.adapters.notifications.smtp_email_notifier import EmailNotificationErro
 from src.adapters.notifications.telegram_notifier import TelegramNotificationError, TelegramNotifier
 from src.adapters.persistence.runtime import build_personalization_repository
 from src.adapters.prospecting.runtime import collect_prospecting_config_errors, run_prospecting_job
+from src.adapters.sentiment.runtime import collect_etf_sentiment_config_errors, run_etf_sentiment_job
 from src.adapters.social.reddit_lead_source import RedditLeadSourceError
 from src.application.account import (
     AlertHistoryEntry,
@@ -343,11 +344,20 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
         if command.text == "/prospect status":
             notifier.send_message(_build_prospecting_status_message())
             return {"ok": True, "handled": True, "command": command.text}
+        if command.text == "/sentiment":
+            notifier.send_message("Starting the ETF sentiment run now. I will send a follow-up when it finishes.")
+            background_tasks.add_task(_run_etf_sentiment_from_telegram, notifier)
+            return {"ok": True, "handled": True, "command": command.text}
+        if command.text == "/sentiment status":
+            notifier.send_message(_build_etf_sentiment_status_message())
+            return {"ok": True, "handled": True, "command": command.text}
         if command.text == "/help":
             notifier.send_message(
                 "Supported commands:\n"
                 "/prospect - run the prospecting agent\n"
-                "/prospect status - show whether the prospecting agent is configured"
+                "/prospect status - show whether the prospecting agent is configured\n"
+                "/sentiment - run the ETF sentiment agent\n"
+                "/sentiment status - show whether the ETF sentiment agent is configured"
             )
             return {"ok": True, "handled": True, "command": command.text}
         return {"ok": True, "handled": False}
@@ -459,6 +469,29 @@ def _run_prospecting_from_telegram(notifier: TelegramNotifier) -> None:
     except (EmailNotificationError, RedditLeadSourceError, TelegramNotificationError, ValueError, RuntimeError) as exc:
         try:
             notifier.send_message(f"Prospecting run failed: {exc}")
+        except TelegramNotificationError:
+            return
+
+
+def _build_etf_sentiment_status_message() -> str:
+    errors = collect_etf_sentiment_config_errors()
+    openai_enabled = bool(os.getenv("OPENAI_API_KEY", "").strip())
+    if errors:
+        return "ETF sentiment agent is not ready:\n- " + "\n- ".join(errors)
+    model_line = (
+        "OpenAI analysis enabled."
+        if openai_enabled
+        else "OpenAI analysis disabled; price-action template mode will be used."
+    )
+    return f"ETF sentiment agent is ready.\n{model_line}"
+
+
+def _run_etf_sentiment_from_telegram(notifier: TelegramNotifier) -> None:
+    try:
+        notifier.send_message(run_etf_sentiment_job())
+    except (EmailNotificationError, RedditLeadSourceError, TelegramNotificationError, ValueError, RuntimeError) as exc:
+        try:
+            notifier.send_message(f"ETF sentiment run failed: {exc}")
         except TelegramNotificationError:
             return
 
