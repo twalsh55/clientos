@@ -4,7 +4,7 @@ import json
 
 import httpx
 
-from src.domain.prospecting import ProspectMatch, ProspectTokenUsage
+from src.domain.prospecting import ProspectDraft, ProspectMatch, ProspectTokenUsage
 
 
 class OpenAIProspectDrafterError(RuntimeError):
@@ -30,7 +30,7 @@ class OpenAIProspectDrafter:
         app_summary: str,
         matches: tuple[ProspectMatch, ...],
         app_url: str | None = None,
-    ) -> list[str]:
+    ) -> list[ProspectDraft]:
         self._last_usage = None
         if not matches:
             return []
@@ -50,11 +50,17 @@ class OpenAIProspectDrafter:
         }
         instructions = (
             "You are helping with SaaS opportunity discovery for a solo founder. "
-            "For each post, write one concise opportunity idea under 90 words describing a plausible SaaS product or feature, "
+            "Be skeptical and avoid overfitting to keywords. "
+            "If a post looks generic, hype-driven, launch-oriented, or only loosely related, do not invent a sophisticated idea from it. "
+            "Stay close to explicit workflow pain, current workarounds, and operational consequences. "
+            "Favor CRM-direction insights such as follow-up discipline, pipeline hygiene, relationship memory, handoffs, reminders, notes, and spreadsheet-held workflows. "
+            "For each post, decide whether it is a strong signal, a weak signal, or should be rejected. "
+            "Use reject when the evidence is mostly hype, product-launch noise, generic AI chatter, or weak keyword adjacency. "
+            "For non-rejected posts, write one concise opportunity idea under 90 words describing a plausible SaaS product or feature, "
             "the workflow pain it addresses, and why it may be monetizable. "
             "Do not suggest posting, replying, outreach, or promotion. "
             "Return JSON only in the form "
-            '{"drafts":[{"post_id":"...","idea":"..."}]}.'
+            '{"drafts":[{"post_id":"...","idea":"...","assessment":"strong_signal|weak_signal|reject","confidence":"high|medium|low","noise_flags":["..."]}]}.'
         )
 
         try:
@@ -90,7 +96,7 @@ class OpenAIProspectDrafter:
         if not isinstance(drafts, list):
             raise OpenAIProspectDrafterError("OpenAI returned an invalid drafting payload.")
 
-        replies_by_id: dict[str, str] = {}
+        replies_by_id: dict[str, ProspectDraft] = {}
         for item in drafts:
             if not isinstance(item, dict):
                 continue
@@ -98,8 +104,23 @@ class OpenAIProspectDrafter:
             reply = item.get("idea")
             if not isinstance(reply, str):
                 reply = item.get("reply")
+            assessment = item.get("assessment", "weak_signal")
+            confidence = item.get("confidence", "medium")
+            noise_flags = item.get("noise_flags", [])
+            if not isinstance(assessment, str):
+                assessment = "weak_signal"
+            if not isinstance(confidence, str):
+                confidence = "medium"
+            if not isinstance(noise_flags, list):
+                noise_flags = []
+            normalized_noise_flags = tuple(flag.strip() for flag in noise_flags if isinstance(flag, str) and flag.strip())
             if isinstance(post_id, str) and isinstance(reply, str):
-                replies_by_id[post_id] = reply.strip()
+                replies_by_id[post_id] = ProspectDraft(
+                    idea=reply.strip(),
+                    assessment=assessment.strip().lower() or "weak_signal",
+                    confidence=confidence.strip().lower() or "medium",
+                    noise_flags=normalized_noise_flags,
+                )
 
         return [
             replies_by_id.get(match.post.external_id) or _build_template_reply(match.post.title, app_url)
@@ -116,19 +137,24 @@ class TemplateProspectDrafter:
         app_summary: str,
         matches: tuple[ProspectMatch, ...],
         app_url: str | None = None,
-    ) -> list[str]:
+    ) -> list[ProspectDraft]:
         return [_build_template_reply(match.post.title, app_url) for match in matches]
 
     def get_last_usage(self) -> ProspectTokenUsage | None:
         return None
 
 
-def _build_template_reply(post_title: str, app_url: str | None) -> str:
+def _build_template_reply(post_title: str, app_url: str | None) -> ProspectDraft:
     app_link = f" Reference: {app_url}" if app_url else ""
-    return (
-        f"Potential SaaS idea: build a lightweight workflow tool around the pain implied by "
-        f"'{post_title}', with a focus on recurring admin reduction, clearer reporting, or better automation. "
-        f"Prioritize narrow ROI, simple onboarding, and low-support execution.{app_link}"
+    return ProspectDraft(
+        idea=(
+            f"Potential SaaS idea: build a lightweight workflow tool around the pain implied by "
+            f"'{post_title}', with a focus on recurring admin reduction, clearer reporting, or better automation. "
+            f"Prioritize narrow ROI, simple onboarding, and low-support execution.{app_link}"
+        ),
+        assessment="needs_review",
+        confidence="low",
+        noise_flags=("template_fallback",),
     )
 
 

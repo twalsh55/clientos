@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import date
+from datetime import date, datetime
 from typing import TYPE_CHECKING, Protocol
 from uuid import UUID
 
@@ -8,11 +8,12 @@ import pandas as pd
 
 from src.domain.auth import ExternalIdentity, User
 from src.domain.crm import LeadFollowUp
-from src.domain.prospecting import ProspectMatch, ProspectTokenUsage, SocialPost
+from src.domain.prospecting import ProspectDraft, ProspectMatch, ProspectTokenUsage, SocialPost
 
 if TYPE_CHECKING:
     from src.application.account import AlertHistoryEntry, UserDashboardSettings
     from src.application.billing import BillingOverview
+    from src.application.operator_briefing import ProductUpdateRecord, ProspectRunRecord
 
 
 class MarketDataPort(Protocol):
@@ -73,7 +74,7 @@ class ProspectDraftingPort(Protocol):
         app_summary: str,
         matches: tuple[ProspectMatch, ...],
         app_url: str | None = None,
-    ) -> list[str]:
+    ) -> list[ProspectDraft]:
         """Return a suggested non-posted reply for each shortlisted match."""
 
     def get_last_usage(self) -> ProspectTokenUsage | None:
@@ -83,3 +84,19 @@ class ProspectDraftingPort(Protocol):
 class EmailDeliveryPort(Protocol):
     def send_email(self, recipient: str, subject: str, text_body: str) -> None:
         """Send a plain-text email."""
+
+
+class ProspectRunHistoryPort(Protocol):
+    def append_prospect_run(self, run: ProspectRunRecord) -> None:
+        """Persist one prospect run record."""
+
+    def list_prospect_runs(self, since: datetime) -> list[ProspectRunRecord]:
+        """Return prospect runs at or after the given timestamp."""
+
+
+class ProductUpdateLogPort(Protocol):
+    def append_product_update(self, update: ProductUpdateRecord) -> None:
+        """Persist one product update note."""
+
+    def list_product_updates(self, since: datetime) -> list[ProductUpdateRecord]:
+        """Return product updates at or after the given timestamp."""

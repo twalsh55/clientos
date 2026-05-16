@@ -8,6 +8,7 @@ from src.adapters.notifications.composite_email_notifier import CompositeEmailNo
 from src.adapters.notifications.smtp_email_notifier import SMTPEmailNotifier
 from src.adapters.notifications.telegram_digest_notifier import TelegramDigestNotifier
 from src.adapters.notifications.telegram_notifier import TelegramNotifier
+from src.adapters.operator_briefing.runtime import append_prospect_digest_to_history
 from src.adapters.prospecting.usage_log import ProspectUsageLog
 from src.adapters.social.composite_lead_source import CompositeLeadSource
 from src.adapters.social.discord_lead_source import DiscordLeadSource
@@ -83,7 +84,7 @@ def build_drafter_from_env() -> OpenAIProspectDrafter | TemplateProspectDrafter:
         return TemplateProspectDrafter()
     return OpenAIProspectDrafter(
         api_key=api_key,
-        model=os.getenv("PROSPECT_OPENAI_MODEL", "gpt-5-nano").strip() or "gpt-5-nano",
+        model=os.getenv("PROSPECT_OPENAI_MODEL", "gpt-5.4").strip() or "gpt-5.4",
         max_output_tokens=parse_positive_int("PROSPECT_OPENAI_MAX_OUTPUT_TOKENS", default=500),
     )
 
@@ -119,6 +120,7 @@ def run_prospecting_job() -> ProspectingDigest:
     usage_log = build_usage_log_from_env()
     if usage_log is not None:
         usage_log.append(digest)
+    append_prospect_digest_to_history(digest)
     return digest
 
 

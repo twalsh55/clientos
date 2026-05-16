@@ -540,6 +540,55 @@ def test_telegram_webhook_status_can_report_errors(monkeypatch) -> None:
     assert sent[-1] == "ETF sentiment agent is not ready:\n- Missing prompt"
 
 
+def test_operator_briefing_webhook_requires_valid_secret(monkeypatch) -> None:
+    client = make_client(user=make_user())
+    monkeypatch.setenv("INTERNAL_CRON_SECRET", "internal-secret")
+
+    unauthorized = client.post("/api/internal/operator-briefing", headers={"X-Internal-Cron-Secret": "wrong"})
+    assert unauthorized.status_code == 401
+
+    monkeypatch.setattr("src.adapters.api.app.collect_operator_briefing_config_errors", lambda: [])
+
+    class Briefing:
+        prospect_run_count = 3
+        total_shortlisted_ideas = 7
+        product_updates = ("a", "b")
+
+    monkeypatch.setattr("src.adapters.api.app.run_daily_operator_briefing_job", lambda: Briefing())
+
+    response = client.post("/api/internal/operator-briefing", headers={"X-Internal-Cron-Secret": "internal-secret"})
+    assert response.status_code == 200
+    assert response.json() == {
+        "ok": True,
+        "prospect_run_count": 3,
+        "shortlisted_ideas": 7,
+        "product_updates": 2,
+    }
+
+
+def test_operator_briefing_webhook_reports_configuration_errors(monkeypatch) -> None:
+    client = make_client(user=make_user())
+    monkeypatch.delenv("INTERNAL_CRON_SECRET", raising=False)
+    monkeypatch.setenv("TELEGRAM_WEBHOOK_SECRET", "fallback-secret")
+    monkeypatch.setattr("src.adapters.api.app.collect_operator_briefing_config_errors", lambda: ["Missing SMTP_HOST"])
+
+    response = client.post("/api/internal/operator-briefing", headers={"X-Internal-Cron-Secret": "fallback-secret"})
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Missing SMTP_HOST"
+
+
+def test_operator_briefing_webhook_requires_configured_secret(monkeypatch) -> None:
+    client = make_client(user=make_user())
+    monkeypatch.delenv("INTERNAL_CRON_SECRET", raising=False)
+    monkeypatch.delenv("TELEGRAM_WEBHOOK_SECRET", raising=False)
+
+    response = client.post("/api/internal/operator-briefing")
+
+    assert response.status_code == 503
+    assert response.json()["detail"] == "Internal cron secret is not configured."
+
+
 def test_billing_routes_round_trip_overview_checkout_and_portal_urls() -> None:
     seen_return_urls: list[str | None] = []
     billing_port = FakeBillingPort(seen_return_urls=seen_return_urls)

@@ -10,7 +10,7 @@ from src.application.prospecting import (
     _summarize_post_text,
     format_digest_email,
 )
-from src.domain.prospecting import ProspectMatch, SocialPost
+from src.domain.prospecting import ProspectDraft, ProspectMatch, SocialPost
 
 
 class StubLeadSource:
@@ -32,9 +32,16 @@ class StubDrafter:
         app_summary: str,
         matches: tuple[ProspectMatch, ...],
         app_url: str | None = None,
-    ) -> list[str]:
+    ) -> list[ProspectDraft]:
         self.calls.append((app_summary, matches, app_url))
-        return [f"draft for {match.post.external_id}" for match in matches]
+        return [
+            ProspectDraft(
+                idea=f"draft for {match.post.external_id}",
+                assessment="strong_signal",
+                confidence="high",
+            )
+            for match in matches
+        ]
 
     def get_last_usage(self):  # type: ignore[no-untyped-def]
         return None
@@ -115,6 +122,8 @@ def test_daily_prospecting_use_case_shortlists_and_emails() -> None:
     assert email_delivery.sent[0][0] == "tom.mg.walsh@gmail.com"
     assert "Potential app concepts:" in email_delivery.sent[0][2]
     assert "Description: draft for 1" in email_delivery.sent[0][2]
+    assert "Assessment: strong_signal" in email_delivery.sent[0][2]
+    assert "Confidence: high" in email_delivery.sent[0][2]
     assert "Observed workflow signal:" in email_delivery.sent[0][2]
     assert "Decision summary:" in email_delivery.sent[0][2]
     assert "Audit detail mode: concise" in email_delivery.sent[0][2]
@@ -188,6 +197,9 @@ def test_format_digest_email_truncates_long_body() -> None:
                     "score": 12,
                     "reasons": ("mentions crash",),
                     "suggested_reply": "reply",
+                    "assessment": "strong_signal",
+                    "confidence": "high",
+                    "noise_flags": (),
                 },
             )(),
         ),
@@ -212,6 +224,7 @@ def test_format_digest_email_truncates_long_body() -> None:
 
     assert "..." in body
     assert "Description: reply" in body
+    assert "Assessment: strong_signal" in body
     assert "Observed workflow signal:" in body
     assert "Audit detail mode: concise" in body
 
@@ -241,6 +254,9 @@ def test_format_digest_email_uses_source_label_for_shortlisted_posts() -> None:
                     "score": 12,
                     "reasons": ("mentions crash",),
                     "suggested_reply": "reply",
+                    "assessment": "weak_signal",
+                    "confidence": "medium",
+                    "noise_flags": ("generic_launch",),
                 },
             )(),
         ),
@@ -252,6 +268,7 @@ def test_format_digest_email_uses_source_label_for_shortlisted_posts() -> None:
 
     assert "1. App concept" in body
     assert "Source mix: hackernews via query 'query'" in body
+    assert "Noise flags: generic_launch" in body
 
 
 def test_format_digest_email_includes_full_audit_when_verbose() -> None:
@@ -331,11 +348,58 @@ def test_format_digest_email_includes_token_usage_when_present() -> None:
         shortlisted_count=0,
         shortlisted_posts=(),
         audit_entries=(),
-        token_usage=type("Usage", (), {"model": "gpt-5-nano", "input_tokens": 100, "output_tokens": 20, "total_tokens": 120})(),
+        token_usage=type("Usage", (), {"model": "gpt-5.4", "input_tokens": 100, "output_tokens": 20, "total_tokens": 120})(),
     )
 
     body = format_digest_email(DailyProspectingConfig(recipient_email="tom.mg.walsh@gmail.com", profile="crm_direction"), digest)
 
     assert "Profile: crm_direction" in body
     assert "OpenAI token usage:" in body
-    assert "model=gpt-5-nano input=100 output=20 total=120" in body
+    assert "model=gpt-5.4 input=100 output=20 total=120" in body
+
+
+def test_daily_prospecting_use_case_filters_model_rejections() -> None:
+    matching_post = make_post(
+        "1",
+        "I wish there was a better CRM follow-up workflow?",
+        "Need help replacing spreadsheets and manual reminders.",
+        14,
+    )
+    lead_source = StubLeadSource({"lead follow up manually": [matching_post]})
+    email_delivery = StubEmailDelivery()
+
+    class RejectingDrafter:
+        def draft_promotional_replies(
+            self,
+            app_summary: str,
+            matches: tuple[ProspectMatch, ...],
+            app_url: str | None = None,
+        ) -> list[ProspectDraft]:
+            return [
+                ProspectDraft(
+                    idea="Too weak to trust.",
+                    assessment="reject",
+                    confidence="medium",
+                    noise_flags=("keyword_adjacency",),
+                )
+            ]
+
+        def get_last_usage(self):  # type: ignore[no-untyped-def]
+            return None
+
+    use_case = RunDailyProspectingUseCase(
+        lead_source=lead_source,
+        drafter=RejectingDrafter(),
+        email_delivery=email_delivery,
+        now=lambda: datetime(2026, 5, 14, 9, 30, tzinfo=UTC),
+    )
+
+    digest = use_case.execute(
+        DailyProspectingConfig(
+            recipient_email="tom.mg.walsh@gmail.com",
+            search_terms=("lead follow up manually",),
+        )
+    )
+
+    assert digest.shortlisted_count == 0
+    assert "No strong SaaS opportunity signals were found today." in email_delivery.sent[0][2]

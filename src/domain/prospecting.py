@@ -35,6 +35,14 @@ SIGNAL_KEYWORDS = {
     "handoff": 4,
     "reminder": 3,
     "notes": 3,
+    "notion": 3,
+    "gmail": 3,
+    "meeting notes": 4,
+    "next action": 4,
+    "next step": 3,
+    "go cold": 4,
+    "cold lead": 4,
+    "stale": 3,
 }
 
 INTENT_KEYWORDS = {
@@ -68,6 +76,56 @@ EXCLUDE_KEYWORDS = {
     "sports betting",
 }
 
+NOISE_PENALTIES = {
+    "launch hn": 12,
+    "show hn": 10,
+    "yc w": 8,
+    "gemini": 8,
+    "cursor ai": 8,
+    "computer vision": 6,
+    "robotics": 6,
+    "investing": 6,
+    "investor": 5,
+    "earnings": 4,
+    "portfolio": 5,
+}
+
+WORKFLOW_ANCHORS = {
+    "spreadsheet",
+    "excel",
+    "csv",
+    "manual",
+    "crm",
+    "lead",
+    "follow up",
+    "follow-up",
+    "pipeline",
+    "client",
+    "handoff",
+    "reminder",
+    "notes",
+    "notion",
+    "gmail",
+    "meeting notes",
+    "next action",
+    "next step",
+}
+
+PAIN_ANCHORS = {
+    "frustrated",
+    "pain point",
+    "how are you solving",
+    "i wish there was",
+    "looking for",
+    "still using",
+    "forgot to follow up",
+    "go cold",
+    "cold lead",
+    "stale",
+    "need",
+    "help",
+}
+
 
 @dataclass(frozen=True, slots=True)
 class SocialPost:
@@ -96,8 +154,17 @@ class ProspectTokenUsage:
     total_tokens: int
 
 
+@dataclass(frozen=True, slots=True)
+class ProspectDraft:
+    idea: str
+    assessment: str
+    confidence: str
+    noise_flags: tuple[str, ...] = ()
+
+
 def score_social_post(post: SocialPost, matched_query: str) -> ProspectMatch | None:
     haystack = f"{post.title}\n{post.body}".lower()
+    title = post.title.lower()
 
     if any(keyword in haystack for keyword in EXCLUDE_KEYWORDS):
         return None
@@ -123,6 +190,20 @@ def score_social_post(post: SocialPost, matched_query: str) -> ProspectMatch | N
         score += 2
         reasons.append(f"matched query {matched_query}")
 
+    explicit_workflow_pain = _has_explicit_workflow_pain(haystack)
+    if explicit_workflow_pain:
+        score += 4
+        reasons.append("shows explicit workflow pain")
+
+    if _is_launch_style_noise(title, haystack) and not explicit_workflow_pain:
+        reasons.append("penalized launch-style post without explicit workflow pain")
+        score -= 12
+
+    for keyword, penalty in NOISE_PENALTIES.items():
+        if keyword in haystack and not explicit_workflow_pain:
+            score -= penalty
+            reasons.append(f"penalized noisy context {keyword}")
+
     deduped_reasons = tuple(dict.fromkeys(reasons))
     if score < 8:
         return None
@@ -133,3 +214,13 @@ def score_social_post(post: SocialPost, matched_query: str) -> ProspectMatch | N
         score=score,
         reasons=deduped_reasons,
     )
+
+
+def _has_explicit_workflow_pain(haystack: str) -> bool:
+    has_workflow_anchor = any(keyword in haystack for keyword in WORKFLOW_ANCHORS)
+    has_pain_anchor = any(keyword in haystack for keyword in PAIN_ANCHORS)
+    return has_workflow_anchor and has_pain_anchor
+
+
+def _is_launch_style_noise(title: str, haystack: str) -> bool:
+    return title.startswith("show hn:") or title.startswith("launch hn:") or "show hn" in haystack or "launch hn" in haystack

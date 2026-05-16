@@ -10,7 +10,7 @@ from src.adapters.llm.openai_prospect_drafter import (
     TemplateProspectDrafter,
     _extract_text_from_response,
 )
-from src.domain.prospecting import ProspectMatch, SocialPost
+from src.domain.prospecting import ProspectDraft, ProspectMatch, SocialPost
 
 
 def build_match(external_id: str) -> ProspectMatch:
@@ -29,8 +29,10 @@ def build_match(external_id: str) -> ProspectMatch:
 def test_template_prospect_drafter_builds_reply() -> None:
     drafter = TemplateProspectDrafter()
     replies = drafter.draft_promotional_replies("summary", (build_match("1"),), "https://www.brivoly.com")
-    assert "Potential SaaS idea:" in replies[0]
-    assert "https://www.brivoly.com" in replies[0]
+    assert "Potential SaaS idea:" in replies[0].idea
+    assert "https://www.brivoly.com" in replies[0].idea
+    assert replies[0].assessment == "needs_review"
+    assert replies[0].noise_flags == ("template_fallback",)
     assert drafter.get_last_usage() is None
 
 
@@ -56,7 +58,7 @@ def test_openai_prospect_drafter_uses_api_payload(monkeypatch) -> None:
                     {
                         "content": [
                             {
-                                "text": '{"drafts":[{"post_id":"1","idea":"Helpful idea"}]}'
+                                "text": '{"drafts":[{"post_id":"1","idea":"Helpful idea","assessment":"strong_signal","confidence":"high","noise_flags":["launch_noise"]}]}'
                             }
                         ]
                     }
@@ -75,8 +77,15 @@ def test_openai_prospect_drafter_uses_api_payload(monkeypatch) -> None:
     assert captured["url"] == "https://api.openai.com/v1/responses"
     assert captured["headers"]["Authorization"] == "Bearer secret"
     assert captured["json"]["model"] == "gpt-5-nano"
-    assert "opportunity discovery" in captured["json"]["instructions"]
-    assert replies == ["Helpful idea"]
+    assert "strong signal, a weak signal, or should be rejected" in captured["json"]["instructions"]
+    assert replies == [
+        ProspectDraft(
+            idea="Helpful idea",
+            assessment="strong_signal",
+            confidence="high",
+            noise_flags=("launch_noise",),
+        )
+    ]
 
 
 def test_openai_prospect_drafter_tracks_last_usage(monkeypatch) -> None:
@@ -87,7 +96,7 @@ def test_openai_prospect_drafter_tracks_last_usage(monkeypatch) -> None:
             request=httpx.Request("POST", "https://api.openai.com/v1/responses"),
             json={
                 "usage": {"input_tokens": 90, "output_tokens": 10, "total_tokens": 100},
-                "output_text": '{"drafts":[{"post_id":"1","idea":"Helpful idea"}]}',
+                "output_text": '{"drafts":[{"post_id":"1","idea":"Helpful idea","assessment":"strong_signal","confidence":"high","noise_flags":[]}]}',
             },
         ),  # type: ignore[no-untyped-def]
     )
@@ -95,7 +104,7 @@ def test_openai_prospect_drafter_tracks_last_usage(monkeypatch) -> None:
     drafter = OpenAIProspectDrafter(api_key="secret")
     replies = drafter.draft_promotional_replies("summary", (build_match("1"),), None)
 
-    assert replies == ["Helpful idea"]
+    assert replies[0].idea == "Helpful idea"
     usage = drafter.get_last_usage()
     assert usage is not None
     assert usage.total_tokens == 100
@@ -110,7 +119,7 @@ def test_openai_prospect_drafter_ignores_invalid_usage_shape(monkeypatch) -> Non
             request=httpx.Request("POST", "https://api.openai.com/v1/responses"),
             json={
                 "usage": {"input_tokens": "bad", "output_tokens": 10, "total_tokens": 100},
-                "output_text": '{"drafts":[{"post_id":"1","idea":"Helpful idea"}]}',
+                "output_text": '{"drafts":[{"post_id":"1","idea":"Helpful idea","assessment":"weak_signal","confidence":"medium","noise_flags":[]}]}',
             },
         ),  # type: ignore[no-untyped-def]
     )
@@ -118,7 +127,7 @@ def test_openai_prospect_drafter_ignores_invalid_usage_shape(monkeypatch) -> Non
     drafter = OpenAIProspectDrafter(api_key="secret")
     replies = drafter.draft_promotional_replies("summary", (build_match("1"),), None)
 
-    assert replies == ["Helpful idea"]
+    assert replies[0].idea == "Helpful idea"
     assert drafter.get_last_usage() is None
 
 
@@ -134,7 +143,7 @@ def test_openai_prospect_drafter_falls_back_when_post_missing(monkeypatch) -> No
 
     replies = OpenAIProspectDrafter(api_key="secret").draft_promotional_replies("summary", (build_match("1"),), None)
 
-    assert "Potential SaaS idea:" in replies[0]
+    assert "Potential SaaS idea:" in replies[0].idea
 
 
 def test_openai_prospect_drafter_returns_empty_list_when_no_matches() -> None:
@@ -198,13 +207,13 @@ def test_openai_prospect_drafter_ignores_invalid_draft_items(monkeypatch) -> Non
         lambda *args, **kwargs: httpx.Response(
             200,
             request=httpx.Request("POST", "https://api.openai.com/v1/responses"),
-            json={"output_text": '{"drafts":["bad", {"post_id":"1","idea":"Helpful idea"}]}'},
+            json={"output_text": '{"drafts":["bad", {"post_id":"1","idea":"Helpful idea","assessment":"weak_signal","confidence":"medium","noise_flags":[]} ]}'},
         ),  # type: ignore[no-untyped-def]
     )
 
     replies = OpenAIProspectDrafter(api_key="secret").draft_promotional_replies("summary", (build_match("1"),), None)
 
-    assert replies == ["Helpful idea"]
+    assert replies[0].idea == "Helpful idea"
 
 
 def test_openai_prospect_drafter_accepts_legacy_reply_field(monkeypatch) -> None:
@@ -219,7 +228,41 @@ def test_openai_prospect_drafter_accepts_legacy_reply_field(monkeypatch) -> None
 
     replies = OpenAIProspectDrafter(api_key="secret").draft_promotional_replies("summary", (build_match("1"),), None)
 
-    assert replies == ["Legacy reply field"]
+    assert replies == [
+        ProspectDraft(
+            idea="Legacy reply field",
+            assessment="weak_signal",
+            confidence="medium",
+            noise_flags=(),
+        )
+    ]
+
+
+def test_openai_prospect_drafter_normalizes_invalid_structured_fields(monkeypatch) -> None:
+    monkeypatch.setattr(
+        "src.adapters.llm.openai_prospect_drafter.httpx.post",
+        lambda *args, **kwargs: httpx.Response(
+            200,
+            request=httpx.Request("POST", "https://api.openai.com/v1/responses"),
+            json={
+                "output_text": (
+                    '{"drafts":[{"post_id":"1","idea":"Helpful idea","assessment":7,'
+                    '"confidence":{"level":"high"},"noise_flags":"bad-shape"}]}'
+                )
+            },
+        ),  # type: ignore[no-untyped-def]
+    )
+
+    replies = OpenAIProspectDrafter(api_key="secret").draft_promotional_replies("summary", (build_match("1"),), None)
+
+    assert replies == [
+        ProspectDraft(
+            idea="Helpful idea",
+            assessment="weak_signal",
+            confidence="medium",
+            noise_flags=(),
+        )
+    ]
 
 
 def test_extract_text_from_response_rejects_invalid_shapes() -> None:

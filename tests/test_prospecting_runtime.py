@@ -78,7 +78,9 @@ def test_build_drafter_from_env_uses_template_without_api_key(monkeypatch) -> No
 
 def test_build_drafter_from_env_uses_openai_when_api_key_present(monkeypatch) -> None:
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
-    assert build_drafter_from_env().__class__.__name__ == "OpenAIProspectDrafter"
+    drafter = build_drafter_from_env()
+    assert drafter.__class__.__name__ == "OpenAIProspectDrafter"
+    assert drafter.model == "gpt-5.4"
 
 
 def test_build_lead_source_from_env_uses_custom_user_agent(monkeypatch) -> None:

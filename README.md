@@ -285,13 +285,22 @@ PROSPECT_ENABLE_REDDIT_SOURCE=true
 PROSPECT_ENABLE_HACKER_NEWS_SOURCE=true
 PROSPECT_ENABLE_X_SOURCE=true
 PROSPECT_ENABLE_DISCORD_SOURCE=true
+PROSPECT_RUN_LOG_FILE=var/prospect_run_log.jsonl
+PRODUCT_UPDATE_LOG_FILE=product_updates.jsonl
+OPERATOR_BRIEFING_RECIPIENT=tom.mg.walsh@gmail.com
+OPERATOR_BRIEFING_LOOKBACK_HOURS=24
+OPERATOR_BRIEFING_GOAL=Zero in on a narrow, recurring CRM workflow with measurable ROI, low support burden, and fast time-to-revenue for a solo founder.
+INTERNAL_CRON_SECRET=replace-me
 ```
 
 Scheduling:
 
 - run `uv run python scripts/run_daily_prospecting.py` once per day from a scheduler
 - for a simple in-process loop, use `uv run python scripts/run_periodic_prospecting.py`
-- on Railway, the cleanest setup is a separate scheduled worker service or cron-style job using the same repo and env vars
+- for Railway cron, use `./scripts/deploy_prospect_cron.sh` to create or update the `prospect-hourly` function
+- the Railway function calls the existing Telegram webhook with `/prospect`, so delivery, token tracking, and CRM-direction prompting stay in one code path
+- for the daily operator summary email, use `./scripts/deploy_operator_briefing_cron.sh` to create or update the `operator-daily` function
+- the operator summary reads recent prospect runs plus logged product updates, then emails a daily briefing about agent guidance, roadmap changes, and profitability direction
 - the main API service should stay focused on serving FastAPI traffic
 
 CRM direction mode:
@@ -300,6 +309,47 @@ CRM direction mode:
 - when `PROSPECT_REDDIT_SEARCH_TERMS` is empty, the runtime uses CRM-specific defaults automatically in that profile
 - the digest includes model token usage when OpenAI drafting runs
 - when `PROSPECT_TRACK_USAGE=true`, each run appends a JSONL entry to `PROSPECT_USAGE_LOG_FILE`
+- each prospecting run also appends a richer run record to `PROSPECT_RUN_LOG_FILE`
+
+Operator briefing workflow:
+
+- log a shipped feature or refinement with `PYTHONPATH=. uv run python scripts/log_product_update.py ...`
+- send the daily operator email manually with `PYTHONPATH=. uv run python scripts/run_daily_operator_briefing.py`
+- the briefing is designed to summarize:
+  - what the prospect agent found
+  - what product changes were made
+  - whether those changes align with a narrow, profitable CRM wedge
+
+Local 24/7 automation:
+
+- start the long-running worker directly with `PYTHONPATH=. uv run python scripts/run_local_automation.py`
+- install reboot recovery plus a 5-minute watchdog with `./scripts/install_local_automation.sh`
+- inspect health with `PYTHONPATH=. uv run python scripts/local_automation_status.py`
+- remove the watchdog and stop the worker with `./scripts/uninstall_local_automation.sh`
+
+Useful automation settings:
+
+```bash
+AUTOMATION_POLL_SECONDS=30
+AUTOMATION_PROSPECT_INTERVAL_MINUTES=60
+AUTOMATION_OPERATOR_BRIEFING_INTERVAL_HOURS=24
+AUTOMATION_ENABLE_SENTIMENT_JOB=false
+AUTOMATION_SENTIMENT_INTERVAL_HOURS=24
+AUTOMATION_ALLOW_TEMPLATE_FALLBACK=true
+AUTOMATION_JOB_TIMEOUT_SECONDS=45
+AUTOMATION_LOCK_FILE=var/automation_worker.lock
+AUTOMATION_STATE_FILE=var/automation_state.json
+AUTOMATION_HEARTBEAT_FILE=var/automation_heartbeat.json
+```
+
+Automation behavior:
+
+- one worker process manages all recurring jobs so we do not stack overlapping cron jobs
+- a file lock prevents duplicate workers
+- a heartbeat file makes health checks and watchdog recovery straightforward
+- state persists last successful run timestamps so the worker can resume cleanly after restarts
+- unattended prospect runs fall back to template mode automatically if the local OpenAI credential is invalid
+- each scheduled job gets a hard timeout so one stuck network call does not freeze the whole worker
 
 ## Structure
 

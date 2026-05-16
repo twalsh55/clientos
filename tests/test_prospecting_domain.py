@@ -40,3 +40,26 @@ def test_score_social_post_filters_low_intent_posts() -> None:
 def test_score_social_post_filters_excluded_topics() -> None:
     post = build_post("Hiring for fintech role", "This is a job opening for a trading startup.")
     assert score_social_post(post, "portfolio risk dashboard") is None
+
+
+def test_score_social_post_penalizes_launch_style_noise_without_explicit_pain() -> None:
+    post = build_post(
+        "Show HN: Gemini Cursor AI Could Replace Copy Paste Fast",
+        "A new AI workflow demo that makes the interface feel futuristic for knowledge workers.",
+    )
+
+    assert score_social_post(post, "client handoff spreadsheet") is None
+
+
+def test_score_social_post_keeps_explicit_crm_workflow_pain() -> None:
+    post = build_post(
+        "Ask HN: Which CRM can help manually curated leads and automate lead discovery?",
+        "I am juggling CRM work in Notion and Gmail, taking meeting notes, and leads go cold when follow-up gets missed. How are you solving this?",
+    )
+
+    match = score_social_post(post, "lead follow up manually")
+
+    assert match is not None
+    assert "shows explicit workflow pain" in match.reasons
+    assert "mentions notion" in match.reasons
+    assert "mentions gmail" in match.reasons

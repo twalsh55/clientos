@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 
 from src.application.ports import EmailDeliveryPort, ProspectDraftingPort, SocialLeadSourcePort
-from src.domain.prospecting import ProspectMatch, ProspectTokenUsage, SocialPost, score_social_post
+from src.domain.prospecting import ProspectDraft, ProspectMatch, ProspectTokenUsage, SocialPost, score_social_post
 
 DEFAULT_PROSPECT_SEARCH_TERMS = (
     "i wish there was a tool for",
@@ -24,6 +24,7 @@ DEFAULT_CRM_DIRECTION_SEARCH_TERMS = (
 DEFAULT_APP_SUMMARY = (
     "You are researching boring, profitable SaaS opportunities for a solo indie hacker. "
     "Focus on painful, recurring, monetizable workflows with low operational complexity. "
+    "Reject weak keyword matches, generic hype, launch-post noise, and abstract productivity commentary. "
     "Do not suggest posting, replying, or promoting anything publicly."
 )
 
@@ -31,6 +32,7 @@ DEFAULT_CRM_DIRECTION_SUMMARY = (
     "You are researching how a solo founder should shape a CRM product. "
     "Focus on recurring lead follow-up, pipeline hygiene, relationship memory, handoff coordination, "
     "and admin-heavy client workflows with measurable operational ROI. "
+    "Prefer explicit operator pain over vague adjacency, and discard noisy posts unless they clearly describe a concrete recurring workflow problem. "
     "Do not suggest posting, replying, or promoting anything publicly."
 )
 
@@ -42,6 +44,9 @@ class DraftedProspectEmail:
     score: int
     reasons: tuple[str, ...]
     suggested_reply: str
+    assessment: str
+    confidence: str
+    noise_flags: tuple[str, ...]
 
 
 @dataclass(frozen=True, slots=True)
@@ -150,9 +155,13 @@ class RunDailyProspectingUseCase:
                 matched_query=match.matched_query,
                 score=match.score,
                 reasons=match.reasons,
-                suggested_reply=drafted_replies[index],
+                suggested_reply=draft.idea,
+                assessment=draft.assessment,
+                confidence=draft.confidence,
+                noise_flags=draft.noise_flags,
             )
-            for index, match in enumerate(ranked)
+            for match, draft in zip(ranked, drafted_replies, strict=False)
+            if draft.assessment != "reject"
         )
         digest = ProspectingDigest(
             generated_at=self.now(),
@@ -215,10 +224,17 @@ def format_digest_email(config: DailyProspectingConfig, digest: ProspectingDiges
             [
                 f"{index}. App concept",
                 f"Description: {item.suggested_reply}",
+                f"Assessment: {item.assessment}",
+                f"Confidence: {item.confidence}",
                 f"Why it looks promising: {', '.join(item.reasons)}",
                 f"Observed workflow signal: {excerpt or item.post.title}",
                 f"Source mix: {item.post.source} via query '{item.matched_query}'",
                 f"Opportunity score: {item.score}",
+                (
+                    "Noise flags: " + ", ".join(item.noise_flags)
+                    if item.noise_flags
+                    else "Noise flags: none"
+                ),
                 "",
             ]
         )

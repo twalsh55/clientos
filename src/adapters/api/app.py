@@ -30,6 +30,7 @@ from src.adapters.auth.runtime import (
 from src.adapters.market_data.yfinance_provider import YFinanceMarketDataAdapter
 from src.adapters.notifications.smtp_email_notifier import EmailNotificationError
 from src.adapters.notifications.telegram_notifier import TelegramNotificationError, TelegramNotifier
+from src.adapters.operator_briefing.runtime import collect_operator_briefing_config_errors, run_daily_operator_briefing_job
 from src.adapters.crm.runtime import build_lead_follow_up_repository
 from src.adapters.persistence.runtime import build_personalization_repository
 from src.adapters.prospecting.runtime import collect_prospecting_config_errors, run_prospecting_job
@@ -380,6 +381,22 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
             return {"ok": True, "handled": True, "command": command.text}
         return {"ok": True, "handled": False}
 
+    @app.post("/api/internal/operator-briefing")
+    def operator_briefing_webhook(
+        internal_secret: str | None = Header(default=None, alias="X-Internal-Cron-Secret"),
+    ) -> dict[str, object]:
+        _validate_internal_cron_secret(internal_secret)
+        errors = collect_operator_briefing_config_errors()
+        if errors:
+            raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="\n".join(errors))
+        briefing = run_daily_operator_briefing_job()
+        return {
+            "ok": True,
+            "prospect_run_count": briefing.prospect_run_count,
+            "shortlisted_ideas": briefing.total_shortlisted_ideas,
+            "product_updates": len(briefing.product_updates),
+        }
+
     return app
 
 
@@ -458,6 +475,17 @@ def _validate_telegram_webhook_secret(provided_secret: str | None) -> None:
     expected_secret = os.getenv("TELEGRAM_WEBHOOK_SECRET", "").strip()
     if expected_secret and provided_secret != expected_secret:
         raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid Telegram webhook secret.")
+
+
+def _validate_internal_cron_secret(provided_secret: str | None) -> None:
+    expected_secret = (
+        os.getenv("INTERNAL_CRON_SECRET", "").strip()
+        or os.getenv("TELEGRAM_WEBHOOK_SECRET", "").strip()
+    )
+    if not expected_secret:
+        raise HTTPException(status_code=status.HTTP_503_SERVICE_UNAVAILABLE, detail="Internal cron secret is not configured.")
+    if provided_secret != expected_secret:
+        raise HTTPException(status_code=status.HTTP_401_UNAUTHORIZED, detail="Invalid internal cron secret.")
 
 
 def _build_telegram_notifier() -> TelegramNotifier:
