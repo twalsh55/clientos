@@ -27,6 +27,11 @@ def make_settings() -> UserDashboardSettings:
         long_yield_symbol="^TNX",
         lookback_years=4,
         telegram_enabled=True,
+        business_name="Northstar Studio",
+        business_website="https://northstar.example",
+        outbound_sender_name="Ada from Northstar",
+        business_logo_data_url="data:image/png;base64,ZmFrZQ==",
+        onboarding_profile_deferred=False,
         crm_ai_prompt="Extract CRM fields from spreadsheets and screenshots.",
         crm_preferred_import_formats=["csv", "spreadsheet_screenshot"],
         crm_image_intake_channels=["upload", "telegram"],
@@ -95,6 +100,11 @@ def test_row_mappers_convert_database_shapes() -> None:
         "long_yield_symbol": "^TNX",
         "lookback_years": 4,
         "telegram_enabled": True,
+        "business_name": "Northstar Studio",
+        "business_website": "https://northstar.example",
+        "outbound_sender_name": "Ada from Northstar",
+        "business_logo_data_url": "data:image/png;base64,ZmFrZQ==",
+        "onboarding_profile_deferred": False,
         "crm_ai_prompt": "Extract CRM fields from spreadsheets and screenshots.",
         "crm_preferred_import_formats": ["csv", "spreadsheet_screenshot"],
         "crm_image_intake_channels": ["upload", "telegram"],
@@ -125,13 +135,18 @@ def test_postgres_personalization_repository_ensure_schema(monkeypatch) -> None:
     repository = PostgresPersonalizationRepository("postgres://example")
     repository.ensure_schema()
 
-    assert len(cursor.executed) == 7
+    assert len(cursor.executed) == 12
     assert "user_dashboard_settings" in cursor.executed[0][0]
     assert "ALTER TABLE user_dashboard_settings" in cursor.executed[1][0]
     assert "ALTER TABLE user_dashboard_settings" in cursor.executed[2][0]
     assert "ALTER TABLE user_dashboard_settings" in cursor.executed[3][0]
     assert "ALTER TABLE user_dashboard_settings" in cursor.executed[4][0]
-    assert "alert_history" in cursor.executed[5][0]
+    assert "ALTER TABLE user_dashboard_settings" in cursor.executed[5][0]
+    assert "ALTER TABLE user_dashboard_settings" in cursor.executed[6][0]
+    assert "ALTER TABLE user_dashboard_settings" in cursor.executed[7][0]
+    assert "ALTER TABLE user_dashboard_settings" in cursor.executed[8][0]
+    assert "ALTER TABLE user_dashboard_settings" in cursor.executed[9][0]
+    assert "alert_history" in cursor.executed[10][0]
     assert connection.committed is True
 
 
@@ -149,6 +164,11 @@ def test_postgres_personalization_repository_get_and_save_settings(monkeypatch) 
                 "long_yield_symbol": "^TNX",
                 "lookback_years": 4,
                 "telegram_enabled": True,
+                "business_name": "Northstar Studio",
+                "business_website": "https://northstar.example",
+                "outbound_sender_name": "Ada from Northstar",
+                "business_logo_data_url": "data:image/png;base64,ZmFrZQ==",
+                "onboarding_profile_deferred": False,
                 "crm_ai_prompt": "Extract CRM fields from spreadsheets and screenshots.",
                 "crm_preferred_import_formats": ["csv", "spreadsheet_screenshot"],
                 "crm_image_intake_channels": ["upload", "telegram"],
@@ -166,6 +186,11 @@ def test_postgres_personalization_repository_get_and_save_settings(monkeypatch) 
         "long_yield_symbol": "^TNX",
         "lookback_years": 4,
         "telegram_enabled": True,
+        "business_name": "Northstar Studio",
+        "business_website": "https://northstar.example",
+        "outbound_sender_name": "Ada from Northstar",
+        "business_logo_data_url": "data:image/png;base64,ZmFrZQ==",
+        "onboarding_profile_deferred": False,
         "crm_ai_prompt": "Extract CRM fields from spreadsheets and screenshots.",
         "crm_preferred_import_formats": ["csv", "spreadsheet_screenshot"],
         "crm_image_intake_channels": ["upload", "telegram"],

@@ -1,9 +1,11 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useState, useTransition } from "react";
+import type { ReactNode } from "react";
+import { useEffect, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
+import { readImageFileAsDataUrl } from "@/lib/file-data-url";
 import type { AccountSettings } from "@/lib/types";
 
 type SettingsEditorProps = {
@@ -31,6 +33,11 @@ export function SettingsEditor({
       long_yield_symbol: "^TNX",
       lookback_years: fallbackLookbackYears,
       telegram_enabled: false,
+      business_name: "",
+      business_website: "",
+      outbound_sender_name: "",
+      business_logo_data_url: "",
+      onboarding_profile_deferred: false,
       crm_ai_prompt:
         "Focus on extracting follow-up-critical CRM fields from messy spreadsheets, files, and images. Prioritize lead name, company, owner, stage, next follow-up date, notes, and next step. Preserve evidence when uncertain.",
       crm_preferred_import_formats: ["csv", "google_sheets", "spreadsheet_screenshot"],
@@ -39,6 +46,23 @@ export function SettingsEditor({
         "Default to uploads inside Brivoly, then use Telegram for note photos when mobile capture is easier.",
     },
   );
+
+  useEffect(() => {
+    function handleSavedSettings(event: Event) {
+      const customEvent = event as CustomEvent<AccountSettings>;
+      if (!customEvent.detail) {
+        return;
+      }
+      setForm(customEvent.detail);
+    }
+
+    window.addEventListener("brivoly:settings-saved", handleSavedSettings as EventListener);
+    window.addEventListener("trade:settings-saved", handleSavedSettings as EventListener);
+    return () => {
+      window.removeEventListener("brivoly:settings-saved", handleSavedSettings as EventListener);
+      window.removeEventListener("trade:settings-saved", handleSavedSettings as EventListener);
+    };
+  }, []);
 
   function updateField<K extends keyof AccountSettings>(key: K, value: AccountSettings[K]) {
     setForm((current) => ({ ...current, [key]: value }));
@@ -56,6 +80,13 @@ export function SettingsEditor({
       risk_proxy: form.risk_proxy.trim().toUpperCase(),
       short_yield_symbol: form.short_yield_symbol.trim().toUpperCase(),
       long_yield_symbol: form.long_yield_symbol.trim().toUpperCase(),
+      business_name: form.business_name.trim(),
+      business_website: form.business_website.trim(),
+      outbound_sender_name: form.outbound_sender_name.trim(),
+      business_logo_data_url: form.business_logo_data_url.trim(),
+      onboarding_profile_deferred:
+        form.onboarding_profile_deferred &&
+        !(form.business_name.trim() && form.outbound_sender_name.trim()),
       crm_ai_prompt: form.crm_ai_prompt.trim(),
       crm_preferred_import_formats: form.crm_preferred_import_formats.map((item) => item.trim()).filter(Boolean),
       crm_image_intake_channels: form.crm_image_intake_channels.map((item) => item.trim()).filter(Boolean),
@@ -95,6 +126,78 @@ export function SettingsEditor({
 
   return (
     <form className="space-y-4" onSubmit={handleSubmit}>
+      <section className="rounded-[1.5rem] border bg-slate-50/80 p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Business Profile</p>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          Brivoly uses this brand context when it names automatic emails, personalizes onboarding, and presents the CRM workspace.
+        </p>
+        <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Field label="Business name">
+            <input
+              className={inputClassName(Boolean(errors.business_name))}
+              value={form.business_name}
+              onChange={(event) => updateField("business_name", event.target.value)}
+            />
+            {errors.business_name ? <FieldError message={errors.business_name} /> : null}
+          </Field>
+          <Field label="Name on auto emails">
+            <input
+              className={inputClassName(Boolean(errors.outbound_sender_name))}
+              value={form.outbound_sender_name}
+              onChange={(event) => updateField("outbound_sender_name", event.target.value)}
+            />
+            {errors.outbound_sender_name ? <FieldError message={errors.outbound_sender_name} /> : null}
+          </Field>
+          <Field label="Business website">
+            <input
+              className={inputClassName(Boolean(errors.business_website))}
+              value={form.business_website}
+              onChange={(event) => updateField("business_website", event.target.value)}
+              placeholder="https://example.com"
+            />
+            {errors.business_website ? <FieldError message={errors.business_website} /> : null}
+          </Field>
+          <Field label="Logo">
+            <div className="rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-4">
+              <input
+                type="file"
+                accept=".png,image/png,.jpg,image/jpeg,.jpeg,image/jpeg,.webp,image/webp,.svg,image/svg+xml"
+                className="block w-full text-sm text-slate-700"
+                onChange={async (event) => {
+                  const file = event.target.files?.[0];
+                  if (!file) {
+                    return;
+                  }
+                  try {
+                    updateField("business_logo_data_url", await readImageFileAsDataUrl(file));
+                    setStatus(`Loaded logo preview from ${file.name}.`);
+                  } catch (error) {
+                    setStatus(error instanceof Error ? error.message : "Unable to load logo preview.");
+                  } finally {
+                    event.target.value = "";
+                  }
+                }}
+              />
+              <p className="mt-2 text-xs text-slate-500">Small PNG, JPG, WEBP, or SVG. Max 500 KB.</p>
+              {form.business_logo_data_url ? (
+                <div className="mt-3 flex items-center gap-3 rounded-2xl border border-slate-200 bg-slate-50 px-3 py-3">
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={form.business_logo_data_url} alt="Business logo preview" className="h-12 w-12 rounded-xl object-cover" />
+                  <button
+                    type="button"
+                    className="text-sm font-medium text-slate-700 underline underline-offset-4"
+                    onClick={() => updateField("business_logo_data_url", "")}
+                  >
+                    Remove logo
+                  </button>
+                </div>
+              ) : null}
+            </div>
+            {errors.business_logo_data_url ? <FieldError message={errors.business_logo_data_url} /> : null}
+          </Field>
+        </div>
+      </section>
+
       <div className="grid gap-4 sm:grid-cols-2">
         <Field label="Benchmark">
           <input
@@ -232,7 +335,7 @@ export function SettingsEditor({
   );
 }
 
-function Field({ label, children }: { label: string; children: React.ReactNode }) {
+function Field({ label, children }: { label: string; children: ReactNode }) {
   return (
     <label className="block space-y-2">
       <span className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{label}</span>
@@ -273,6 +376,18 @@ function validateForm(form: AccountSettings) {
   }
   if (form.lookback_years < 1 || form.lookback_years > 10) {
     nextErrors.lookback_years = "Lookback must be between 1 and 10 years.";
+  }
+  if (form.business_name.length > 160) {
+    nextErrors.business_name = "Business name must be 160 characters or fewer.";
+  }
+  if (form.business_website.length > 255) {
+    nextErrors.business_website = "Business website must be 255 characters or fewer.";
+  }
+  if (form.outbound_sender_name.length > 160) {
+    nextErrors.outbound_sender_name = "Sender name must be 160 characters or fewer.";
+  }
+  if (form.business_logo_data_url.length > 700000) {
+    nextErrors.business_logo_data_url = "Business logo payload is too large. Use a smaller image.";
   }
   if (form.crm_ai_prompt.length > 4000) {
     nextErrors.crm_ai_prompt = "AI prompt must be 4000 characters or fewer.";

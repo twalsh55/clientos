@@ -29,6 +29,11 @@ class PostgresPersonalizationRepository:
                         long_yield_symbol TEXT NOT NULL,
                         lookback_years INTEGER NOT NULL CHECK (lookback_years BETWEEN 1 AND 10),
                         telegram_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+                        business_name TEXT NOT NULL DEFAULT '',
+                        business_website TEXT NOT NULL DEFAULT '',
+                        outbound_sender_name TEXT NOT NULL DEFAULT '',
+                        business_logo_data_url TEXT NOT NULL DEFAULT '',
+                        onboarding_profile_deferred BOOLEAN NOT NULL DEFAULT FALSE,
                         crm_ai_prompt TEXT NOT NULL DEFAULT '',
                         crm_preferred_import_formats TEXT[] NOT NULL DEFAULT '{}',
                         crm_image_intake_channels TEXT[] NOT NULL DEFAULT '{}',
@@ -36,6 +41,36 @@ class PostgresPersonalizationRepository:
                         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     )
+                    """
+                )
+                cursor.execute(
+                    """
+                    ALTER TABLE user_dashboard_settings
+                    ADD COLUMN IF NOT EXISTS business_name TEXT NOT NULL DEFAULT ''
+                    """
+                )
+                cursor.execute(
+                    """
+                    ALTER TABLE user_dashboard_settings
+                    ADD COLUMN IF NOT EXISTS business_website TEXT NOT NULL DEFAULT ''
+                    """
+                )
+                cursor.execute(
+                    """
+                    ALTER TABLE user_dashboard_settings
+                    ADD COLUMN IF NOT EXISTS outbound_sender_name TEXT NOT NULL DEFAULT ''
+                    """
+                )
+                cursor.execute(
+                    """
+                    ALTER TABLE user_dashboard_settings
+                    ADD COLUMN IF NOT EXISTS business_logo_data_url TEXT NOT NULL DEFAULT ''
+                    """
+                )
+                cursor.execute(
+                    """
+                    ALTER TABLE user_dashboard_settings
+                    ADD COLUMN IF NOT EXISTS onboarding_profile_deferred BOOLEAN NOT NULL DEFAULT FALSE
                     """
                 )
                 cursor.execute(
@@ -98,6 +133,11 @@ class PostgresPersonalizationRepository:
                         long_yield_symbol,
                         lookback_years,
                         telegram_enabled,
+                        business_name,
+                        business_website,
+                        outbound_sender_name,
+                        business_logo_data_url,
+                        onboarding_profile_deferred,
                         crm_ai_prompt,
                         crm_preferred_import_formats,
                         crm_image_intake_channels,
@@ -128,6 +168,11 @@ class PostgresPersonalizationRepository:
                         long_yield_symbol,
                         lookback_years,
                         telegram_enabled,
+                        business_name,
+                        business_website,
+                        outbound_sender_name,
+                        business_logo_data_url,
+                        onboarding_profile_deferred,
                         crm_ai_prompt,
                         crm_preferred_import_formats,
                         crm_image_intake_channels,
@@ -145,6 +190,11 @@ class PostgresPersonalizationRepository:
                         %(long_yield_symbol)s,
                         %(lookback_years)s,
                         %(telegram_enabled)s,
+                        %(business_name)s,
+                        %(business_website)s,
+                        %(outbound_sender_name)s,
+                        %(business_logo_data_url)s,
+                        %(onboarding_profile_deferred)s,
                         %(crm_ai_prompt)s,
                         %(crm_preferred_import_formats)s,
                         %(crm_image_intake_channels)s,
@@ -162,6 +212,11 @@ class PostgresPersonalizationRepository:
                         long_yield_symbol = EXCLUDED.long_yield_symbol,
                         lookback_years = EXCLUDED.lookback_years,
                         telegram_enabled = EXCLUDED.telegram_enabled,
+                        business_name = EXCLUDED.business_name,
+                        business_website = EXCLUDED.business_website,
+                        outbound_sender_name = EXCLUDED.outbound_sender_name,
+                        business_logo_data_url = EXCLUDED.business_logo_data_url,
+                        onboarding_profile_deferred = EXCLUDED.onboarding_profile_deferred,
                         crm_ai_prompt = EXCLUDED.crm_ai_prompt,
                         crm_preferred_import_formats = EXCLUDED.crm_preferred_import_formats,
                         crm_image_intake_channels = EXCLUDED.crm_image_intake_channels,
@@ -177,6 +232,11 @@ class PostgresPersonalizationRepository:
                         long_yield_symbol,
                         lookback_years,
                         telegram_enabled,
+                        business_name,
+                        business_website,
+                        outbound_sender_name,
+                        business_logo_data_url,
+                        onboarding_profile_deferred,
                         crm_ai_prompt,
                         crm_preferred_import_formats,
                         crm_image_intake_channels,
@@ -192,6 +252,11 @@ class PostgresPersonalizationRepository:
                         "long_yield_symbol": settings.long_yield_symbol,
                         "lookback_years": settings.lookback_years,
                         "telegram_enabled": settings.telegram_enabled,
+                        "business_name": settings.business_name,
+                        "business_website": settings.business_website,
+                        "outbound_sender_name": settings.outbound_sender_name,
+                        "business_logo_data_url": settings.business_logo_data_url,
+                        "onboarding_profile_deferred": settings.onboarding_profile_deferred,
                         "crm_ai_prompt": settings.crm_ai_prompt,
                         "crm_preferred_import_formats": list(settings.crm_preferred_import_formats),
                         "crm_image_intake_channels": list(settings.crm_image_intake_channels),
@@ -275,6 +340,11 @@ def _row_to_dashboard_settings(row: dict[str, object]) -> UserDashboardSettings:
         long_yield_symbol=str(row["long_yield_symbol"]),
         lookback_years=int(row["lookback_years"]),
         telegram_enabled=bool(row["telegram_enabled"]),
+        business_name=str(row.get("business_name") or ""),
+        business_website=str(row.get("business_website") or ""),
+        outbound_sender_name=str(row.get("outbound_sender_name") or ""),
+        business_logo_data_url=str(row.get("business_logo_data_url") or ""),
+        onboarding_profile_deferred=bool(row.get("onboarding_profile_deferred")),
         crm_ai_prompt=str(row.get("crm_ai_prompt") or ""),
         crm_preferred_import_formats=[
             str(item) for item in row.get("crm_preferred_import_formats", [])

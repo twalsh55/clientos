@@ -5,6 +5,7 @@ import { SignOutButton } from "@/components/auth/sign-out-button";
 import { BillingPanel } from "@/components/billing/billing-panel";
 import { BrandLockup } from "@/components/brand-lockup";
 import { DashboardWorkspace } from "@/components/dashboard/dashboard-workspace";
+import { BusinessProfileOnboarding } from "@/components/settings/business-profile-onboarding";
 import { SettingsEditor } from "@/components/settings/settings-editor";
 import type { ShellData } from "@/lib/types";
 
@@ -156,6 +157,13 @@ export function AppShell({ data }: AppShellProps) {
             </ul>
           </section>
         ) : null}
+
+        <BusinessProfileOnboarding
+          initialSettings={settings}
+          accent="cyan"
+          title="Before the first automated touch, give Brivoly your brand basics."
+          description="First-time accounts should quickly set a business name, an optional logo, and the sender name Brivoly should use in automatic emails. You can add it later, but we ask early so the product can start feeling tailored immediately."
+        />
 
         <DashboardWorkspace initialDashboard={data.dashboard} settings={settings} bootstrap={data.bootstrap} />
 

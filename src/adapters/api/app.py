@@ -113,6 +113,11 @@ class UserDashboardSettingsPayload(BaseModel):
     long_yield_symbol: str
     lookback_years: int = Field(ge=1, le=10)
     telegram_enabled: bool
+    business_name: str = Field(default="", max_length=160)
+    business_website: str = Field(default="", max_length=255)
+    outbound_sender_name: str = Field(default="", max_length=160)
+    business_logo_data_url: str = Field(default="", max_length=700_000)
+    onboarding_profile_deferred: bool = False
     crm_ai_prompt: str = Field(default="", max_length=4000)
     crm_preferred_import_formats: list[str] = Field(default_factory=list, max_length=12)
     crm_image_intake_channels: list[str] = Field(default_factory=list, max_length=12)
@@ -245,6 +250,11 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
                 long_yield_symbol=payload.long_yield_symbol,
                 lookback_years=payload.lookback_years,
                 telegram_enabled=payload.telegram_enabled,
+                business_name=payload.business_name,
+                business_website=payload.business_website,
+                outbound_sender_name=payload.outbound_sender_name,
+                business_logo_data_url=payload.business_logo_data_url,
+                onboarding_profile_deferred=payload.onboarding_profile_deferred,
                 crm_ai_prompt=payload.crm_ai_prompt,
                 crm_preferred_import_formats=payload.crm_preferred_import_formats,
                 crm_image_intake_channels=payload.crm_image_intake_channels,
@@ -484,6 +494,11 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
                 long_yield_symbol=long_yield_symbol,
                 lookback_years=lookback_years,
                 telegram_enabled=False,
+                business_name="",
+                business_website="",
+                outbound_sender_name="",
+                business_logo_data_url="",
+                onboarding_profile_deferred=False,
                 crm_ai_prompt="",
                 crm_preferred_import_formats=[],
                 crm_image_intake_channels=[],

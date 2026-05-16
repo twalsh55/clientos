@@ -97,6 +97,11 @@ class UserDashboardSettingsDTO:
     long_yield_symbol: str
     lookback_years: int
     telegram_enabled: bool
+    business_name: str
+    business_website: str
+    outbound_sender_name: str
+    business_logo_data_url: str
+    onboarding_profile_deferred: bool
     crm_ai_prompt: str
     crm_preferred_import_formats: list[str]
     crm_image_intake_channels: list[str]
@@ -305,6 +310,11 @@ def build_user_dashboard_settings_dto(settings: UserDashboardSettings) -> UserDa
         long_yield_symbol=settings.long_yield_symbol,
         lookback_years=settings.lookback_years,
         telegram_enabled=settings.telegram_enabled,
+        business_name=settings.business_name,
+        business_website=settings.business_website,
+        outbound_sender_name=settings.outbound_sender_name,
+        business_logo_data_url=settings.business_logo_data_url,
+        onboarding_profile_deferred=settings.onboarding_profile_deferred,
         crm_ai_prompt=settings.crm_ai_prompt,
         crm_preferred_import_formats=list(settings.crm_preferred_import_formats),
         crm_image_intake_channels=list(settings.crm_image_intake_channels),

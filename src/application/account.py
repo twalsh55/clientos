@@ -20,6 +20,11 @@ class UserDashboardSettings:
     long_yield_symbol: str
     lookback_years: int
     telegram_enabled: bool
+    business_name: str
+    business_website: str
+    outbound_sender_name: str
+    business_logo_data_url: str
+    onboarding_profile_deferred: bool
     crm_ai_prompt: str
     crm_preferred_import_formats: list[str]
     crm_image_intake_channels: list[str]

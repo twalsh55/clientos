@@ -257,6 +257,11 @@ def test_account_settings_and_alert_history_dtos_serialize_values() -> None:
         long_yield_symbol="^TNX",
         lookback_years=4,
         telegram_enabled=True,
+        business_name="Northstar Studio",
+        business_website="https://northstar.example",
+        outbound_sender_name="Ada from Northstar",
+        business_logo_data_url="data:image/png;base64,ZmFrZQ==",
+        onboarding_profile_deferred=False,
         crm_ai_prompt="Extract CRM fields from spreadsheets and screenshots.",
         crm_preferred_import_formats=["csv", "spreadsheet_screenshot"],
         crm_image_intake_channels=["upload", "whatsapp", "telegram"],
@@ -275,6 +280,8 @@ def test_account_settings_and_alert_history_dtos_serialize_values() -> None:
 
     assert settings_payload["universe"] == ["SPY", "QQQ"]
     assert settings_payload["telegram_enabled"] is True
+    assert settings_payload["business_name"] == "Northstar Studio"
+    assert settings_payload["outbound_sender_name"] == "Ada from Northstar"
     assert settings_payload["crm_preferred_import_formats"] == ["csv", "spreadsheet_screenshot"]
     assert settings_payload["crm_image_intake_channels"] == ["upload", "whatsapp", "telegram"]
     assert alert_payload["title"] == "Updated"
@@ -1149,6 +1156,11 @@ def test_account_use_cases_and_in_memory_repository_round_trip_settings_and_aler
         long_yield_symbol="^TNX",
         lookback_years=4,
         telegram_enabled=False,
+        business_name="",
+        business_website="",
+        outbound_sender_name="",
+        business_logo_data_url="",
+        onboarding_profile_deferred=False,
         crm_ai_prompt="default prompt",
         crm_preferred_import_formats=["csv"],
         crm_image_intake_channels=["upload"],
@@ -1172,6 +1184,11 @@ def test_account_use_cases_and_in_memory_repository_round_trip_settings_and_aler
             long_yield_symbol="^TNX",
             lookback_years=2,
             telegram_enabled=True,
+            business_name="Northstar Studio",
+            business_website="https://northstar.example",
+            outbound_sender_name="Ada from Northstar",
+            business_logo_data_url="data:image/png;base64,ZmFrZQ==",
+            onboarding_profile_deferred=False,
             crm_ai_prompt="Keep owner and next follow-up visible.",
             crm_preferred_import_formats=["pdf_export", "csv"],
             crm_image_intake_channels=["whatsapp", "email"],
@@ -1204,6 +1221,8 @@ def test_dashboard_settings_helpers_normalize_defaults_and_build_config() -> Non
     defaults = build_default_dashboard_settings(user.id, telegram_enabled=True)
     assert defaults.universe == ["SPY", "QQQ", "IWM", "EFA", "EEM"]
     assert defaults.telegram_enabled is True
+    assert defaults.business_name == ""
+    assert defaults.onboarding_profile_deferred is False
     assert "follow-up-critical CRM fields" in defaults.crm_ai_prompt
     assert defaults.crm_image_intake_channels == ["upload", "telegram"]
 
@@ -1218,6 +1237,11 @@ def test_dashboard_settings_helpers_normalize_defaults_and_build_config() -> Non
             long_yield_symbol=" ^tnx ",
             lookback_years=2,
             telegram_enabled=False,
+            business_name="  Northstar Studio  ",
+            business_website="  https://northstar.example  ",
+            outbound_sender_name="  Ada from Northstar  ",
+            business_logo_data_url="  data:image/png;base64,ZmFrZQ==  ",
+            onboarding_profile_deferred=True,
             crm_ai_prompt="  Keep OCR evidence when uncertain.  ",
             crm_preferred_import_formats=[" CSV ", "csv", "Spreadsheet Screenshot"],
             crm_image_intake_channels=[" Upload ", "whatsapp", "WhatsApp"],
@@ -1227,6 +1251,11 @@ def test_dashboard_settings_helpers_normalize_defaults_and_build_config() -> Non
     assert normalized.universe == ["SPY", "QQQ"]
     assert normalized.benchmark == "SPY"
     assert normalized.vix_symbol == "^VIX"
+    assert normalized.business_name == "Northstar Studio"
+    assert normalized.business_website == "https://northstar.example"
+    assert normalized.outbound_sender_name == "Ada from Northstar"
+    assert normalized.business_logo_data_url == "data:image/png;base64,ZmFrZQ=="
+    assert normalized.onboarding_profile_deferred is False
     assert normalized.crm_ai_prompt == "Keep OCR evidence when uncertain."
     assert normalized.crm_preferred_import_formats == ["csv", "spreadsheet_screenshot"]
     assert normalized.crm_image_intake_channels == ["upload", "whatsapp"]
@@ -1405,6 +1434,11 @@ def test_account_settings_endpoints_and_alert_history_round_trip() -> None:
             "long_yield_symbol": "^tnx",
             "lookback_years": 3,
             "telegram_enabled": True,
+            "business_name": "Northstar Studio",
+            "business_website": "https://northstar.example",
+            "outbound_sender_name": "Ada from Northstar",
+            "business_logo_data_url": "data:image/png;base64,ZmFrZQ==",
+            "onboarding_profile_deferred": False,
             "crm_ai_prompt": "Prefer extracting next step and owner from screenshots.",
             "crm_preferred_import_formats": ["spreadsheet_screenshot", "pdf_export"],
             "crm_image_intake_channels": ["whatsapp", "telegram"],
@@ -1415,6 +1449,8 @@ def test_account_settings_endpoints_and_alert_history_round_trip() -> None:
     assert update_response.json()["benchmark"] == "QQQ"
     assert update_response.json()["universe"] == ["SPY", "QQQ"]
     assert update_response.json()["telegram_enabled"] is True
+    assert update_response.json()["business_name"] == "Northstar Studio"
+    assert update_response.json()["outbound_sender_name"] == "Ada from Northstar"
     assert update_response.json()["crm_preferred_import_formats"] == ["spreadsheet_screenshot", "pdf_export"]
     assert update_response.json()["crm_image_intake_channels"] == ["whatsapp", "telegram"]
 
@@ -1751,6 +1787,11 @@ def test_account_settings_validation_and_alert_defaults_work() -> None:
             "long_yield_symbol": "^TNX",
             "lookback_years": 0,
             "telegram_enabled": False,
+            "business_name": "",
+            "business_website": "",
+            "outbound_sender_name": "",
+            "business_logo_data_url": "",
+            "onboarding_profile_deferred": False,
             "crm_ai_prompt": "",
             "crm_preferred_import_formats": [],
             "crm_image_intake_channels": [],

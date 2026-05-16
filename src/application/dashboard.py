@@ -26,6 +26,11 @@ def build_default_dashboard_settings(user_id: UUID, *, telegram_enabled: bool) -
         long_yield_symbol=DEFAULT_LONG_YIELD_SYMBOL,
         lookback_years=DEFAULT_LOOKBACK_YEARS,
         telegram_enabled=telegram_enabled,
+        business_name="",
+        business_website="",
+        outbound_sender_name="",
+        business_logo_data_url="",
+        onboarding_profile_deferred=False,
         crm_ai_prompt="Focus on extracting follow-up-critical CRM fields from messy spreadsheets, files, and images. Prioritize lead name, company, owner, stage, next follow-up date, notes, and next step. Preserve evidence when uncertain.",
         crm_preferred_import_formats=["csv", "google_sheets", "spreadsheet_screenshot"],
         crm_image_intake_channels=["upload", "telegram"],
@@ -42,10 +47,16 @@ def normalize_dashboard_settings(settings: UserDashboardSettings) -> UserDashboa
         risk_proxy=_normalize_symbol(settings.risk_proxy, DEFAULT_RISK_PROXY),
         short_yield_symbol=_normalize_symbol(settings.short_yield_symbol, DEFAULT_SHORT_YIELD_SYMBOL),
         long_yield_symbol=_normalize_symbol(settings.long_yield_symbol, DEFAULT_LONG_YIELD_SYMBOL),
+        business_name=_normalize_free_text(settings.business_name),
+        business_website=_normalize_free_text(settings.business_website),
+        outbound_sender_name=_normalize_free_text(settings.outbound_sender_name),
+        business_logo_data_url=settings.business_logo_data_url.strip(),
+        onboarding_profile_deferred=bool(settings.onboarding_profile_deferred)
+        and not (_normalize_free_text(settings.business_name) and _normalize_free_text(settings.outbound_sender_name)),
         crm_ai_prompt=settings.crm_ai_prompt.strip(),
         crm_preferred_import_formats=_normalize_import_formats(settings.crm_preferred_import_formats),
         crm_image_intake_channels=_normalize_import_formats(settings.crm_image_intake_channels),
-        crm_image_intake_notes=settings.crm_image_intake_notes.strip(),
+        crm_image_intake_notes=_normalize_free_text(settings.crm_image_intake_notes),
     )
 
 
@@ -84,3 +95,7 @@ def _normalize_import_formats(formats: list[str]) -> list[str]:
         seen.add(normalized)
         cleaned.append(normalized)
     return cleaned[:12]
+
+
+def _normalize_free_text(value: str) -> str:
+    return value.strip()

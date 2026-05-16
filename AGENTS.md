@@ -196,6 +196,8 @@ Use this section to give the next session a fast, practical starting point. Refr
   - per-user preferred import-format memory stored with account settings
   - per-user image-intake channel preferences stored with account settings
   - per-user image-intake routing notes stored with account settings
+  - first-login business profile onboarding with a skip-for-now path
+  - persisted business name, website, logo, and auto-email sender naming
   - paid AI note-image upload support inside the CRM import flow
   - remote Telegram note capture with per-user signed `/intake ...` captions
   - a clearer signed-in versus signed-out portal state

@@ -41,6 +41,11 @@ export type AccountSettings = {
   long_yield_symbol: string;
   lookback_years: number;
   telegram_enabled: boolean;
+  business_name: string;
+  business_website: string;
+  outbound_sender_name: string;
+  business_logo_data_url: string;
+  onboarding_profile_deferred: boolean;
   crm_ai_prompt: string;
   crm_preferred_import_formats: string[];
   crm_image_intake_channels: string[];

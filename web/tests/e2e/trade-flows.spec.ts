@@ -66,6 +66,16 @@ test("saves settings and applies them back to the dashboard", async ({ page }) =
   await expect(page.getByTestId("dashboard-benchmark-value")).toHaveText("QQQ");
 });
 
+test("lets a first-time user defer the business profile setup", async ({ page }) => {
+  await bootstrapSession(page);
+  await page.goto("/crm");
+
+  await expect(page.getByText("Set the basics once so Brivoly can sound like your business.")).toBeVisible();
+  await page.getByRole("button", { name: "Add later" }).first().click();
+
+  await expect(page.getByText("Set the basics once so Brivoly can sound like your business.")).toHaveCount(0);
+});
+
 test("refreshes the alert feed through the local proxy route", async ({ page }) => {
   await bootstrapSession(page);
   await page.goto("/crash-monitor");
@@ -84,7 +94,7 @@ test("previews and imports CRM spreadsheet rows through the local proxy routes",
 
   await expect(page.getByText("Bring your lead sheet in without retyping it.")).toBeVisible();
 
-  await page.setInputFiles('input[type="file"]', {
+  await page.setInputFiles('[data-testid="crm-import-file-input"]', {
     name: "crm-import.csv",
     mimeType: "text/csv",
     buffer: Buffer.from(

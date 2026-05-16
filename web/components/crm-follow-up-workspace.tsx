@@ -3,6 +3,7 @@
 import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
+import { BusinessProfileOnboarding } from "@/components/settings/business-profile-onboarding";
 import { Button } from "@/components/ui/button";
 import type {
   AccountSettings,
@@ -237,6 +238,14 @@ export function CRMFollowUpWorkspace({
 
   return (
     <>
+      <BusinessProfileOnboarding
+        initialSettings={settings}
+        accent="amber"
+        onSettingsUpdated={(nextSettings) => setSettings(nextSettings)}
+        title="Set the basics once so Brivoly can sound like your business."
+        description="New accounts should quickly tell Brivoly the business name, sender name for automatic emails, and an optional logo. You can skip it for now, but this is how the CRM starts feeling like your workspace instead of a generic tool."
+      />
+
       <section className="mt-6 grid gap-6 md:grid-cols-4">
         <MetricCard label="Open follow-ups" value={String(overview.total_open)} tone="neutral" />
         <MetricCard label="Due today" value={String(overview.due_today)} tone="warning" />
@@ -268,6 +277,7 @@ export function CRMFollowUpWorkspace({
                 <input
                   ref={fileInputRef}
                   type="file"
+                  data-testid="crm-import-file-input"
                   accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xls,application/vnd.ms-excel,.png,image/png,.jpg,image/jpeg,.jpeg,image/jpeg,.webp,image/webp"
                   className="mt-3 block w-full rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-600"
                   onChange={(event) => {
