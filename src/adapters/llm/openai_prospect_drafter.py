@@ -34,7 +34,51 @@ class OpenAIProspectDrafter:
         self._last_usage = None
         if not matches:
             return []
+        try:
+            drafts, usage = self._draft_batch(app_summary, matches, app_url)
+        except OpenAIProspectDrafterError:
+            if len(matches) == 1:
+                raise
+            drafts, usage = self._draft_individually(app_summary, matches, app_url)
 
+        self._last_usage = usage
+        return drafts
+
+    def get_last_usage(self) -> ProspectTokenUsage | None:
+        return self._last_usage
+
+    def _draft_batch(
+        self,
+        app_summary: str,
+        matches: tuple[ProspectMatch, ...],
+        app_url: str | None,
+    ) -> tuple[list[ProspectDraft], ProspectTokenUsage | None]:
+        payload = self._request_drafts_payload(app_summary, matches, app_url)
+        usage = _extract_usage_from_response(payload, self.model)
+        return self._parse_response_payload(payload, matches), usage
+
+    def _draft_individually(
+        self,
+        app_summary: str,
+        matches: tuple[ProspectMatch, ...],
+        app_url: str | None,
+    ) -> tuple[list[ProspectDraft], ProspectTokenUsage | None]:
+        drafts: list[ProspectDraft] = []
+        usages: list[ProspectTokenUsage] = []
+        for match in matches:
+            payload = self._request_drafts_payload(app_summary, (match,), app_url)
+            usage = _extract_usage_from_response(payload, self.model)
+            if usage is not None:
+                usages.append(usage)
+            drafts.extend(self._parse_response_payload(payload, (match,)))
+        return drafts, _merge_usage(usages)
+
+    def _request_drafts_payload(
+        self,
+        app_summary: str,
+        matches: tuple[ProspectMatch, ...],
+        app_url: str | None,
+    ) -> dict[str, object]:
         prompt_payload = {
             "app_summary": app_summary,
             "app_url": app_url,
@@ -62,7 +106,6 @@ class OpenAIProspectDrafter:
             "Return JSON only in the form "
             '{"drafts":[{"post_id":"...","idea":"...","assessment":"strong_signal|weak_signal|reject","confidence":"high|medium|low","noise_flags":["..."]}]}.'
         )
-
         try:
             response = httpx.post(
                 "https://api.openai.com/v1/responses",
@@ -80,12 +123,15 @@ class OpenAIProspectDrafter:
                 timeout=self.timeout_seconds,
             )
             response.raise_for_status()
-            payload = response.json()
+            return response.json()
         except (httpx.HTTPError, ValueError) as exc:
             raise OpenAIProspectDrafterError("Unable to generate opportunity ideas.") from exc
 
-        self._last_usage = _extract_usage_from_response(payload, self.model)
-
+    def _parse_response_payload(
+        self,
+        payload: dict[str, object],
+        matches: tuple[ProspectMatch, ...],
+    ) -> list[ProspectDraft]:
         content = _extract_text_from_response(payload)
         try:
             response_json = json.loads(content)
@@ -134,9 +180,6 @@ class OpenAIProspectDrafter:
             replies_by_id.get(match.post.external_id) or _build_model_omission_rejection()
             for match in matches
         ]
-
-    def get_last_usage(self) -> ProspectTokenUsage | None:
-        return self._last_usage
 
 
 class TemplateProspectDrafter:
@@ -220,4 +263,15 @@ def _extract_usage_from_response(payload: dict[str, object], model: str) -> Pros
         input_tokens=input_tokens,
         output_tokens=output_tokens,
         total_tokens=total_tokens,
+    )
+
+
+def _merge_usage(usages: list[ProspectTokenUsage]) -> ProspectTokenUsage | None:
+    if not usages:
+        return None
+    return ProspectTokenUsage(
+        model=usages[0].model,
+        input_tokens=sum(item.input_tokens for item in usages),
+        output_tokens=sum(item.output_tokens for item in usages),
+        total_tokens=sum(item.total_tokens for item in usages),
     )

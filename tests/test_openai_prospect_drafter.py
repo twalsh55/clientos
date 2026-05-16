@@ -9,6 +9,7 @@ from src.adapters.llm.openai_prospect_drafter import (
     OpenAIProspectDrafterError,
     TemplateProspectDrafter,
     _extract_text_from_response,
+    _merge_usage,
 )
 from src.domain.prospecting import ProspectDraft, ProspectMatch, SocialPost
 
@@ -294,6 +295,56 @@ def test_openai_prospect_drafter_normalizes_invalid_structured_fields(monkeypatc
     ]
 
 
+def test_openai_prospect_drafter_falls_back_to_individual_calls_on_invalid_batch_json(monkeypatch) -> None:
+    calls: list[int] = []
+
+    def fake_post(url: str, *, headers, json, timeout: float):  # type: ignore[no-untyped-def]
+        request = httpx.Request("POST", url)
+        prompt = __import__("json").loads(json["input"])
+        posts = prompt["posts"]
+        calls.append(len(posts))
+        if len(posts) > 1:
+            return httpx.Response(
+                200,
+                request=request,
+                json={
+                    "usage": {"input_tokens": 100, "output_tokens": 20, "total_tokens": 120},
+                    "output_text": "not-json",
+                },
+            )
+        post_id = posts[0]["post_id"]
+        return httpx.Response(
+            200,
+            request=request,
+            json={
+                "usage": {"input_tokens": 40, "output_tokens": 10, "total_tokens": 50},
+                "output_text": (
+                    '{"drafts":[{"post_id":"'
+                    + post_id
+                    + '","idea":"Idea for '
+                    + post_id
+                    + '","assessment":"strong_signal","confidence":"high","noise_flags":[]}]}'
+                ),
+            },
+        )
+
+    monkeypatch.setattr("src.adapters.llm.openai_prospect_drafter.httpx.post", fake_post)
+
+    drafter = OpenAIProspectDrafter(api_key="secret")
+    replies = drafter.draft_promotional_replies("summary", (build_match("1"), build_match("2")), None)
+
+    assert calls == [2, 1, 1]
+    assert replies == [
+        ProspectDraft(idea="Idea for 1", assessment="strong_signal", confidence="high", noise_flags=()),
+        ProspectDraft(idea="Idea for 2", assessment="strong_signal", confidence="high", noise_flags=()),
+    ]
+    usage = drafter.get_last_usage()
+    assert usage is not None
+    assert usage.total_tokens == 100
+    assert usage.input_tokens == 80
+    assert usage.output_tokens == 20
+
+
 def test_extract_text_from_response_rejects_invalid_shapes() -> None:
     invalid_payloads = (
         {"output": {}},
@@ -310,3 +361,18 @@ def test_extract_text_from_response_rejects_invalid_shapes() -> None:
             assert str(exc) == "OpenAI returned an invalid drafting payload."
         else:
             raise AssertionError("Expected OpenAIProspectDrafterError")
+
+
+def test_merge_usage_handles_empty_and_multiple_values() -> None:
+    assert _merge_usage([]) is None
+    merged = _merge_usage(
+        [
+            type("Usage", (), {"model": "gpt-5.4-mini", "input_tokens": 10, "output_tokens": 3, "total_tokens": 13})(),
+            type("Usage", (), {"model": "gpt-5.4-mini", "input_tokens": 20, "output_tokens": 4, "total_tokens": 24})(),
+        ]
+    )
+    assert merged is not None
+    assert merged.model == "gpt-5.4-mini"
+    assert merged.input_tokens == 30
+    assert merged.output_tokens == 7
+    assert merged.total_tokens == 37
