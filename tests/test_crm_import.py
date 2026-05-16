@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import csv
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -153,6 +154,21 @@ def test_preview_lead_import_rejects_blank_and_unrecognized_content() -> None:
         use_case.execute(make_user(), "foo,bar\n1,2\n", "csv", "CSV upload")
 
 
+def test_preview_lead_import_handles_windows_newlines_without_csv_reader_crashing() -> None:
+    repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+    use_case = PreviewLeadImportUseCase(repository=repository, now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+
+    preview = use_case.execute(
+        make_user(),
+        "Contact,Company,Owner,Status,Next Follow-Up,Notes\r\nTaylor Brooks,Beacon Ridge,Samir Patel,Qualification,2024-05-09,Imported from sheet\r\n",
+        "csv",
+        "CSV upload",
+    )
+
+    assert preview.importable_rows == 1
+    assert preview.rows[0].lead_name == "Taylor Brooks"
+
+
 def test_preview_lead_import_rejects_missing_header_row_via_csv_reader(monkeypatch) -> None:
     repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
     use_case = PreviewLeadImportUseCase(repository=repository, now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
@@ -166,6 +182,40 @@ def test_preview_lead_import_rejects_missing_header_row_via_csv_reader(monkeypat
     monkeypatch.setattr("src.application.crm_import.csv.DictReader", lambda *args, **kwargs: _Reader())
     with pytest.raises(ValueError, match="header row"):
         use_case.execute(make_user(), "contact,company", "csv", "CSV upload")
+
+
+def test_preview_lead_import_surfaces_csv_reader_parse_errors_as_validation_errors(monkeypatch) -> None:
+    repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+    use_case = PreviewLeadImportUseCase(repository=repository, now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+
+    class _BrokenReader:
+        fieldnames = ["Contact"]
+
+        def __iter__(self):
+            raise csv.Error("broken csv")
+
+    monkeypatch.setattr("src.application.crm_import.csv.DictReader", lambda *args, **kwargs: _BrokenReader())
+
+    with pytest.raises(ValueError, match="could not be parsed as CSV"):
+        use_case.execute(make_user(), "contact\nTaylor\n", "csv", "CSV upload")
+
+
+def test_preview_lead_import_surfaces_csv_header_parse_errors_as_validation_errors(monkeypatch) -> None:
+    repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+    use_case = PreviewLeadImportUseCase(repository=repository, now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+
+    class _BrokenHeaderReader:
+        @property
+        def fieldnames(self):
+            raise csv.Error("broken header")
+
+        def __iter__(self):
+            return iter(())
+
+    monkeypatch.setattr("src.application.crm_import.csv.DictReader", lambda *args, **kwargs: _BrokenHeaderReader())
+
+    with pytest.raises(ValueError, match="could not be parsed as CSV"):
+        use_case.execute(make_user(), "contact\nTaylor\n", "csv", "CSV upload")
 
 
 def test_preview_lead_import_surfaces_missing_fields_invalid_dates_and_note_warnings() -> None:

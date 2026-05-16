@@ -182,9 +182,14 @@ def _build_preview(
     if not normalized_content:
         raise ValueError("Spreadsheet content is required.")
 
-    reader = csv.DictReader(io.StringIO(normalized_content))
-    if not reader.fieldnames:
-        raise ValueError("The spreadsheet must include a header row.")
+    try:
+        reader = csv.DictReader(io.StringIO(normalized_content, newline=""))
+        if not reader.fieldnames:
+            raise ValueError("The spreadsheet must include a header row.")
+    except csv.Error as exc:
+        raise ValueError(
+            "This spreadsheet export could not be parsed as CSV. Re-export it as CSV or clean up broken line breaks first."
+        ) from exc
 
     suggested_map = _build_suggested_field_map(reader.fieldnames)
     field_map = _build_field_map(reader.fieldnames, suggested_map, field_mapping_overrides)
@@ -204,10 +209,15 @@ def _build_preview(
     rows: list[LeadImportPreviewRow] = []
     issues: list[LeadImportIssue] = []
 
-    for row_number, row in enumerate(reader, start=2):
-        preview_row = _build_preview_row(row_number, row, field_map, existing_keys)
-        rows.append(preview_row)
-        issues.extend(preview_row.issues)
+    try:
+        for row_number, row in enumerate(reader, start=2):
+            preview_row = _build_preview_row(row_number, row, field_map, existing_keys)
+            rows.append(preview_row)
+            issues.extend(preview_row.issues)
+    except csv.Error as exc:
+        raise ValueError(
+            "This spreadsheet export could not be parsed as CSV. Re-export it as CSV or clean up broken line breaks first."
+        ) from exc
 
     duplicate_rows = sum(1 for row in rows if row.duplicate)
     invalid_rows = sum(1 for row in rows if any(issue.severity == "error" for issue in row.issues))
