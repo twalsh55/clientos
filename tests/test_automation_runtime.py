@@ -12,9 +12,14 @@ from src.adapters.automation.runtime import (
     FileAutomationHeartbeatStore,
     FileAutomationStateStore,
     LocalAutomationWorker,
+    _build_optional_progress_email_notifier,
+    _build_optional_telegram_notifier,
+    _format_founder_code_progress_message,
     _format_token_usage,
+    _get_progress_email_recipient,
     _run_founder_code_consume_job,
     _run_founder_code_execute_job,
+    _run_founder_code_report_job,
     _run_founder_code_sync_job,
     _run_job_with_timeout,
     _run_operator_briefing_job,
@@ -213,6 +218,8 @@ def test_build_jobs_worker_and_run_worker_from_env(monkeypatch, tmp_path) -> Non
     jobs = build_jobs_from_env()
     assert jobs[5].name == "founder_code_execute"
     assert jobs[5].interval == timedelta(seconds=30)
+    assert jobs[6].name == "founder_code_report"
+    assert jobs[6].interval == timedelta(seconds=30)
 
     class FakeWorker:
         def run_forever(self, max_iterations=None):
@@ -301,13 +308,36 @@ def test_automation_job_runners_report_success_and_failure(monkeypatch) -> None:
     assert _run_founder_code_consume_job().status == "failed"
 
     monkeypatch.setattr("src.adapters.automation.runtime.launch_next_pending_founder_code_request", lambda: "launched=123 pid=456")
+    monkeypatch.setattr("src.adapters.automation.runtime.read_active_founder_code_request", lambda: {"id": "123", "command_text": "/code fix login", "source_chat_id": "123"})
+    notifications: list[tuple[str, dict[str, object]]] = []
+    monkeypatch.setattr("src.adapters.automation.runtime._send_founder_code_progress_notification", lambda status, payload: notifications.append((status, payload)))
     assert _run_founder_code_execute_job().detail == "launched=123 pid=456"
+    assert notifications[-1][0] == "started"
 
     monkeypatch.setattr(
         "src.adapters.automation.runtime.launch_next_pending_founder_code_request",
         lambda: (_ for _ in ()).throw(RuntimeError("codex missing")),
     )
     assert _run_founder_code_execute_job().status == "failed"
+
+    monkeypatch.setattr("src.adapters.automation.runtime.finalize_founder_code_request_if_complete", lambda: None)
+    monkeypatch.setattr("src.adapters.automation.runtime.read_active_founder_code_request", lambda: None)
+    assert _run_founder_code_report_job().detail == "no_active"
+
+    monkeypatch.setattr("src.adapters.automation.runtime.read_active_founder_code_request", lambda: {"id": "1"})
+    assert _run_founder_code_report_job().detail == "running"
+
+    monkeypatch.setattr(
+        "src.adapters.automation.runtime.finalize_founder_code_request_if_complete",
+        lambda: {"id": "2", "status": "finished", "command_text": "/code fix", "source_chat_id": "123", "summary": "done"},
+    )
+    assert _run_founder_code_report_job().detail == "reported=finished"
+
+    monkeypatch.setattr(
+        "src.adapters.automation.runtime.finalize_founder_code_request_if_complete",
+        lambda: (_ for _ in ()).throw(RuntimeError("bad active file")),
+    )
+    assert _run_founder_code_report_job().status == "failed"
 
     briefing = type("Briefing", (), {"prospect_run_count": 2, "total_shortlisted_ideas": 5, "product_updates": (1, 2)})()
     monkeypatch.setattr("src.adapters.automation.runtime.run_daily_operator_briefing_job", lambda: briefing)
@@ -324,11 +354,70 @@ def test_automation_job_runners_report_success_and_failure(monkeypatch) -> None:
     assert _run_sentiment_job(lambda: None).status == "ok"
     assert _run_sentiment_job(lambda: (_ for _ in ()).throw(RuntimeError("bad"))).status == "failed"
     assert _format_token_usage(None) == "template-mode"
+    assert "Remote Codex update" in _format_founder_code_progress_message("started", {"command_text": "/code fix", "source_chat_id": "123"})
+    assert "Summary:" in _format_founder_code_progress_message("finished", {"command_text": "/code fix", "source_chat_id": "123", "summary": "done"})
     monkeypatch.delenv("APP_OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setattr("src.adapters.automation.runtime.run_prospecting_job", lambda: digest)
     assert _run_prospect_with_template_fallback() == digest
     assert "APP_OPENAI_API_KEY" not in os.environ
+
+
+def test_founder_code_progress_notification_helpers(monkeypatch) -> None:
+    for name in ("TELEGRAM_BOT_TOKEN", "TELEGRAM_CHAT_ID", "SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD", "SMTP_FROM_EMAIL", "OPERATOR_BRIEFING_RECIPIENT", "PROSPECT_EMAIL_RECIPIENT"):
+        monkeypatch.delenv(name, raising=False)
+    assert _build_optional_telegram_notifier() is None
+    assert _build_optional_progress_email_notifier() is None
+    assert _get_progress_email_recipient() is None
+
+    monkeypatch.setenv("TELEGRAM_BOT_TOKEN", "bot")
+    monkeypatch.setenv("TELEGRAM_CHAT_ID", "chat")
+    telegram = _build_optional_telegram_notifier()
+    assert telegram is not None
+    assert telegram.chat_id == "chat"
+
+    monkeypatch.setenv("SMTP_HOST", "smtp.example.com")
+    monkeypatch.setenv("SMTP_USERNAME", "mailer")
+    monkeypatch.setenv("SMTP_PASSWORD", "secret")
+    monkeypatch.setenv("SMTP_FROM_EMAIL", "alerts@example.com")
+    monkeypatch.setenv("SMTP_PORT", "2525")
+    monkeypatch.setenv("SMTP_USE_TLS", "false")
+    email = _build_optional_progress_email_notifier()
+    assert email is not None
+    assert email.port == 2525
+    assert email.use_tls is False
+
+    monkeypatch.setenv("OPERATOR_BRIEFING_RECIPIENT", "ops@example.com")
+    assert _get_progress_email_recipient() == "ops@example.com"
+    monkeypatch.delenv("OPERATOR_BRIEFING_RECIPIENT", raising=False)
+    monkeypatch.setenv("PROSPECT_EMAIL_RECIPIENT", "prospect@example.com")
+    assert _get_progress_email_recipient() == "prospect@example.com"
+
+
+def test_send_founder_code_progress_notification_tolerates_channel_errors(monkeypatch) -> None:
+    sent_messages: list[str] = []
+    sent_emails: list[tuple[str, str, str]] = []
+
+    class FakeTelegram:
+        def send_message(self, text: str) -> None:
+            sent_messages.append(text)
+            raise __import__("src.adapters.notifications.telegram_notifier", fromlist=["TelegramNotificationError"]).TelegramNotificationError("down")
+
+    class FakeEmail:
+        def send_email(self, recipient: str, subject: str, text_body: str) -> None:
+            sent_emails.append((recipient, subject, text_body))
+            raise __import__("src.adapters.notifications.smtp_email_notifier", fromlist=["EmailNotificationError"]).EmailNotificationError("down")
+
+    monkeypatch.setattr("src.adapters.automation.runtime._build_optional_telegram_notifier", lambda: FakeTelegram())
+    monkeypatch.setattr("src.adapters.automation.runtime._build_optional_progress_email_notifier", lambda: FakeEmail())
+    monkeypatch.setattr("src.adapters.automation.runtime._get_progress_email_recipient", lambda: "ops@example.com")
+
+    __import__("src.adapters.automation.runtime", fromlist=["_send_founder_code_progress_notification"])._send_founder_code_progress_notification(
+        "finished",
+        {"command_text": "/code fix login", "source_chat_id": "123", "summary": "done"},
+    )
+    assert sent_messages
+    assert sent_emails
 
 
 def test_run_job_with_timeout_covers_success_and_timeout() -> None:

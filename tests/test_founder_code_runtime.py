@@ -11,8 +11,10 @@ from psycopg import OperationalError
 from src.adapters.founder_code import runtime as runtime_module
 from src.adapters.founder_code.runtime import (
     build_founder_code_request_repository,
+    finalize_founder_code_request_if_complete,
     launch_next_pending_founder_code_request,
     parse_positive_int,
+    read_active_founder_code_request,
     stage_founder_code_requests_from_inbox,
     sync_founder_code_requests_from_api,
 )
@@ -454,6 +456,122 @@ def test_launch_next_pending_founder_code_request_handles_idle_and_running_state
 
     monkeypatch.setattr(runtime_module, "_is_executor_running", lambda path: False)
     assert launch_next_pending_founder_code_request() == "no_new_requests"
+
+
+def test_read_and_finalize_active_founder_code_request(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("AUTONOMOUS_CODE_ACTIVE_FILE", str(tmp_path / "missing.json"))
+    assert read_active_founder_code_request() is None
+
+    active_path = tmp_path / "active.json"
+    pid_path = tmp_path / "executor.pid"
+    output_path = tmp_path / "output.txt"
+    log_path = tmp_path / "run.log"
+    result_path = tmp_path / "result.json"
+    active_payload = {
+        "id": "77",
+        "command_text": "/code fix login",
+        "source_chat_id": "123",
+        "output_path": str(output_path),
+        "log_path": str(log_path),
+    }
+    active_path.write_text(json.dumps(active_payload), encoding="utf-8")
+    pid_path.write_text("12345", encoding="utf-8")
+    output_path.write_text("Final summary", encoding="utf-8")
+    monkeypatch.setenv("AUTONOMOUS_CODE_ACTIVE_FILE", str(active_path))
+    monkeypatch.setenv("AUTONOMOUS_CODE_EXECUTOR_PID_FILE", str(pid_path))
+    monkeypatch.setenv("AUTONOMOUS_CODE_RESULT_FILE", str(result_path))
+    monkeypatch.setattr(runtime_module, "_is_executor_running", lambda path: False)
+
+    assert read_active_founder_code_request()["id"] == "77"
+    result = finalize_founder_code_request_if_complete()
+    assert result is not None
+    assert result["status"] == "finished"
+    assert "Final summary" in str(result["summary"])
+    assert not active_path.exists()
+    assert not pid_path.exists()
+    assert json.loads(result_path.read_text(encoding="utf-8"))["id"] == "77"
+
+    active_path.write_text("[]", encoding="utf-8")
+    assert read_active_founder_code_request() is None
+
+
+def test_finalize_active_founder_code_request_handles_running_and_failed_runs(tmp_path, monkeypatch) -> None:
+    monkeypatch.setenv("AUTONOMOUS_CODE_ACTIVE_FILE", str(tmp_path / "missing.json"))
+    monkeypatch.setenv("AUTONOMOUS_CODE_EXECUTOR_PID_FILE", str(tmp_path / "missing.pid"))
+    monkeypatch.setenv("AUTONOMOUS_CODE_RESULT_FILE", str(tmp_path / "result.json"))
+    assert finalize_founder_code_request_if_complete() is None
+
+    active_path = tmp_path / "active.json"
+    pid_path = tmp_path / "executor.pid"
+    log_path = tmp_path / "run.log"
+    active_payload = {
+        "id": "88",
+        "command_text": "/code fix login",
+        "source_chat_id": "123",
+        "output_path": str(tmp_path / "missing.txt"),
+        "log_path": str(log_path),
+    }
+    active_path.write_text(json.dumps(active_payload), encoding="utf-8")
+    pid_path.write_text("12345", encoding="utf-8")
+    log_path.write_text("Traceback-ish output", encoding="utf-8")
+    monkeypatch.setenv("AUTONOMOUS_CODE_ACTIVE_FILE", str(active_path))
+    monkeypatch.setenv("AUTONOMOUS_CODE_EXECUTOR_PID_FILE", str(pid_path))
+    monkeypatch.setenv("AUTONOMOUS_CODE_RESULT_FILE", str(tmp_path / "result.json"))
+    monkeypatch.setattr(runtime_module, "_is_executor_running", lambda path: True)
+    assert finalize_founder_code_request_if_complete() is None
+
+    monkeypatch.setattr(runtime_module, "_is_executor_running", lambda path: False)
+    result = finalize_founder_code_request_if_complete()
+    assert result is not None
+    assert result["status"] == "failed"
+    assert "Traceback-ish output" in str(result["summary"])
+
+
+def test_finalize_founder_code_request_if_complete_handles_missing_output_and_unreadable_log(tmp_path, monkeypatch) -> None:
+    active_path = tmp_path / "active.json"
+    pid_path = tmp_path / "executor.pid"
+    unreadable_path = tmp_path / "unreadable.log"
+    active_path.write_text(
+        json.dumps(
+            {
+                "id": "99",
+                "command_text": "/code fix login",
+                "source_chat_id": "123",
+                "output_path": "",
+                "log_path": str(unreadable_path),
+            }
+        ),
+        encoding="utf-8",
+    )
+    pid_path.write_text("12345", encoding="utf-8")
+    monkeypatch.setenv("AUTONOMOUS_CODE_ACTIVE_FILE", str(active_path))
+    monkeypatch.setenv("AUTONOMOUS_CODE_EXECUTOR_PID_FILE", str(pid_path))
+    monkeypatch.setenv("AUTONOMOUS_CODE_RESULT_FILE", str(tmp_path / "result.json"))
+    monkeypatch.setattr(runtime_module, "_is_executor_running", lambda path: False)
+
+    class FakeUnreadablePath:
+        def __init__(self, raw: str) -> None:
+            self.raw = raw
+
+        def __str__(self) -> str:
+            return self.raw
+
+        def exists(self) -> bool:
+            return True
+
+        def read_text(self, encoding="utf-8") -> str:
+            raise OSError("unreadable")
+
+    monkeypatch.setattr(runtime_module, "Path", lambda value: FakeUnreadablePath(value) if str(value) == str(unreadable_path) else Path(value))
+    result = finalize_founder_code_request_if_complete()
+    assert result is not None
+    assert result["summary"] == ""
+
+    class EmptyPath:
+        def __str__(self) -> str:
+            return ""
+
+    assert runtime_module._read_optional_text(EmptyPath()) == ""
 
 
 def test_launch_next_pending_founder_code_request_requires_codex_binary(tmp_path, monkeypatch) -> None:

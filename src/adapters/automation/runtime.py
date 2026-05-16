@@ -11,9 +11,14 @@ from dataclasses import asdict
 from datetime import UTC, datetime, timedelta
 from pathlib import Path
 
+from src.adapters.notifications.composite_email_notifier import CompositeEmailNotifier
+from src.adapters.notifications.smtp_email_notifier import SMTPEmailNotifier
 from src.adapters.notifications.smtp_email_notifier import EmailNotificationError
+from src.adapters.notifications.telegram_notifier import TelegramNotificationError, TelegramNotifier
 from src.adapters.founder_code.runtime import (
+    finalize_founder_code_request_if_complete,
     launch_next_pending_founder_code_request,
+    read_active_founder_code_request,
     stage_founder_code_requests_from_inbox,
     sync_founder_code_requests_from_api,
 )
@@ -144,11 +149,19 @@ def build_jobs_from_env() -> tuple[AutomationJob, ...]:
             )
         )
     if os.getenv("AUTOMATION_ENABLE_FOUNDER_CODE_EXECUTOR", "false").strip().lower() == "true":
+        executor_interval = timedelta(seconds=parse_positive_int("AUTOMATION_FOUNDER_CODE_EXECUTOR_INTERVAL_SECONDS", default=30))
         jobs.append(
             AutomationJob(
                 name="founder_code_execute",
-                interval=timedelta(seconds=parse_positive_int("AUTOMATION_FOUNDER_CODE_EXECUTOR_INTERVAL_SECONDS", default=30)),
+                interval=executor_interval,
                 runner=lambda: _run_job_with_timeout("founder_code_execute", _run_founder_code_execute_job, timeout_seconds),
+            )
+        )
+        jobs.append(
+            AutomationJob(
+                name="founder_code_report",
+                interval=executor_interval,
+                runner=lambda: _run_job_with_timeout("founder_code_report", _run_founder_code_report_job, timeout_seconds),
             )
         )
     return tuple(jobs)
@@ -275,7 +288,25 @@ def _run_founder_code_execute_job() -> AutomationJobResult:
         detail = launch_next_pending_founder_code_request()
     except RuntimeError as exc:
         return AutomationJobResult(status="failed", detail=str(exc))
+    if detail.startswith("launched="):
+        active = read_active_founder_code_request()
+        if active is not None:
+            _send_founder_code_progress_notification("started", active)
     return AutomationJobResult(status="ok", detail=detail)
+
+
+def _run_founder_code_report_job() -> AutomationJobResult:
+    try:
+        result = finalize_founder_code_request_if_complete()
+    except RuntimeError as exc:
+        return AutomationJobResult(status="failed", detail=str(exc))
+    if result is None:
+        active = read_active_founder_code_request()
+        if active is None:
+            return AutomationJobResult(status="ok", detail="no_active")
+        return AutomationJobResult(status="ok", detail="running")
+    _send_founder_code_progress_notification(str(result.get("status") or "finished"), result)
+    return AutomationJobResult(status="ok", detail=f"reported={result.get('status', 'finished')}")
 
 
 def _run_sentiment_job(runner) -> AutomationJobResult:  # type: ignore[no-untyped-def]
@@ -290,6 +321,77 @@ def _format_token_usage(usage) -> str:  # type: ignore[no-untyped-def]
     if usage is None:
         return "template-mode"
     return f"{usage.total_tokens} total ({usage.input_tokens} in / {usage.output_tokens} out) via {usage.model}"
+
+
+def _send_founder_code_progress_notification(status: str, payload: dict[str, object]) -> None:
+    message = _format_founder_code_progress_message(status, payload)
+    try:
+        telegram = _build_optional_telegram_notifier()
+        if telegram is not None:
+            telegram.send_message(message)
+    except TelegramNotificationError:
+        pass
+    try:
+        email = _build_optional_progress_email_notifier()
+        recipient = _get_progress_email_recipient()
+        if email is not None and recipient:
+            email.send_email(
+                recipient=recipient,
+                subject=f"Brivoly remote Codex {status}",
+                text_body=message,
+            )
+    except EmailNotificationError:
+        pass
+
+
+def _format_founder_code_progress_message(status: str, payload: dict[str, object]) -> str:
+    command_text = str(payload.get("command_text") or "(missing)").strip()
+    source_chat_id = str(payload.get("source_chat_id") or "unknown").strip()
+    lines = [
+        "Remote Codex update",
+        f"Status: {status}",
+        f"Source: {source_chat_id}",
+        f"Command: {command_text}",
+    ]
+    if status in {"finished", "failed"}:
+        summary = str(payload.get("summary") or "").strip()
+        if summary:
+            lines.append("Summary:")
+            lines.append(summary[:1200])
+    return "\n".join(lines)
+
+
+def _build_optional_telegram_notifier() -> TelegramNotifier | None:
+    bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
+    chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
+    if not bot_token or not chat_id:
+        return None
+    return TelegramNotifier(bot_token=bot_token, chat_id=chat_id)
+
+
+def _build_optional_progress_email_notifier() -> SMTPEmailNotifier | CompositeEmailNotifier | None:
+    host = os.getenv("SMTP_HOST", "").strip()
+    username = os.getenv("SMTP_USERNAME", "").strip()
+    password = os.getenv("SMTP_PASSWORD", "").strip()
+    from_email = os.getenv("SMTP_FROM_EMAIL", "").strip()
+    if not all((host, username, password, from_email)):
+        return None
+    return SMTPEmailNotifier(
+        host=host,
+        port=parse_positive_int("SMTP_PORT", default=587),
+        username=username,
+        password=password,
+        from_email=from_email,
+        use_tls=os.getenv("SMTP_USE_TLS", "true").strip().lower() != "false",
+    )
+
+
+def _get_progress_email_recipient() -> str | None:
+    for name in ("OPERATOR_BRIEFING_RECIPIENT", "PROSPECT_EMAIL_RECIPIENT"):
+        value = os.getenv(name, "").strip()
+        if value:
+            return value
+    return None
 
 
 def _run_prospect_with_template_fallback():

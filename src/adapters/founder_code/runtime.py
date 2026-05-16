@@ -220,6 +220,52 @@ def launch_next_pending_founder_code_request() -> str:
     return f"launched={request_id} pid={process.pid}"
 
 
+def read_active_founder_code_request() -> dict[str, object] | None:
+    active_path = Path(
+        os.getenv("AUTONOMOUS_CODE_ACTIVE_FILE", "var/founder_code_active.json").strip()
+        or "var/founder_code_active.json"
+    )
+    if not active_path.exists():
+        return None
+    payload = json.loads(active_path.read_text(encoding="utf-8") or "{}")
+    return payload if isinstance(payload, dict) else None
+
+
+def finalize_founder_code_request_if_complete() -> dict[str, object] | None:
+    active_path = Path(
+        os.getenv("AUTONOMOUS_CODE_ACTIVE_FILE", "var/founder_code_active.json").strip()
+        or "var/founder_code_active.json"
+    )
+    pid_path = Path(
+        os.getenv("AUTONOMOUS_CODE_EXECUTOR_PID_FILE", "var/founder_code_executor.pid").strip()
+        or "var/founder_code_executor.pid"
+    )
+    latest_result_path = Path(
+        os.getenv("AUTONOMOUS_CODE_RESULT_FILE", "var/founder_code_result.json").strip()
+        or "var/founder_code_result.json"
+    )
+    active = read_active_founder_code_request()
+    if active is None:
+        return None
+    if _is_executor_running(pid_path):
+        return None
+
+    output_text = _read_optional_text(Path(str(active.get("output_path") or "")))
+    log_text = _read_optional_text(Path(str(active.get("log_path") or "")))
+    summary = (output_text or log_text).strip()
+    result = {
+        **active,
+        "finished_at": datetime.now().isoformat(),
+        "status": "finished" if output_text.strip() else "failed",
+        "summary": summary[:4000],
+    }
+    latest_result_path.parent.mkdir(parents=True, exist_ok=True)
+    latest_result_path.write_text(json.dumps(result, sort_keys=True, indent=2), encoding="utf-8")
+    active_path.unlink(missing_ok=True)
+    pid_path.unlink(missing_ok=True)
+    return result
+
+
 def parse_positive_int(name: str, default: int) -> int:
     raw_value = os.getenv(name, "").strip()
     if not raw_value:
@@ -312,6 +358,17 @@ def _build_codex_exec_prompt(request: dict[str, object]) -> str:
         "Run relevant tests, commit and push coherent change sets, and deploy when appropriate. "
         "If the request conflicts with the product goal or cannot be completed safely, explain that clearly instead of forcing a change."
     )
+
+
+def _read_optional_text(path: Path) -> str:
+    if not str(path):
+        return ""
+    if not path.exists():
+        return ""
+    try:
+        return path.read_text(encoding="utf-8")
+    except OSError:
+        return ""
 
 
 def _pick_next_pending_request(requests: list[dict[str, object]]) -> dict[str, object]:
