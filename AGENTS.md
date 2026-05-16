@@ -84,6 +84,8 @@ The backend exposes these routes from `src/adapters/api/app.py`:
 - `POST /api/account/billing/checkout`
 - `POST /api/account/billing/portal`
 - `GET /api/alerts/history`
+- `POST /api/crm/import/preview`
+- `POST /api/crm/import`
 - `GET /api/internal/founder-code-requests`
 
 Notes:
@@ -92,6 +94,7 @@ Notes:
 - Stripe billing routes are enabled when `STRIPE_SECRET_KEY`, `STRIPE_PRICE_ID`, and `DATABASE_URL` are configured on the API service.
 - The in-memory personalization adapter remains available as a fallback for local or isolated test contexts.
 - The Next.js app supports sign-in bootstrap, dashboard rendering, interactive dashboard filters, editable settings, refreshable alert history, and richer chart rendering on top of the Python API contracts.
+- The CRM surface now supports CSV and Google Sheets import preview plus commit flows, with header normalization, duplicate detection, and imported lead mapping into the queue and timeline.
 - API responses include `X-Request-ID` for request tracing.
 
 ## Execution Checklist
@@ -183,6 +186,10 @@ Use this section to give the next session a fast, practical starting point. Refr
   - complete and snooze/reschedule actions
   - contact timeline history per lead
   - lightweight internal note capture
+  - CSV upload import preview and commit
+  - Google Sheets import preview and commit
+  - messy header normalization and duplicate detection before import
+  - imported owner visibility in the queue and memory panel
   - a clearer signed-in versus signed-out portal state
   - a more explicit and welcoming sign-in handoff
 - The current CRM wedge is:
@@ -243,6 +250,11 @@ Use this section to give the next session a fast, practical starting point. Refr
   - deployed to Railway and Vercel
   - logged into `product_updates.jsonl`
   - summarized by email through the operator briefing flow
+- The latest CRM wedge expansion is spreadsheet import:
+  - CSV upload support
+  - Google Sheets URL support
+  - preview with validation issues and duplicate detection
+  - import into the live follow-up queue and timeline memory
 - The latest frontend UX improvement is much more explicit login-state messaging across the portal hub, CRM entry page, sign-in screen, and crash-monitor shell, including stronger guest-versus-signed-in banners and clearer next-step copy.
 - The latest frontend polish fix is that the CRM portal label now uses the Brivoly logo blue/navy brand colors instead of the old red accent.
 - The latest platform automation addition is the Telegram `/code` workflow on the API side; it is production-facing and should be kept in sync with the fast-start notes and README.
@@ -254,15 +266,17 @@ Use this section to give the next session a fast, practical starting point. Refr
 - Backend verification standard:
   - `uv run pytest`
 - Frontend verification standard:
+  - `cd web && npm run typecheck`
   - `cd web && npm run build`
+  - `cd web && npm run e2e`
 - Current frontend e2e coverage now assumes `/` is the portal hub and `/crash-monitor` is the authenticated dashboard route.
-- `cd web && npm run typecheck` currently has a known pre-existing issue with missing `.next/types/**` generated files referenced by `web/tsconfig.json`. Treat this as a repo issue unless the failure changes shape.
+- Current CRM e2e coverage now also exercises spreadsheet import preview and commit through the local proxy routes.
 
 ### Next Recommended Product Moves
 
 - Highest-conviction next CRM features:
-  - CSV or spreadsheet import / cleanup
   - richer handoff history and stage memory
+  - deeper spreadsheet cleanup and field-mapping controls after preview
   - consultant / agency specific templates or checklists
 - Broader CRM expansion should stay constrained until the follow-up-first wedge shows stronger pull.
 

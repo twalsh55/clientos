@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from dataclasses import FrozenInstanceError
+from dataclasses import FrozenInstanceError, replace
 from datetime import UTC, datetime
 from uuid import UUID
 
@@ -54,6 +54,7 @@ def test_in_memory_lead_follow_up_repository_supports_complete_snooze_and_notes(
     assert riverbridge.notes == "Needs a lighter rollout framing."
     assert riverbridge.timeline[0].kind == "internal_note"
     assert riverbridge.timeline[0].summary == "Needs a lighter rollout framing."
+    assert riverbridge.owner_name == "Ada Lovelace"
 
     repository.complete_lead_follow_up(user, "lead-amber-studio", now)
     assert all(item.id != "lead-amber-studio" for item in repository.list_lead_follow_ups(user))
@@ -66,6 +67,17 @@ def test_in_memory_lead_follow_up_repository_supports_complete_snooze_and_notes(
 
     with pytest.raises(KeyError):
         repository.append_note_to_lead_follow_up(user, "missing-id", "note", now)
+
+    imported = replace(
+        riverbridge,
+        id="lead-imported",
+        lead_name="Taylor Brooks",
+        company_name="Beacon Ridge",
+        owner_name="Samir Patel",
+    )
+    assert repository.import_lead_follow_ups(user, [imported]) == 1
+    imported_row = next(item for item in repository.list_lead_follow_ups(user) if item.id == "lead-imported")
+    assert imported_row.owner_name == "Samir Patel"
 
 
 def test_build_lead_follow_up_repository_returns_singleton() -> None:

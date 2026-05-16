@@ -77,3 +77,29 @@ test("refreshes the alert feed through the local proxy route", async ({ page }) 
   await expect(page.getByTestId("alerts-status")).toHaveText("Alert feed refreshed.");
   await expect(page.getByText("Refreshed alert feed")).toBeVisible();
 });
+
+test("previews and imports CRM spreadsheet rows through the local proxy routes", async ({ page }) => {
+  await bootstrapSession(page);
+  await page.goto("/crm");
+
+  await expect(page.getByText("Bring your lead sheet in without retyping it.")).toBeVisible();
+
+  await page.setInputFiles('input[type="file"]', {
+    name: "crm-import.csv",
+    mimeType: "text/csv",
+    buffer: Buffer.from(
+      "contact,company,owner,status,next follow-up,notes\nTaylor Brooks,Beacon Ridge,Samir Patel,Qualification,2024-05-09,Imported from founder sheet\nAmber Flores,Northstar Studio,Ada Lovelace,Discovery,2024-05-10,Duplicate row\n",
+    ),
+  });
+  await page.getByRole("button", { name: "Preview import" }).click();
+
+  await expect(page.getByText("Preview ready for 1 importable row.")).toBeVisible();
+  await expect(page.getByText("Taylor Brooks")).toBeVisible();
+  await expect(page.getByText("This lead already exists in the current CRM queue and will be skipped.")).toBeVisible();
+
+  await page.getByRole("button", { name: "Import rows" }).click();
+
+  await expect(page.getByText("Imported 1 row, skipped 1 duplicates, and skipped 0 invalid rows.")).toBeVisible();
+  await expect(page.getByText("Beacon Ridge")).toBeVisible();
+  await expect(page.getByText("Owner · Samir Patel").first()).toBeVisible();
+});

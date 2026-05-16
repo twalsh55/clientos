@@ -43,6 +43,11 @@ class InMemoryLeadFollowUpRepository:
             timeline=(entry, *item.timeline),
         )
 
+    def import_lead_follow_ups(self, user: User, follow_ups: list[LeadFollowUp]) -> int:
+        for item in follow_ups:
+            self._items[item.id] = replace(item)
+        return len(follow_ups)
+
     def _build_seed_data(self) -> dict[str, LeadFollowUp]:
         current_time = self.now()
         items = [
@@ -50,6 +55,7 @@ class InMemoryLeadFollowUpRepository:
                 id="lead-amber-studio",
                 lead_name="Amber Flores",
                 company_name="Northstar Studio",
+                owner_name="Ada Lovelace",
                 stage="Discovery",
                 priority="high",
                 contact_channel="email",
@@ -78,6 +84,7 @@ class InMemoryLeadFollowUpRepository:
                 id="lead-riverbridge",
                 lead_name="Marcus Chen",
                 company_name="Riverbridge Ops",
+                owner_name="Ada Lovelace",
                 stage="Proposal",
                 priority="high",
                 contact_channel="linkedin",
@@ -106,6 +113,7 @@ class InMemoryLeadFollowUpRepository:
                 id="lead-lattice",
                 lead_name="Priya Nair",
                 company_name="Lattice Lane",
+                owner_name="Samir Patel",
                 stage="Qualification",
                 priority="medium",
                 contact_channel="email",
@@ -134,6 +142,7 @@ class InMemoryLeadFollowUpRepository:
                 id="lead-cedar",
                 lead_name="Jordan Pike",
                 company_name="Cedar Peak Agency",
+                owner_name="Samir Patel",
                 stage="Negotiation",
                 priority="medium",
                 contact_channel="phone",

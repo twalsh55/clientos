@@ -1,0 +1,242 @@
+from __future__ import annotations
+
+from datetime import UTC, datetime
+from uuid import UUID
+
+import pytest
+
+import src.adapters.api.app as api_app_module
+from src.adapters.crm.google_sheets import build_google_sheets_csv_url
+from src.adapters.crm.google_sheets import fetch_google_sheets_csv
+from src.adapters.crm.in_memory_follow_up_repository import InMemoryLeadFollowUpRepository
+from src.adapters.api.app import LeadImportPayload, _resolve_crm_import_source
+from src.application.crm_import import (
+    CommitLeadImportUseCase,
+    PreviewLeadImportUseCase,
+    _build_duplicate_key,
+    _build_imported_follow_up,
+    _normalize_stage,
+    _parse_datetime,
+)
+from src.domain.crm import LeadImportPreviewRow
+from src.domain.auth import User
+
+
+def make_user() -> User:
+    now = datetime(2024, 5, 6, 12, 30, tzinfo=UTC)
+    return User(
+        id=UUID("11111111-1111-1111-1111-111111111111"),
+        auth_provider="clerk",
+        auth_issuer="https://example.clerk.accounts.dev",
+        auth_subject="user_123",
+        stripe_customer_id=None,
+        email="user@example.com",
+        given_name="Ada",
+        family_name="Lovelace",
+        display_name="Ada Lovelace",
+        created_at=now,
+        updated_at=now,
+        last_login_at=now,
+    )
+
+
+def test_preview_lead_import_normalizes_headers_and_flags_duplicates() -> None:
+    repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+    preview = PreviewLeadImportUseCase(repository=repository, now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC)).execute(
+        make_user(),
+        "Contact,Company,Owner,Status,Next Follow-Up,Notes\nTaylor Brooks,Beacon Ridge,Samir Patel,Qualification,2024-05-09,Imported from sheet\nAmber Flores,Northstar Studio,Ada Lovelace,Discovery,2024-05-10,Duplicate row\n",
+        "csv",
+        "CSV upload",
+    )
+
+    assert preview.normalized_headers[:3] == ["lead_name", "company_name", "owner_name"]
+    assert preview.total_rows == 2
+    assert preview.importable_rows == 1
+    assert preview.duplicate_rows == 1
+    assert preview.invalid_rows == 0
+    assert preview.rows[0].owner_name == "Samir Patel"
+    assert preview.rows[1].duplicate is True
+
+
+def test_commit_lead_import_adds_follow_ups_to_queue() -> None:
+    now = datetime(2024, 5, 6, 12, 30, tzinfo=UTC)
+    repository = InMemoryLeadFollowUpRepository(now=lambda: now)
+    result = CommitLeadImportUseCase(repository=repository, now=lambda: now).execute(
+        make_user(),
+        "contact,company,owner,status,next follow-up,notes\nTaylor Brooks,Beacon Ridge,Samir Patel,Qualification,2024-05-09,Imported from founder sheet\n",
+        "csv",
+        "CSV upload",
+    )
+
+    assert result.imported_count == 1
+    imported = next(item for item in result.overview.items if item.company_name == "Beacon Ridge")
+    assert imported.owner_name == "Samir Patel"
+    assert imported.contact_channel == "spreadsheet"
+    assert imported.timeline[0].kind == "import"
+
+
+def test_build_google_sheets_csv_url_keeps_gid() -> None:
+    csv_url = build_google_sheets_csv_url("https://docs.google.com/spreadsheets/d/abc123/edit#gid=456")
+    assert csv_url == "https://docs.google.com/spreadsheets/d/abc123/export?format=csv&gid=456"
+
+
+def test_preview_lead_import_rejects_blank_and_unrecognized_content() -> None:
+    repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+    use_case = PreviewLeadImportUseCase(repository=repository, now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+
+    with pytest.raises(ValueError, match="Spreadsheet content is required."):
+        use_case.execute(make_user(), "   ", "csv", "CSV upload")
+
+    with pytest.raises(ValueError, match="No recognizable CRM headers were found"):
+        use_case.execute(make_user(), "foo,bar\n1,2\n", "csv", "CSV upload")
+
+
+def test_preview_lead_import_rejects_missing_header_row_via_csv_reader(monkeypatch) -> None:
+    repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+    use_case = PreviewLeadImportUseCase(repository=repository, now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+
+    class _Reader:
+        fieldnames = None
+
+        def __iter__(self):
+            return iter(())
+
+    monkeypatch.setattr("src.application.crm_import.csv.DictReader", lambda *args, **kwargs: _Reader())
+    with pytest.raises(ValueError, match="header row"):
+        use_case.execute(make_user(), "contact,company", "csv", "CSV upload")
+
+
+def test_preview_lead_import_surfaces_missing_fields_invalid_dates_and_note_warnings() -> None:
+    repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+    preview = PreviewLeadImportUseCase(repository=repository, now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC)).execute(
+        make_user(),
+        "contact,company,status,next follow-up,notes\n,,,bad-date,\nTaylor,Broken Date,Discovery,,\n",
+        "csv",
+        "CSV upload",
+    )
+
+    assert preview.invalid_rows == 2
+    assert preview.rows[0].lead_name == "Imported lead 2"
+    assert preview.rows[0].company_name == "Unspecified company"
+    assert preview.rows[0].owner_name == "Unassigned"
+    assert preview.rows[0].stage == "Imported"
+    assert preview.rows[0].next_follow_up_at is None
+    assert [issue.severity for issue in preview.rows[0].issues] == ["error", "error", "warning"]
+    assert preview.rows[1].issues[0].message == "Add a next follow-up date so the row can enter the queue."
+
+
+def test_import_helpers_cover_datetime_stage_priority_and_duplicate_edge_cases() -> None:
+    assert _parse_datetime("") is None
+    assert _parse_datetime("2024-05-09T11:30:00Z") == datetime(2024, 5, 9, 11, 30, tzinfo=UTC)
+    assert _parse_datetime("05/09/2024 2:15 PM") == datetime(2024, 5, 9, 14, 15, tzinfo=UTC)
+    assert _parse_datetime("09.05.2024") == datetime(2024, 5, 9, 9, 0, tzinfo=UTC)
+    assert _parse_datetime("not-a-date") is None
+    assert _normalize_stage("") == "Imported"
+    assert _build_duplicate_key("", "") == ""
+
+    imported_at = datetime(2024, 5, 6, 12, 30, tzinfo=UTC)
+    medium_row = LeadImportPreviewRow(
+        row_number=2,
+        lead_name="Taylor Brooks",
+        company_name="Beacon Ridge",
+        owner_name="Samir Patel",
+        stage="Qualification",
+        next_follow_up_at=datetime(2024, 5, 8, 12, 30, tzinfo=UTC),
+        notes="",
+        duplicate=False,
+        issues=(),
+    )
+    low_row = LeadImportPreviewRow(
+        row_number=3,
+        lead_name="Morgan Lee",
+        company_name="Stone Harbor",
+        owner_name="Riley Chen",
+        stage="Proposal",
+        next_follow_up_at=datetime(2024, 5, 10, 12, 30, tzinfo=UTC),
+        notes="Imported note",
+        duplicate=False,
+        issues=(),
+    )
+    medium_item = _build_imported_follow_up(medium_row, "CSV upload", imported_at)
+    high_item = _build_imported_follow_up(
+        LeadImportPreviewRow(
+            row_number=1,
+            lead_name="Soon Due",
+            company_name="Signal Peak",
+            owner_name="Ada Lovelace",
+            stage="Discovery",
+            next_follow_up_at=datetime(2024, 5, 7, 11, 30, tzinfo=UTC),
+            notes="",
+            duplicate=False,
+            issues=(),
+        ),
+        "CSV upload",
+        imported_at,
+    )
+    low_item = _build_imported_follow_up(low_row, "Google Sheets", imported_at)
+    assert high_item.priority == "high"
+    assert medium_item.priority == "medium"
+    assert medium_item.notes == "Imported without notes."
+    assert low_item.priority == "low"
+    assert low_item.timeline[1].kind == "internal_note"
+
+    with pytest.raises(ValueError, match="next follow-up date is required"):
+        _build_imported_follow_up(
+            LeadImportPreviewRow(
+                row_number=4,
+                lead_name="No Date",
+                company_name="Missing Time",
+                owner_name="Owner",
+                stage="Imported",
+                next_follow_up_at=None,
+                notes="",
+                duplicate=False,
+                issues=(),
+            ),
+            "CSV upload",
+            imported_at,
+        )
+
+
+def test_google_sheet_fetch_and_source_resolution_cover_error_paths(monkeypatch) -> None:
+    class _Response:
+        def __enter__(self):
+            return self
+
+        def __exit__(self, exc_type, exc, tb):
+            return False
+
+        def read(self):
+            return b"\xef\xbb\xbfcontact,company\nTaylor,Beacon\n"
+
+    monkeypatch.setattr("src.adapters.crm.google_sheets.urlopen", lambda *args, **kwargs: _Response())
+    assert fetch_google_sheets_csv("https://docs.google.com/spreadsheets/d/abc123/edit") == "contact,company\nTaylor,Beacon\n"
+
+    monkeypatch.setattr("src.adapters.crm.google_sheets.urlopen", lambda *args, **kwargs: (_ for _ in ()).throw(OSError("boom")))
+    with pytest.raises(ValueError, match="Unable to fetch the Google Sheet"):
+        fetch_google_sheets_csv("https://docs.google.com/spreadsheets/d/abc123/edit")
+
+    with pytest.raises(ValueError, match="Google Sheets URL is required"):
+        build_google_sheets_csv_url("   ")
+    with pytest.raises(ValueError, match="Use a valid Google Sheets URL"):
+        build_google_sheets_csv_url("https://example.com/not-a-sheet")
+    with pytest.raises(ValueError, match="Unable to determine the Google Sheets document ID"):
+        build_google_sheets_csv_url("https://docs.google.com/spreadsheets/d/")
+    assert build_google_sheets_csv_url("https://docs.google.com/spreadsheets/d/abc123/edit?gid=789") == (
+        "https://docs.google.com/spreadsheets/d/abc123/export?format=csv&gid=789"
+    )
+
+    assert _resolve_crm_import_source(LeadImportPayload(source_type="csv", csv_content="a,b\n1,2")) == ("a,b\n1,2", "CSV upload")
+    with pytest.raises(ValueError, match="CSV content is required"):
+        _resolve_crm_import_source(LeadImportPayload(source_type="csv"))
+    with pytest.raises(ValueError, match="Google Sheets URL is required"):
+        _resolve_crm_import_source(LeadImportPayload(source_type="google_sheets"))
+
+    monkeypatch.setattr(api_app_module, "fetch_google_sheets_csv", lambda sheet_url: "contact,company\nTaylor,Beacon\n")
+    assert _resolve_crm_import_source(
+        LeadImportPayload(source_type="google_sheets", sheet_url="https://docs.google.com/spreadsheets/d/abc123/edit")
+    ) == ("contact,company\nTaylor,Beacon\n", "Google Sheets")
+
+    payload = LeadImportPayload.model_construct(source_type="unsupported", csv_content=None, sheet_url=None)
+    with pytest.raises(ValueError, match="Unsupported import source."):
+        _resolve_crm_import_source(payload)

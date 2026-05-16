@@ -3,6 +3,8 @@ import type {
   AlertHistoryResponse,
   BillingOverview,
   CRMFollowUpOverview,
+  CRMImportPreview,
+  CRMImportResult,
   DashboardFilters,
   DashboardSnapshot,
   SessionResponse,
@@ -146,6 +148,34 @@ export async function updateCrmFollowUp(
     `/api/crm/followups/${followUpId}`,
     {
       method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    options,
+  );
+}
+
+export async function previewCrmImport(
+  payload: { source_type: "csv" | "google_sheets"; csv_content?: string; sheet_url?: string },
+  options: ApiRequestOptions = {},
+): Promise<CRMImportPreview> {
+  return apiRequest<CRMImportPreview>(
+    "/api/crm/import/preview",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    options,
+  );
+}
+
+export async function commitCrmImport(
+  payload: { source_type: "csv" | "google_sheets"; csv_content?: string; sheet_url?: string },
+  options: ApiRequestOptions = {},
+): Promise<CRMImportResult> {
+  return apiRequest<CRMImportResult>(
+    "/api/crm/import",
+    {
+      method: "POST",
       body: JSON.stringify(payload),
     },
     options,

@@ -67,6 +67,30 @@ function makeState() {
         message: "Initial alert history from the mock backend.",
       },
     ],
+    crmFollowUps: [
+      {
+        id: "lead-amber-studio",
+        lead_name: "Amber Flores",
+        company_name: "Northstar Studio",
+        owner_name: "Ada Lovelace",
+        stage: "Discovery",
+        priority: "high",
+        contact_channel: "email",
+        last_contacted_at: "2024-05-01T12:30:00+00:00",
+        next_follow_up_at: "2024-05-06T08:30:00+00:00",
+        next_step: "Send a concise recap and propose two call slots.",
+        notes: "Interested, but waiting on a clearer summary of timeline and scope.",
+        timeline: [
+          {
+            id: "amber-call",
+            occurred_at: "2024-05-01T12:30:00+00:00",
+            kind: "call",
+            channel: "phone",
+            summary: "Discovery call completed. Timing and scope were positive, but the recap needs to be tighter.",
+          },
+        ],
+      },
+    ],
   };
 }
 
@@ -127,6 +151,18 @@ function buildDashboardSnapshot(benchmark, lookbackYears, universe) {
       { date: "2024-05-03", buyer_participation_20d: 0.64, new_high_ratio_252: 0.27 },
       { date: "2024-05-06", buyer_participation_20d: 0.68, new_high_ratio_252: 0.32 },
     ],
+  };
+}
+
+function buildCrmOverview() {
+  const items = [...state.crmFollowUps].sort((a, b) => new Date(a.next_follow_up_at).getTime() - new Date(b.next_follow_up_at).getTime());
+  return {
+    generated_at: "2024-05-06T12:30:00+00:00",
+    total_open: items.length,
+    due_today: items.length,
+    overdue: items.filter((item) => new Date(item.next_follow_up_at).getTime() < Date.parse("2024-05-06T12:30:00+00:00")).length,
+    high_priority: items.filter((item) => item.priority === "high").length,
+    items,
   };
 }
 
@@ -242,6 +278,123 @@ const server = http.createServer(async (request, response) => {
           ]
         : state.alerts;
     json(response, 200, { items, count: items.length });
+    return;
+  }
+
+  if (url.pathname === "/api/crm/followups" && request.method === "GET") {
+    json(response, 200, buildCrmOverview());
+    return;
+  }
+
+  if (url.pathname.startsWith("/api/crm/followups/") && request.method === "PATCH") {
+    const followUpId = url.pathname.split("/").pop();
+    const payload = await readRequestBody(request);
+    const index = state.crmFollowUps.findIndex((item) => item.id === followUpId);
+    if (index === -1) {
+      json(response, 404, { detail: "CRM follow-up not found." });
+      return;
+    }
+
+    if (payload.action === "complete") {
+      state.crmFollowUps.splice(index, 1);
+    } else if (payload.action === "snooze") {
+      state.crmFollowUps[index].next_follow_up_at = "2024-05-07T12:30:00+00:00";
+    } else if (payload.action === "note") {
+      state.crmFollowUps[index].notes = payload.note_body;
+      state.crmFollowUps[index].timeline.unshift({
+        id: `${followUpId}-note`,
+        occurred_at: "2024-05-06T12:30:00+00:00",
+        kind: "internal_note",
+        channel: "internal",
+        summary: payload.note_body,
+      });
+    }
+
+    json(response, 200, buildCrmOverview());
+    return;
+  }
+
+  if (url.pathname === "/api/crm/import/preview" && request.method === "POST") {
+    json(response, 200, {
+      source_type: "csv",
+      source_label: "CSV upload",
+      normalized_headers: ["lead_name", "company_name", "owner_name", "stage", "next_follow_up_at", "notes"],
+      total_rows: 2,
+      importable_rows: 1,
+      duplicate_rows: 1,
+      invalid_rows: 0,
+      issues: [
+        {
+          row_number: 3,
+          severity: "warning",
+          field: null,
+          message: "This lead already exists in the current CRM queue and will be skipped.",
+        },
+      ],
+      rows: [
+        {
+          row_number: 2,
+          lead_name: "Taylor Brooks",
+          company_name: "Beacon Ridge",
+          owner_name: "Samir Patel",
+          stage: "Qualification",
+          next_follow_up_at: "2024-05-09T09:00:00+00:00",
+          notes: "Imported from the founder's sheet.",
+          duplicate: false,
+          issues: [],
+        },
+        {
+          row_number: 3,
+          lead_name: "Amber Flores",
+          company_name: "Northstar Studio",
+          owner_name: "Ada Lovelace",
+          stage: "Discovery",
+          next_follow_up_at: "2024-05-10T09:00:00+00:00",
+          notes: "Duplicate row.",
+          duplicate: true,
+          issues: [
+            {
+              row_number: 3,
+              severity: "warning",
+              field: null,
+              message: "This lead already exists in the current CRM queue and will be skipped.",
+            },
+          ],
+        },
+      ],
+    });
+    return;
+  }
+
+  if (url.pathname === "/api/crm/import" && request.method === "POST") {
+    state.crmFollowUps.unshift({
+      id: "lead-import-beacon-ridge",
+      lead_name: "Taylor Brooks",
+      company_name: "Beacon Ridge",
+      owner_name: "Samir Patel",
+      stage: "Qualification",
+      priority: "medium",
+      contact_channel: "spreadsheet",
+      last_contacted_at: null,
+      next_follow_up_at: "2024-05-09T09:00:00+00:00",
+      next_step: "Samir Patel to send the next follow-up and confirm the current qualification status.",
+      notes: "Imported from the founder's sheet.",
+      timeline: [
+        {
+          id: "beacon-ridge-import",
+          occurred_at: "2024-05-06T12:30:00+00:00",
+          kind: "import",
+          channel: "csv_upload",
+          summary: "Imported from CSV upload. Owner: Samir Patel. Stage: Qualification.",
+        },
+      ],
+    });
+    json(response, 200, {
+      imported_count: 1,
+      skipped_duplicates: 1,
+      skipped_invalid: 0,
+      overview: buildCrmOverview(),
+    });
     return;
   }
 

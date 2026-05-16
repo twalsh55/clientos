@@ -8,7 +8,15 @@ import pandas as pd
 from src.application.account import AlertHistoryEntry, UserDashboardSettings
 from src.application.billing import BillingOverview
 from src.domain.auth import User
-from src.domain.crm import LeadFollowUp, LeadFollowUpOverview, LeadTimelineEntry
+from src.domain.crm import (
+    LeadFollowUp,
+    LeadFollowUpOverview,
+    LeadImportCommitResult,
+    LeadImportIssue,
+    LeadImportPreview,
+    LeadImportPreviewRow,
+    LeadTimelineEntry,
+)
 from src.domain.models import DashboardConfig, DashboardResult
 from src.domain.services import compute_buyer_participation_series, compute_new_high_ratio_series
 
@@ -117,6 +125,7 @@ class LeadFollowUpDTO:
     id: str
     lead_name: str
     company_name: str
+    owner_name: str
     stage: str
     priority: str
     contact_channel: str
@@ -144,6 +153,48 @@ class LeadFollowUpOverviewDTO:
     overdue: int
     high_priority: int
     items: list[LeadFollowUpDTO]
+
+
+@dataclass(frozen=True)
+class LeadImportIssueDTO:
+    row_number: int
+    severity: str
+    field: str | None
+    message: str
+
+
+@dataclass(frozen=True)
+class LeadImportPreviewRowDTO:
+    row_number: int
+    lead_name: str
+    company_name: str
+    owner_name: str
+    stage: str
+    next_follow_up_at: str | None
+    notes: str
+    duplicate: bool
+    issues: list[LeadImportIssueDTO]
+
+
+@dataclass(frozen=True)
+class LeadImportPreviewDTO:
+    source_type: str
+    source_label: str
+    normalized_headers: list[str]
+    total_rows: int
+    importable_rows: int
+    duplicate_rows: int
+    invalid_rows: int
+    rows: list[LeadImportPreviewRowDTO]
+    issues: list[LeadImportIssueDTO]
+
+
+@dataclass(frozen=True)
+class LeadImportCommitResultDTO:
+    imported_count: int
+    skipped_duplicates: int
+    skipped_invalid: int
+    overview: LeadFollowUpOverviewDTO
 
 
 def build_authenticated_user_dto(user: User) -> AuthenticatedUserDTO:
@@ -283,6 +334,7 @@ def build_lead_follow_up_dto(item: LeadFollowUp) -> LeadFollowUpDTO:
         id=item.id,
         lead_name=item.lead_name,
         company_name=item.company_name,
+        owner_name=item.owner_name,
         stage=item.stage,
         priority=item.priority,
         contact_channel=item.contact_channel,
@@ -301,6 +353,52 @@ def build_lead_timeline_entry_dto(entry: LeadTimelineEntry) -> LeadTimelineEntry
         kind=entry.kind,
         channel=entry.channel,
         summary=entry.summary,
+    )
+
+
+def build_lead_import_preview_dto(preview: LeadImportPreview) -> LeadImportPreviewDTO:
+    return LeadImportPreviewDTO(
+        source_type=preview.source_type,
+        source_label=preview.source_label,
+        normalized_headers=list(preview.normalized_headers),
+        total_rows=preview.total_rows,
+        importable_rows=preview.importable_rows,
+        duplicate_rows=preview.duplicate_rows,
+        invalid_rows=preview.invalid_rows,
+        rows=[build_lead_import_preview_row_dto(row) for row in preview.rows],
+        issues=[build_lead_import_issue_dto(issue) for issue in preview.issues],
+    )
+
+
+def build_lead_import_preview_row_dto(row: LeadImportPreviewRow) -> LeadImportPreviewRowDTO:
+    return LeadImportPreviewRowDTO(
+        row_number=row.row_number,
+        lead_name=row.lead_name,
+        company_name=row.company_name,
+        owner_name=row.owner_name,
+        stage=row.stage,
+        next_follow_up_at=row.next_follow_up_at.isoformat() if row.next_follow_up_at else None,
+        notes=row.notes,
+        duplicate=row.duplicate,
+        issues=[build_lead_import_issue_dto(issue) for issue in row.issues],
+    )
+
+
+def build_lead_import_issue_dto(issue: LeadImportIssue) -> LeadImportIssueDTO:
+    return LeadImportIssueDTO(
+        row_number=issue.row_number,
+        severity=issue.severity,
+        field=issue.field,
+        message=issue.message,
+    )
+
+
+def build_lead_import_commit_result_dto(result: LeadImportCommitResult) -> LeadImportCommitResultDTO:
+    return LeadImportCommitResultDTO(
+        imported_count=result.imported_count,
+        skipped_duplicates=result.skipped_duplicates,
+        skipped_invalid=result.skipped_invalid,
+        overview=build_lead_follow_up_overview_dto(result.overview),
     )
 
 

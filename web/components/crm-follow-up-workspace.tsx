@@ -1,19 +1,27 @@
 "use client";
 
 import { useRouter } from "next/navigation";
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
-import type { CRMFollowUpOverview, CRMLeadFollowUp } from "@/lib/types";
+import type { CRMFollowUpOverview, CRMImportPreview, CRMImportPreviewRow, CRMLeadFollowUp } from "@/lib/types";
 
 export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRMFollowUpOverview }) {
   const router = useRouter();
+  const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [overview, setOverview] = useState(initialOverview);
   const [selectedLeadId, setSelectedLeadId] = useState(initialOverview.items[0]?.id ?? null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [sourceType, setSourceType] = useState<"csv" | "google_sheets">("csv");
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [sheetUrl, setSheetUrl] = useState("");
+  const [importPreview, setImportPreview] = useState<CRMImportPreview | null>(null);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importStatus, setImportStatus] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
+  const [isImportPending, startImportTransition] = useTransition();
 
   useEffect(() => {
     if (!selectedLeadId && initialOverview.items[0]) {
@@ -68,6 +76,79 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
     );
   }
 
+  function buildImportFormData() {
+    const formData = new FormData();
+    formData.set("source_type", sourceType);
+    if (sourceType === "csv") {
+      if (!selectedFile) {
+        throw new Error("Choose a CSV file first.");
+      }
+      formData.set("file", selectedFile);
+      return formData;
+    }
+    if (!sheetUrl.trim()) {
+      throw new Error("Paste a Google Sheets URL first.");
+    }
+    formData.set("sheet_url", sheetUrl.trim());
+    return formData;
+  }
+
+  function requestImportPreview() {
+    setImportError(null);
+    setImportStatus(null);
+    startImportTransition(async () => {
+      try {
+        const response = await fetch("/api/crm/import/preview", {
+          method: "POST",
+          body: buildImportFormData(),
+        });
+        const data = (await response.json().catch(() => null)) as CRMImportPreview | { error?: string } | null;
+        if (!response.ok || !data || !("rows" in data)) {
+          throw new Error((data && "error" in data && data.error) || "Unable to preview import.");
+        }
+        setImportPreview(data);
+        setImportStatus(`Preview ready for ${data.importable_rows} importable row${data.importable_rows === 1 ? "" : "s"}.`);
+      } catch (previewError) {
+        setImportPreview(null);
+        setImportError(previewError instanceof Error ? previewError.message : "Unable to preview import.");
+      }
+    });
+  }
+
+  function commitImport() {
+    setImportError(null);
+    setImportStatus(null);
+    startImportTransition(async () => {
+      try {
+        const response = await fetch("/api/crm/import", {
+          method: "POST",
+          body: buildImportFormData(),
+        });
+        const data = (await response.json().catch(() => null)) as
+          | { imported_count: number; skipped_duplicates: number; skipped_invalid: number; overview: CRMFollowUpOverview }
+          | { error?: string }
+          | null;
+        if (!response.ok || !data || !("overview" in data)) {
+          throw new Error((data && "error" in data && data.error) || "Unable to import spreadsheet rows.");
+        }
+        setOverview(data.overview);
+        setSelectedLeadId(data.overview.items[0]?.id ?? null);
+        setImportPreview(null);
+        setImportStatus(
+          `Imported ${data.imported_count} row${data.imported_count === 1 ? "" : "s"}, skipped ${data.skipped_duplicates} duplicates, and skipped ${data.skipped_invalid} invalid row${data.skipped_invalid === 1 ? "" : "s"}.`,
+        );
+        setSelectedFile(null);
+        setSheetUrl("");
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+        router.refresh();
+      } catch (commitError) {
+        setImportError(commitError instanceof Error ? commitError.message : "Unable to import spreadsheet rows.");
+      }
+    });
+  }
+
   return (
     <>
       <section className="mt-6 grid gap-6 md:grid-cols-4">
@@ -75,6 +156,83 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
         <MetricCard label="Due today" value={String(overview.due_today)} tone="warning" />
         <MetricCard label="Overdue" value={String(overview.overdue)} tone={overview.overdue > 0 ? "critical" : "positive"} />
         <MetricCard label="High priority" value={String(overview.high_priority)} tone="neutral" />
+      </section>
+
+      <section className="mt-6 rounded-[1.75rem] border bg-white/85 p-6 shadow-sm">
+        <div className="grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
+          <section>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Spreadsheet Import</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Bring your lead sheet in without retyping it.</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Upload a CSV or paste a Google Sheets link. Brivoly normalizes messy headers, flags validation problems, and skips duplicates before anything enters the follow-up queue.
+            </p>
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button variant={sourceType === "csv" ? "default" : "outline"} onClick={() => setSourceType("csv")}>
+                CSV upload
+              </Button>
+              <Button variant={sourceType === "google_sheets" ? "default" : "outline"} onClick={() => setSourceType("google_sheets")}>
+                Google Sheets
+              </Button>
+            </div>
+
+            {sourceType === "csv" ? (
+              <section className="mt-5 rounded-[1.4rem] border bg-slate-50/80 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">CSV file</p>
+                <input
+                  ref={fileInputRef}
+                  type="file"
+                  accept=".csv,text/csv"
+                  className="mt-3 block w-full rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-600"
+                  onChange={(event) => {
+                    setSelectedFile(event.target.files?.[0] ?? null);
+                    setImportPreview(null);
+                    setImportStatus(null);
+                    setImportError(null);
+                  }}
+                />
+                <p className="mt-3 text-xs text-slate-500">
+                  Suggested columns: contact, company, owner, status, next follow-up, and notes.
+                </p>
+                {selectedFile ? <p className="mt-2 text-sm font-medium text-slate-700">{selectedFile.name}</p> : null}
+              </section>
+            ) : (
+              <section className="mt-5 rounded-[1.4rem] border bg-slate-50/80 p-5">
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Google Sheets URL</p>
+                <input
+                  value={sheetUrl}
+                  onChange={(event) => {
+                    setSheetUrl(event.target.value);
+                    setImportPreview(null);
+                    setImportStatus(null);
+                    setImportError(null);
+                  }}
+                  placeholder="https://docs.google.com/spreadsheets/d/..."
+                  className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
+                />
+                <p className="mt-3 text-xs text-slate-500">Use a shareable Google Sheets URL. Brivoly will request the CSV export directly.</p>
+              </section>
+            )}
+
+            <div className="mt-5 flex flex-wrap gap-3">
+              <Button disabled={isImportPending} onClick={requestImportPreview}>
+                {isImportPending ? "Checking..." : "Preview import"}
+              </Button>
+              <Button
+                variant="outline"
+                disabled={isImportPending || !importPreview || importPreview.importable_rows === 0}
+                onClick={commitImport}
+              >
+                {isImportPending ? "Importing..." : "Import rows"}
+              </Button>
+            </div>
+
+            {importError ? <p className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{importError}</p> : null}
+            {importStatus ? <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{importStatus}</p> : null}
+          </section>
+
+          <ImportPreviewPanel preview={importPreview} />
+        </div>
       </section>
 
       <section className="mt-6 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
@@ -102,6 +260,7 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
                         </p>
                         <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{item.lead_name}</h3>
                         <p className="mt-1 text-sm text-slate-600">{item.company_name}</p>
+                        <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Owner · {item.owner_name}</p>
                       </div>
                       <PriorityBadge priority={item.priority} />
                     </div>
@@ -151,14 +310,79 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Why This Slice</p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight">Relationship memory matters.</h2>
             <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-300">
-              <li>Consultants and small agencies lose deals when discovery notes, scope context, and next actions drift apart.</li>
+              <li>Consultants and small agencies already keep their pipeline in spreadsheets, so import removes the adoption cliff.</li>
               <li>A timeline turns the CRM into an operating memory instead of a static record.</li>
-              <li>It sets up the next likely features naturally: richer contacts, handoff notes, and spreadsheet import.</li>
+              <li>This keeps the wedge narrow: faster follow-up, cleaner handoffs, and less spreadsheet sprawl.</li>
             </ul>
           </section>
         </section>
       </section>
     </>
+  );
+}
+
+function ImportPreviewPanel({ preview }: { preview: CRMImportPreview | null }) {
+  if (!preview) {
+    return (
+      <section className="rounded-[1.4rem] border border-dashed bg-slate-50/70 p-6">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Preview</p>
+        <h3 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">Nothing staged yet.</h3>
+        <p className="mt-3 text-sm leading-6 text-slate-600">
+          Preview the sheet first to see normalized rows, duplicate detection, and validation issues before importing anything.
+        </p>
+      </section>
+    );
+  }
+
+  return (
+    <section className="rounded-[1.4rem] border bg-slate-950 p-6 text-slate-50 shadow-[0_24px_80px_-55px_rgba(15,23,42,0.9)]">
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Preview</p>
+      <h3 className="mt-3 text-2xl font-semibold tracking-tight">{preview.source_label} import check</h3>
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <CompactMetric label="Rows" value={String(preview.total_rows)} />
+        <CompactMetric label="Importable" value={String(preview.importable_rows)} />
+        <CompactMetric label="Skipped" value={String(preview.duplicate_rows + preview.invalid_rows)} />
+      </div>
+      <p className="mt-4 text-xs uppercase tracking-[0.18em] text-slate-400">
+        Headers · {preview.normalized_headers.join(" · ") || "none detected"}
+      </p>
+      <div className="mt-5 space-y-3">
+        {preview.rows.slice(0, 5).map((row) => (
+          <ImportPreviewRowCard key={row.row_number} row={row} />
+        ))}
+      </div>
+      {preview.rows.length > 5 ? <p className="mt-3 text-xs text-slate-400">Showing the first 5 preview rows.</p> : null}
+    </section>
+  );
+}
+
+function ImportPreviewRowCard({ row }: { row: CRMImportPreviewRow }) {
+  const hasError = row.issues.some((issue) => issue.severity === "error");
+  return (
+    <article className={`rounded-[1.2rem] border px-4 py-4 ${hasError ? "border-rose-300 bg-rose-950/40" : row.duplicate ? "border-amber-300 bg-amber-950/30" : "border-white/10 bg-white/5"}`}>
+      <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Row {row.row_number}</p>
+          <h4 className="mt-2 text-lg font-semibold text-white">{row.lead_name}</h4>
+          <p className="text-sm text-slate-300">{row.company_name}</p>
+          <p className="mt-2 text-xs uppercase tracking-[0.18em] text-slate-400">Owner · {row.owner_name}</p>
+        </div>
+        <div className="text-right">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{row.stage}</p>
+          <p className="mt-2 text-sm text-slate-200">{formatDateTime(row.next_follow_up_at)}</p>
+        </div>
+      </div>
+      {row.notes ? <p className="mt-3 text-sm leading-6 text-slate-300">{row.notes}</p> : null}
+      {row.issues.length ? (
+        <div className="mt-3 space-y-2">
+          {row.issues.map((issue, index) => (
+            <p key={`${issue.row_number}-${issue.field ?? "general"}-${index}`} className={`rounded-xl px-3 py-2 text-xs ${issue.severity === "error" ? "bg-rose-200 text-rose-950" : "bg-amber-200 text-amber-950"}`}>
+              {issue.message}
+            </p>
+          ))}
+        </div>
+      ) : null}
+    </article>
   );
 }
 
@@ -181,9 +405,10 @@ function LeadMemoryPanel({
       <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{lead.lead_name}</h2>
       <p className="mt-1 text-sm text-slate-600">{lead.company_name}</p>
 
-      <div className="mt-5 grid gap-3 md:grid-cols-2">
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
         <TimelineTile label="Current stage" value={lead.stage} />
         <TimelineTile label="Primary channel" value={lead.contact_channel} />
+        <TimelineTile label="Owner" value={lead.owner_name} />
       </div>
 
       <section className="mt-6 rounded-[1.5rem] border bg-slate-50 p-5">
@@ -241,6 +466,15 @@ function MetricCard({ label, value, tone }: { label: string; value: string; tone
     <div className={`rounded-[1.4rem] border p-5 shadow-sm ${toneClass}`}>
       <p className="text-xs font-semibold uppercase tracking-[0.2em]">{label}</p>
       <p className="mt-3 text-3xl font-semibold tracking-tight">{value}</p>
+    </div>
+  );
+}
+
+function CompactMetric({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
+      <p className="mt-2 text-xl font-semibold text-white">{value}</p>
     </div>
   );
 }

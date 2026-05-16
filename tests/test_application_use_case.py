@@ -26,6 +26,7 @@ class StubLeadFollowUpRepository:
         self.completed: list[tuple[str, datetime]] = []
         self.snoozed: list[tuple[str, datetime]] = []
         self.notes: list[tuple[str, str, datetime]] = []
+        self.imported: list[tuple[str, ...]] = []
 
     def list_lead_follow_ups(self, user: User):  # type: ignore[no-untyped-def]
         return []
@@ -38,6 +39,10 @@ class StubLeadFollowUpRepository:
 
     def append_note_to_lead_follow_up(self, user: User, follow_up_id: str, note_body: str, noted_at: datetime) -> None:
         self.notes.append((follow_up_id, note_body, noted_at))
+
+    def import_lead_follow_ups(self, user: User, follow_ups):  # type: ignore[no-untyped-def]
+        self.imported.append(tuple(item.id for item in follow_ups))
+        return len(follow_ups)
 
 
 def make_user() -> User:

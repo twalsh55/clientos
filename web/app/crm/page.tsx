@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { BRIVOLY_SESSION_COOKIE, LEGACY_TRADE_SESSION_COOKIE } from "@/lib/auth";
 import { getCrmFollowUpOverview, getSession, getSettingsBootstrap } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 export default async function CRMPortalPage() {
   const cookieStore = await cookies();
   const sessionToken =

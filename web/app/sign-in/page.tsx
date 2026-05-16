@@ -5,6 +5,8 @@ import { ClerkAuthBridge } from "@/components/auth/clerk-auth-bridge";
 import { getSettingsBootstrap } from "@/lib/api";
 import { sanitizeRedirectTo } from "@/lib/auth";
 
+export const dynamic = "force-dynamic";
+
 type SignInPageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
 };

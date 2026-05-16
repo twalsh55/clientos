@@ -4,6 +4,8 @@ import { AppShell } from "@/components/app-shell";
 import { BRIVOLY_SESSION_COOKIE, LEGACY_TRADE_SESSION_COOKIE } from "@/lib/auth";
 import { getShellData } from "@/lib/api";
 
+export const dynamic = "force-dynamic";
+
 export default async function CrashMonitorPage() {
   const cookieStore = await cookies();
   const sessionToken =

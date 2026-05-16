@@ -33,6 +33,7 @@ from src.adapters.market_data.yfinance_provider import YFinanceMarketDataAdapter
 from src.adapters.notifications.smtp_email_notifier import EmailNotificationError
 from src.adapters.notifications.telegram_notifier import TelegramNotificationError, TelegramNotifier
 from src.adapters.operator_briefing.runtime import collect_operator_briefing_config_errors, run_daily_operator_briefing_job
+from src.adapters.crm.google_sheets import fetch_google_sheets_csv
 from src.adapters.crm.runtime import build_lead_follow_up_repository
 from src.adapters.persistence.runtime import build_personalization_repository
 from src.adapters.prospecting.runtime import collect_prospecting_config_errors, run_prospecting_job
@@ -54,6 +55,7 @@ from src.application.autonomous_build import decide_autonomous_build_brief, form
 from src.application.founder_code import ListFounderCodeRequestsUseCase, QueueFounderCodeRequestUseCase
 from src.application.crm import GetLeadFollowUpOverviewUseCase
 from src.application.crm import AddLeadFollowUpNoteUseCase, CompleteLeadFollowUpUseCase, SnoozeLeadFollowUpUseCase
+from src.application.crm_import import CommitLeadImportUseCase, PreviewLeadImportUseCase
 from src.application.dashboard import (
     DEFAULT_BENCHMARK,
     DEFAULT_LONG_YIELD_SYMBOL,
@@ -70,6 +72,8 @@ from src.application.dto import (
     build_authenticated_user_dto,
     build_billing_overview_dto,
     build_dashboard_snapshot_dto,
+    build_lead_import_commit_result_dto,
+    build_lead_import_preview_dto,
     build_lead_follow_up_overview_dto,
     build_user_dashboard_settings_dto,
     dto_to_dict,
@@ -111,6 +115,12 @@ class LeadFollowUpActionPayload(BaseModel):
     action: str
     snooze_hours: int | None = Field(default=None, ge=1, le=24 * 14)
     note_body: str | None = Field(default=None, min_length=1, max_length=1000)
+
+
+class LeadImportPayload(BaseModel):
+    source_type: str = Field(pattern="^(csv|google_sheets)$")
+    csv_content: str | None = Field(default=None, min_length=1)
+    sheet_url: str | None = None
 
 
 class FounderCodeRequestDTO(BaseModel):
@@ -289,6 +299,46 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
 
         overview = GetLeadFollowUpOverviewUseCase(repository=repository, now=deps.now).execute(user)
         return dto_to_dict(build_lead_follow_up_overview_dto(overview))
+
+    @app.post("/api/crm/import/preview")
+    def crm_import_preview(
+        payload: LeadImportPayload,
+        authorization: str | None = Header(default=None),
+        session_cookie: str | None = Cookie(default=None, alias=CLERK_SESSION_COOKIE),
+    ) -> dict[str, object]:
+        user = _require_authenticated_user(deps, authorization, session_cookie)
+        repository = deps.lead_follow_up_repository_factory()
+        try:
+            csv_content, source_label = _resolve_crm_import_source(payload)
+            preview = PreviewLeadImportUseCase(repository=repository, now=deps.now).execute(
+                user,
+                csv_content,
+                payload.source_type,
+                source_label,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return dto_to_dict(build_lead_import_preview_dto(preview))
+
+    @app.post("/api/crm/import")
+    def crm_import_commit(
+        payload: LeadImportPayload,
+        authorization: str | None = Header(default=None),
+        session_cookie: str | None = Cookie(default=None, alias=CLERK_SESSION_COOKIE),
+    ) -> dict[str, object]:
+        user = _require_authenticated_user(deps, authorization, session_cookie)
+        repository = deps.lead_follow_up_repository_factory()
+        try:
+            csv_content, source_label = _resolve_crm_import_source(payload)
+            result = CommitLeadImportUseCase(repository=repository, now=deps.now).execute(
+                user,
+                csv_content,
+                payload.source_type,
+                source_label,
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return dto_to_dict(build_lead_import_commit_result_dto(result))
 
     @app.get("/api/account/billing")
     def billing_overview(
@@ -674,6 +724,18 @@ def _run_code_from_telegram(notifier: TelegramNotifier, founder_guidance: str | 
             notifier.send_message(f"Cooperative code run failed: {exc}")
         except TelegramNotificationError:
             return
+
+
+def _resolve_crm_import_source(payload: LeadImportPayload) -> tuple[str, str]:
+    if payload.source_type == "csv":
+        if not payload.csv_content:
+            raise ValueError("CSV content is required for spreadsheet import.")
+        return payload.csv_content, "CSV upload"
+    if payload.source_type == "google_sheets":
+        if not payload.sheet_url:
+            raise ValueError("A Google Sheets URL is required.")
+        return fetch_google_sheets_csv(payload.sheet_url), "Google Sheets"
+    raise ValueError("Unsupported import source.")
 
 
 class _DisabledBillingPort:

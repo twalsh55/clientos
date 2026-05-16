@@ -21,6 +21,7 @@ from src.adapters.api.app import (
     _run_prospecting_from_telegram,
     create_app,
 )
+import src.adapters.api.app as api_app_module
 from src.adapters.auth.clerk_auth import AuthenticationError
 from src.adapters.crm.in_memory_follow_up_repository import InMemoryLeadFollowUpRepository
 from src.adapters.persistence.in_memory_personalization_repository import InMemoryPersonalizationRepository
@@ -281,6 +282,7 @@ def test_crm_follow_up_overview_dto_and_use_case_sort_and_count_values() -> None
             id="a",
             lead_name="Amber",
             company_name="Northstar",
+            owner_name="Ada Lovelace",
             stage="Discovery",
             priority="high",
             contact_channel="email",
@@ -302,6 +304,7 @@ def test_crm_follow_up_overview_dto_and_use_case_sort_and_count_values() -> None
             id="b",
             lead_name="Ben",
             company_name="Riverbridge",
+            owner_name="Samir Patel",
             stage="Proposal",
             priority="medium",
             contact_channel="phone",
@@ -1148,6 +1151,75 @@ def test_crm_followups_endpoint_supports_complete_snooze_and_notes() -> None:
         json={"action": "archive"},
     )
     assert bad_action.status_code == 422
+
+
+def test_crm_import_preview_and_commit_endpoints_support_csv_and_google_sheets(monkeypatch) -> None:
+    repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+    client = make_client(user=make_user(), lead_follow_up_repository=repository)
+
+    preview = client.post(
+        "/api/crm/import/preview",
+        headers={"Authorization": "Bearer session-token"},
+        json={
+            "source_type": "csv",
+            "csv_content": "Contact,Company,Owner,Status,Next Follow-Up,Notes\nTaylor Brooks,Beacon Ridge,Samir Patel,Qualification,2024-05-09,Imported from sheet\nAmber Flores,Northstar Studio,Ada Lovelace,Discovery,2024-05-10,Duplicate row\n",
+        },
+    )
+    assert preview.status_code == 200
+    assert preview.json()["importable_rows"] == 1
+    assert preview.json()["duplicate_rows"] == 1
+    assert preview.json()["rows"][0]["owner_name"] == "Samir Patel"
+
+    commit = client.post(
+        "/api/crm/import",
+        headers={"Authorization": "Bearer session-token"},
+        json={
+            "source_type": "csv",
+            "csv_content": "Contact,Company,Owner,Status,Next Follow-Up,Notes\nTaylor Brooks,Beacon Ridge,Samir Patel,Qualification,2024-05-09,Imported from sheet\n",
+        },
+    )
+    assert commit.status_code == 200
+    assert commit.json()["imported_count"] == 1
+    imported = next(item for item in commit.json()["overview"]["items"] if item["company_name"] == "Beacon Ridge")
+    assert imported["owner_name"] == "Samir Patel"
+    assert imported["timeline"][0]["kind"] == "import"
+
+    monkeypatch.setattr(
+        api_app_module,
+        "fetch_google_sheets_csv",
+        lambda sheet_url: "contact,company,owner,status,next follow-up,notes\nMorgan Lee,Stone Harbor,Riley Chen,Proposal,2024-05-10,From Google Sheet\n",
+    )
+    google_preview = client.post(
+        "/api/crm/import/preview",
+        headers={"Authorization": "Bearer session-token"},
+        json={
+            "source_type": "google_sheets",
+            "sheet_url": "https://docs.google.com/spreadsheets/d/test-sheet/edit#gid=0",
+        },
+    )
+    assert google_preview.status_code == 200
+    assert google_preview.json()["source_label"] == "Google Sheets"
+    assert google_preview.json()["rows"][0]["lead_name"] == "Morgan Lee"
+
+
+def test_crm_import_endpoints_return_validation_errors_for_bad_sources() -> None:
+    client = make_client(user=make_user(), lead_follow_up_repository=InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC)))
+
+    preview = client.post(
+        "/api/crm/import/preview",
+        headers={"Authorization": "Bearer session-token"},
+        json={"source_type": "csv"},
+    )
+    assert preview.status_code == 422
+    assert preview.json()["detail"] == "CSV content is required for spreadsheet import."
+
+    commit = client.post(
+        "/api/crm/import",
+        headers={"Authorization": "Bearer session-token"},
+        json={"source_type": "google_sheets"},
+    )
+    assert commit.status_code == 422
+    assert commit.json()["detail"] == "A Google Sheets URL is required."
 
 
 def test_account_settings_validation_and_alert_defaults_work() -> None:

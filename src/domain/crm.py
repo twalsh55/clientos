@@ -18,6 +18,7 @@ class LeadFollowUp:
     id: str
     lead_name: str
     company_name: str
+    owner_name: str
     stage: str
     priority: str
     contact_channel: str
@@ -43,3 +44,45 @@ class LeadFollowUpOverview:
     overdue: int
     high_priority: int
     items: list[LeadFollowUp]
+
+
+@dataclass(frozen=True)
+class LeadImportIssue:
+    row_number: int
+    severity: str
+    field: str | None
+    message: str
+
+
+@dataclass(frozen=True)
+class LeadImportPreviewRow:
+    row_number: int
+    lead_name: str
+    company_name: str
+    owner_name: str
+    stage: str
+    next_follow_up_at: datetime | None
+    notes: str
+    duplicate: bool
+    issues: tuple[LeadImportIssue, ...]
+
+
+@dataclass(frozen=True)
+class LeadImportPreview:
+    source_type: str
+    source_label: str
+    normalized_headers: list[str]
+    total_rows: int
+    importable_rows: int
+    duplicate_rows: int
+    invalid_rows: int
+    rows: list[LeadImportPreviewRow]
+    issues: list[LeadImportIssue]
+
+
+@dataclass(frozen=True)
+class LeadImportCommitResult:
+    imported_count: int
+    skipped_duplicates: int
+    skipped_invalid: int
+    overview: LeadFollowUpOverview

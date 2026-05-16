@@ -72,6 +72,9 @@ class LeadFollowUpRepositoryPort(Protocol):
     def append_note_to_lead_follow_up(self, user: User, follow_up_id: str, note_body: str, noted_at: datetime) -> None:
         """Append an internal note to a lead follow-up timeline."""
 
+    def import_lead_follow_ups(self, user: User, follow_ups: list[LeadFollowUp]) -> int:
+        """Insert imported follow-ups and return how many were stored."""
+
 
 class SocialLeadSourcePort(Protocol):
     def search_recent_posts(self, search_term: str, limit: int) -> list[SocialPost]:

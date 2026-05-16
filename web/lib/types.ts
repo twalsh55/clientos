@@ -72,6 +72,7 @@ export type CRMLeadFollowUp = {
   id: string;
   lead_name: string;
   company_name: string;
+  owner_name: string;
   stage: string;
   priority: string;
   contact_channel: string;
@@ -97,6 +98,44 @@ export type CRMFollowUpOverview = {
   overdue: number;
   high_priority: number;
   items: CRMLeadFollowUp[];
+};
+
+export type CRMImportIssue = {
+  row_number: number;
+  severity: "error" | "warning";
+  field: string | null;
+  message: string;
+};
+
+export type CRMImportPreviewRow = {
+  row_number: number;
+  lead_name: string;
+  company_name: string;
+  owner_name: string;
+  stage: string;
+  next_follow_up_at: string | null;
+  notes: string;
+  duplicate: boolean;
+  issues: CRMImportIssue[];
+};
+
+export type CRMImportPreview = {
+  source_type: "csv" | "google_sheets";
+  source_label: string;
+  normalized_headers: string[];
+  total_rows: number;
+  importable_rows: number;
+  duplicate_rows: number;
+  invalid_rows: number;
+  rows: CRMImportPreviewRow[];
+  issues: CRMImportIssue[];
+};
+
+export type CRMImportResult = {
+  imported_count: number;
+  skipped_duplicates: number;
+  skipped_invalid: number;
+  overview: CRMFollowUpOverview;
 };
 
 export type IndicatorPercentile = {
