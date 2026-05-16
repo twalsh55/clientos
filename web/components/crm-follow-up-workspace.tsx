@@ -4,7 +4,13 @@ import { useRouter } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
-import type { CRMFollowUpOverview, CRMImportPreview, CRMImportPreviewRow, CRMLeadFollowUp } from "@/lib/types";
+import type {
+  CRMFollowUpOverview,
+  CRMImportHeaderMapping,
+  CRMImportPreview,
+  CRMImportPreviewRow,
+  CRMLeadFollowUp,
+} from "@/lib/types";
 
 export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRMFollowUpOverview }) {
   const router = useRouter();
@@ -18,6 +24,8 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [sheetUrl, setSheetUrl] = useState("");
   const [importPreview, setImportPreview] = useState<CRMImportPreview | null>(null);
+  const [importFieldMapping, setImportFieldMapping] = useState<Record<string, string>>({});
+  const [isImportMappingDirty, setIsImportMappingDirty] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
@@ -79,6 +87,9 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
   function buildImportFormData() {
     const formData = new FormData();
     formData.set("source_type", sourceType);
+    if (Object.keys(importFieldMapping).length) {
+      formData.set("field_mapping", JSON.stringify(importFieldMapping));
+    }
     if (sourceType === "csv") {
       if (!selectedFile) {
         throw new Error("Choose a CSV file first.");
@@ -107,6 +118,14 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
           throw new Error((data && "error" in data && data.error) || "Unable to preview import.");
         }
         setImportPreview(data);
+        setImportFieldMapping(
+          Object.fromEntries(
+            data.header_mappings
+              .filter((item) => item.mapped_field)
+              .map((item) => [item.original_header, item.mapped_field as string]),
+          ),
+        );
+        setIsImportMappingDirty(false);
         setImportStatus(`Preview ready for ${data.importable_rows} importable row${data.importable_rows === 1 ? "" : "s"}.`);
       } catch (previewError) {
         setImportPreview(null);
@@ -134,6 +153,8 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
         setOverview(data.overview);
         setSelectedLeadId(data.overview.items[0]?.id ?? null);
         setImportPreview(null);
+        setImportFieldMapping({});
+        setIsImportMappingDirty(false);
         setImportStatus(
           `Imported ${data.imported_count} row${data.imported_count === 1 ? "" : "s"}, skipped ${data.skipped_duplicates} duplicates, and skipped ${data.skipped_invalid} invalid row${data.skipped_invalid === 1 ? "" : "s"}.`,
         );
@@ -147,6 +168,15 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
         setImportError(commitError instanceof Error ? commitError.message : "Unable to import spreadsheet rows.");
       }
     });
+  }
+
+  function updateImportFieldMapping(header: string, field: string) {
+    setImportFieldMapping((current) => ({
+      ...current,
+      [header]: field,
+    }));
+    setImportStatus(null);
+    setIsImportMappingDirty(true);
   }
 
   return (
@@ -187,6 +217,8 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
                   onChange={(event) => {
                     setSelectedFile(event.target.files?.[0] ?? null);
                     setImportPreview(null);
+                    setImportFieldMapping({});
+                    setIsImportMappingDirty(false);
                     setImportStatus(null);
                     setImportError(null);
                   }}
@@ -204,6 +236,8 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
                   onChange={(event) => {
                     setSheetUrl(event.target.value);
                     setImportPreview(null);
+                    setImportFieldMapping({});
+                    setIsImportMappingDirty(false);
                     setImportStatus(null);
                     setImportError(null);
                   }}
@@ -216,11 +250,11 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
 
             <div className="mt-5 flex flex-wrap gap-3">
               <Button disabled={isImportPending} onClick={requestImportPreview}>
-                {isImportPending ? "Checking..." : "Preview import"}
+                {isImportPending ? "Checking..." : importPreview ? "Refresh preview" : "Preview import"}
               </Button>
               <Button
                 variant="outline"
-                disabled={isImportPending || !importPreview || importPreview.importable_rows === 0}
+                disabled={isImportPending || !importPreview || importPreview.importable_rows === 0 || isImportMappingDirty}
                 onClick={commitImport}
               >
                 {isImportPending ? "Importing..." : "Import rows"}
@@ -229,9 +263,19 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
 
             {importError ? <p className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{importError}</p> : null}
             {importStatus ? <p className="mt-4 rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-3 text-sm text-emerald-800">{importStatus}</p> : null}
+            {isImportMappingDirty ? (
+              <p className="mt-4 rounded-2xl border border-amber-200 bg-amber-50 px-4 py-3 text-sm text-amber-900">
+                Column mappings changed. Refresh the preview before importing so Brivoly can validate the updated layout.
+              </p>
+            ) : null}
           </section>
 
-          <ImportPreviewPanel preview={importPreview} />
+          <ImportPreviewPanel
+            preview={importPreview}
+            importFieldMapping={importFieldMapping}
+            isImportMappingDirty={isImportMappingDirty}
+            onFieldMappingChange={updateImportFieldMapping}
+          />
         </div>
       </section>
 
@@ -321,7 +365,17 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
   );
 }
 
-function ImportPreviewPanel({ preview }: { preview: CRMImportPreview | null }) {
+function ImportPreviewPanel({
+  preview,
+  importFieldMapping,
+  isImportMappingDirty,
+  onFieldMappingChange,
+}: {
+  preview: CRMImportPreview | null;
+  importFieldMapping: Record<string, string>;
+  isImportMappingDirty: boolean;
+  onFieldMappingChange: (header: string, field: string) => void;
+}) {
   if (!preview) {
     return (
       <section className="rounded-[1.4rem] border border-dashed bg-slate-50/70 p-6">
@@ -343,6 +397,28 @@ function ImportPreviewPanel({ preview }: { preview: CRMImportPreview | null }) {
         <CompactMetric label="Importable" value={String(preview.importable_rows)} />
         <CompactMetric label="Skipped" value={String(preview.duplicate_rows + preview.invalid_rows)} />
       </div>
+      <section className="mt-5 rounded-[1.2rem] border border-white/10 bg-white/5 p-4">
+        <div className="flex items-center justify-between gap-4">
+          <div>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Column mapping</p>
+            <p className="mt-2 text-sm leading-6 text-slate-300">
+              Keep the suggested mapping if it looks right, or correct any column here before importing.
+            </p>
+          </div>
+          {isImportMappingDirty ? <p className="text-xs font-semibold uppercase tracking-[0.18em] text-amber-300">Needs refreshed preview</p> : null}
+        </div>
+        <div className="mt-4 space-y-3">
+          {preview.header_mappings.map((item) => (
+            <ImportMappingRow
+              key={item.original_header}
+              item={item}
+              availableFields={preview.available_fields}
+              selectedValue={importFieldMapping[item.original_header] ?? ""}
+              onChange={onFieldMappingChange}
+            />
+          ))}
+        </div>
+      </section>
       <p className="mt-4 text-xs uppercase tracking-[0.18em] text-slate-400">
         Headers · {preview.normalized_headers.join(" · ") || "none detected"}
       </p>
@@ -353,6 +429,45 @@ function ImportPreviewPanel({ preview }: { preview: CRMImportPreview | null }) {
       </div>
       {preview.rows.length > 5 ? <p className="mt-3 text-xs text-slate-400">Showing the first 5 preview rows.</p> : null}
     </section>
+  );
+}
+
+function ImportMappingRow({
+  item,
+  availableFields,
+  selectedValue,
+  onChange,
+}: {
+  item: CRMImportHeaderMapping;
+  availableFields: string[];
+  selectedValue: string;
+  onChange: (header: string, field: string) => void;
+}) {
+  return (
+    <div className="grid gap-3 rounded-xl border border-white/10 bg-slate-900/40 px-3 py-3 md:grid-cols-[1.1fr_1fr]">
+      <div>
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Sheet column</p>
+        <p className="mt-1 text-sm font-medium text-white">{item.original_header}</p>
+        <p className="mt-2 text-xs text-slate-400">
+          Suggested: {item.suggested_field ? formatImportFieldLabel(item.suggested_field) : "Ignore this column"}
+        </p>
+      </div>
+      <label className="block">
+        <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Map to</span>
+        <select
+          value={selectedValue}
+          onChange={(event) => onChange(item.original_header, event.target.value)}
+          className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-white outline-none transition focus:border-slate-400"
+        >
+          <option value="">Ignore this column</option>
+          {availableFields.map((field) => (
+            <option key={field} value={field}>
+              {formatImportFieldLabel(field)}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
   );
 }
 
@@ -515,4 +630,11 @@ function formatDateTime(value: string | null) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function formatImportFieldLabel(value: string) {
+  return value
+    .split("_")
+    .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
+    .join(" ");
 }

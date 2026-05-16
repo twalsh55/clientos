@@ -256,6 +256,10 @@ Use this section to give the next session a fast, practical starting point. Refr
   - Google Sheets URL support
   - preview with validation issues and duplicate detection
   - import into the live follow-up queue and timeline memory
+- The latest CRM onboarding refinement is guided import mapping:
+  - preview now exposes original headers and Brivoly's suggested field mapping
+  - users can remap ambiguous columns inline without editing the source sheet first
+  - imports require a refreshed preview after mapping changes so validation stays trustworthy
 - The latest frontend UX improvement is much more explicit login-state messaging across the portal hub, CRM entry page, sign-in screen, and crash-monitor shell, including stronger guest-versus-signed-in banners and clearer next-step copy.
 - The latest frontend polish fix is that the CRM portal label now uses the Brivoly logo blue/navy brand colors instead of the old red accent.
 - The latest platform automation addition is the Telegram `/code` workflow on the API side; it is production-facing and should be kept in sync with the fast-start notes and README.

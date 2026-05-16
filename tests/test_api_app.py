@@ -1200,6 +1200,25 @@ def test_crm_import_preview_and_commit_endpoints_support_csv_and_google_sheets(m
     assert google_preview.status_code == 200
     assert google_preview.json()["source_label"] == "Google Sheets"
     assert google_preview.json()["rows"][0]["lead_name"] == "Morgan Lee"
+    assert google_preview.json()["header_mappings"][0]["mapped_field"] == "lead_name"
+
+    mapped_preview = client.post(
+        "/api/crm/import/preview",
+        headers={"Authorization": "Bearer session-token"},
+        json={
+            "source_type": "csv",
+            "csv_content": "Person,Organisation,Followup,Context\nTaylor Brooks,Summit Forge,2024-05-09,Imported from a messy client sheet\n",
+            "field_mapping": {
+                "Person": "lead_name",
+                "Organisation": "company_name",
+                "Followup": "next_follow_up_at",
+                "Context": "notes",
+            },
+        },
+    )
+    assert mapped_preview.status_code == 200
+    assert mapped_preview.json()["importable_rows"] == 1
+    assert mapped_preview.json()["header_mappings"][0]["mapped_field"] == "lead_name"
 
 
 def test_crm_import_endpoints_return_validation_errors_for_bad_sources() -> None:
@@ -1220,6 +1239,18 @@ def test_crm_import_endpoints_return_validation_errors_for_bad_sources() -> None
     )
     assert commit.status_code == 422
     assert commit.json()["detail"] == "A Google Sheets URL is required."
+
+    bad_mapping = client.post(
+        "/api/crm/import/preview",
+        headers={"Authorization": "Bearer session-token"},
+        json={
+            "source_type": "csv",
+            "csv_content": "Person,Due\nTaylor Brooks,2024-05-09\n",
+            "field_mapping": {"Person": "unsupported_field"},
+        },
+    )
+    assert bad_mapping.status_code == 422
+    assert "Unsupported field mapping" in bad_mapping.json()["detail"]
 
 
 def test_account_settings_validation_and_alert_defaults_work() -> None:

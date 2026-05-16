@@ -14,6 +14,7 @@ from src.domain.crm import (
     LeadFollowUp,
     LeadFollowUpOverview,
     LeadImportCommitResult,
+    LeadImportHeaderMapping,
     LeadImportIssue,
     LeadImportPreview,
     LeadImportPreviewRow,
@@ -107,15 +108,34 @@ DATETIME_FORMATS = (
     "%d.%m.%Y %H:%M",
 )
 
+CANONICAL_IMPORT_FIELDS = (
+    "lead_name",
+    "company_name",
+    "owner_name",
+    "stage",
+    "next_follow_up_at",
+    "notes",
+    "priority",
+    "contact_channel",
+    "next_step",
+)
+
 
 class PreviewLeadImportUseCase:
     def __init__(self, repository: LeadFollowUpRepositoryPort, now: Callable[[], datetime]) -> None:
         self.repository = repository
         self.now = now
 
-    def execute(self, user: User, csv_content: str, source_type: str, source_label: str) -> LeadImportPreview:
+    def execute(
+        self,
+        user: User,
+        csv_content: str,
+        source_type: str,
+        source_label: str,
+        field_mapping_overrides: dict[str, str | None] | None = None,
+    ) -> LeadImportPreview:
         existing_items = self.repository.list_lead_follow_ups(user)
-        return _build_preview(csv_content, source_type, source_label, existing_items)
+        return _build_preview(csv_content, source_type, source_label, existing_items, field_mapping_overrides)
 
 
 class CommitLeadImportUseCase:
@@ -123,10 +143,17 @@ class CommitLeadImportUseCase:
         self.repository = repository
         self.now = now
 
-    def execute(self, user: User, csv_content: str, source_type: str, source_label: str) -> LeadImportCommitResult:
+    def execute(
+        self,
+        user: User,
+        csv_content: str,
+        source_type: str,
+        source_label: str,
+        field_mapping_overrides: dict[str, str | None] | None = None,
+    ) -> LeadImportCommitResult:
         current_time = self.now()
         existing_items = self.repository.list_lead_follow_ups(user)
-        preview = _build_preview(csv_content, source_type, source_label, existing_items)
+        preview = _build_preview(csv_content, source_type, source_label, existing_items, field_mapping_overrides)
         imported_items = [
             _build_imported_follow_up(row, preview.source_label, current_time)
             for row in preview.rows
@@ -149,6 +176,7 @@ def _build_preview(
     source_type: str,
     source_label: str,
     existing_items: list[LeadFollowUp],
+    field_mapping_overrides: dict[str, str | None] | None = None,
 ) -> LeadImportPreview:
     normalized_content = csv_content.strip()
     if not normalized_content:
@@ -158,10 +186,19 @@ def _build_preview(
     if not reader.fieldnames:
         raise ValueError("The spreadsheet must include a header row.")
 
-    field_map = _build_field_map(reader.fieldnames)
+    suggested_map = _build_suggested_field_map(reader.fieldnames)
+    field_map = _build_field_map(reader.fieldnames, suggested_map, field_mapping_overrides)
     normalized_headers = [field_map.get(header, _slug_header(header)) for header in reader.fieldnames]
     if not any(canonical in field_map.values() for canonical in ("lead_name", "company_name", "next_follow_up_at", "notes")):
         raise ValueError("No recognizable CRM headers were found in the spreadsheet.")
+    header_mappings = [
+        LeadImportHeaderMapping(
+            original_header=header,
+            suggested_field=suggested_map.get(header),
+            mapped_field=field_map.get(header),
+        )
+        for header in reader.fieldnames
+    ]
 
     existing_keys = {_build_duplicate_key(item.lead_name, item.company_name) for item in existing_items}
     rows: list[LeadImportPreviewRow] = []
@@ -183,6 +220,8 @@ def _build_preview(
         source_type=source_type,
         source_label=source_label,
         normalized_headers=normalized_headers,
+        header_mappings=header_mappings,
+        available_fields=list(CANONICAL_IMPORT_FIELDS),
         total_rows=len(rows),
         importable_rows=importable_rows,
         duplicate_rows=duplicate_rows,
@@ -334,7 +373,7 @@ def _build_overview(items: list[LeadFollowUp], current_time: datetime) -> LeadFo
     )
 
 
-def _build_field_map(headers: list[str]) -> dict[str, str]:
+def _build_suggested_field_map(headers: list[str]) -> dict[str, str]:
     field_map: dict[str, str] = {}
     for header in headers:
         slug = _slug_header(header)
@@ -342,6 +381,47 @@ def _build_field_map(headers: list[str]) -> dict[str, str]:
         if canonical is not None:
             field_map[header] = canonical
     return field_map
+
+
+def _build_field_map(
+    headers: list[str],
+    suggested_map: dict[str, str],
+    overrides: dict[str, str | None] | None,
+) -> dict[str, str]:
+    field_map: dict[str, str] = {}
+    normalized_overrides = _normalize_field_mapping_overrides(headers, overrides)
+    for header in headers:
+        override = normalized_overrides.get(header)
+        if override == "":
+            continue
+        if override is not None:
+            field_map[header] = override
+            continue
+        suggested = suggested_map.get(header)
+        if suggested is not None:
+            field_map[header] = suggested
+    return field_map
+
+
+def _normalize_field_mapping_overrides(
+    headers: list[str],
+    overrides: dict[str, str | None] | None,
+) -> dict[str, str]:
+    if not overrides:
+        return {}
+    known_headers = set(headers)
+    normalized: dict[str, str] = {}
+    for raw_header, raw_field in overrides.items():
+        if raw_header not in known_headers:
+            continue
+        candidate = str(raw_field or "").strip()
+        if not candidate:
+            normalized[raw_header] = ""
+            continue
+        if candidate not in CANONICAL_IMPORT_FIELDS:
+            raise ValueError(f"Unsupported field mapping '{candidate}' for header '{raw_header}'.")
+        normalized[raw_header] = candidate
+    return normalized
 
 
 def _value_for(raw_row: dict[str, str | None], field_map: dict[str, str], canonical_field: str) -> str:

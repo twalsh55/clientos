@@ -29,6 +29,7 @@ export async function POST(request: NextRequest) {
 async function buildImportPayload(request: NextRequest) {
   const formData = await request.formData();
   const sourceType = formData.get("source_type");
+  const fieldMapping = parseFieldMapping(formData.get("field_mapping"));
   if (sourceType !== "csv" && sourceType !== "google_sheets") {
     throw new Error("Choose CSV upload or Google Sheets before importing.");
   }
@@ -41,6 +42,7 @@ async function buildImportPayload(request: NextRequest) {
     return {
       source_type: "csv" as const,
       csv_content: await file.text(),
+      field_mapping: fieldMapping,
     };
   }
 
@@ -51,9 +53,29 @@ async function buildImportPayload(request: NextRequest) {
   return {
     source_type: "google_sheets" as const,
     sheet_url: sheetUrl,
+    field_mapping: fieldMapping,
   };
 }
 
 function hasTextReader(value: FormDataEntryValue | null): value is File {
   return typeof value === "object" && value !== null && typeof value.text === "function";
+}
+
+function parseFieldMapping(value: FormDataEntryValue | null): Record<string, string | null> | undefined {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return undefined;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("Column mapping data is invalid.");
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Column mapping data is invalid.");
+  }
+  return Object.fromEntries(
+    Object.entries(parsed as Record<string, unknown>).map(([key, field]) => [key, typeof field === "string" ? field : null]),
+  );
 }

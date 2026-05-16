@@ -121,6 +121,7 @@ class LeadImportPayload(BaseModel):
     source_type: str = Field(pattern="^(csv|google_sheets)$")
     csv_content: str | None = Field(default=None, min_length=1)
     sheet_url: str | None = None
+    field_mapping: dict[str, str | None] | None = None
 
 
 class FounderCodeRequestDTO(BaseModel):
@@ -315,6 +316,7 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
                 csv_content,
                 payload.source_type,
                 source_label,
+                payload.field_mapping,
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -335,6 +337,7 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
                 csv_content,
                 payload.source_type,
                 source_label,
+                payload.field_mapping,
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc

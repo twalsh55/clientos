@@ -119,10 +119,18 @@ export type CRMImportPreviewRow = {
   issues: CRMImportIssue[];
 };
 
+export type CRMImportHeaderMapping = {
+  original_header: string;
+  suggested_field: string | null;
+  mapped_field: string | null;
+};
+
 export type CRMImportPreview = {
   source_type: "csv" | "google_sheets";
   source_label: string;
   normalized_headers: string[];
+  header_mappings: CRMImportHeaderMapping[];
+  available_fields: string[];
   total_rows: number;
   importable_rows: number;
   duplicate_rows: number;

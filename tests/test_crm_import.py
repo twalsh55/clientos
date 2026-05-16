@@ -56,6 +56,9 @@ def test_preview_lead_import_normalizes_headers_and_flags_duplicates() -> None:
     assert preview.invalid_rows == 0
     assert preview.rows[0].owner_name == "Samir Patel"
     assert preview.rows[1].duplicate is True
+    assert preview.header_mappings[0].original_header == "Contact"
+    assert preview.header_mappings[0].mapped_field == "lead_name"
+    assert "lead_name" in preview.available_fields
 
 
 def test_commit_lead_import_adds_follow_ups_to_queue() -> None:
@@ -73,6 +76,65 @@ def test_commit_lead_import_adds_follow_ups_to_queue() -> None:
     assert imported.owner_name == "Samir Patel"
     assert imported.contact_channel == "spreadsheet"
     assert imported.timeline[0].kind == "import"
+
+
+def test_preview_and_commit_lead_import_support_manual_field_mapping() -> None:
+    now = datetime(2024, 5, 6, 12, 30, tzinfo=UTC)
+    repository = InMemoryLeadFollowUpRepository(now=lambda: now)
+    preview_use_case = PreviewLeadImportUseCase(repository=repository, now=lambda: now)
+    commit_use_case = CommitLeadImportUseCase(repository=repository, now=lambda: now)
+    csv_content = (
+        "Person,Organisation,Touchpoint,Blob\n"
+        "Taylor Brooks,Summit Forge,2024-05-09,Imported from a messy client sheet\n"
+    )
+
+    with pytest.raises(ValueError, match="No recognizable CRM headers were found"):
+        preview_use_case.execute(make_user(), csv_content, "csv", "CSV upload")
+
+    overrides = {
+        "Person": "lead_name",
+        "Organisation": "company_name",
+        "Touchpoint": "next_follow_up_at",
+        "Blob": "notes",
+    }
+    preview = preview_use_case.execute(make_user(), csv_content, "csv", "CSV upload", overrides)
+    assert preview.importable_rows == 1
+    assert preview.header_mappings[0].mapped_field == "lead_name"
+
+    result = commit_use_case.execute(make_user(), csv_content, "csv", "CSV upload", overrides)
+    assert result.imported_count == 1
+    imported = next(item for item in result.overview.items if item.company_name == "Summit Forge")
+    assert imported.lead_name == "Taylor Brooks"
+    assert imported.notes == "Imported from a messy client sheet"
+
+
+def test_preview_lead_import_rejects_invalid_manual_field_mapping() -> None:
+    repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+    use_case = PreviewLeadImportUseCase(repository=repository, now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+
+    with pytest.raises(ValueError, match="Unsupported field mapping"):
+        use_case.execute(
+            make_user(),
+            "Person,Due\nTaylor Brooks,2024-05-09\n",
+            "csv",
+            "CSV upload",
+            {"Person": "unknown_field"},
+        )
+
+
+def test_preview_lead_import_supports_ignoring_auto_detected_headers_and_skips_unknown_override_headers() -> None:
+    repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+    use_case = PreviewLeadImportUseCase(repository=repository, now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+    preview = use_case.execute(
+        make_user(),
+        "Contact,Company,Notes\nTaylor Brooks,Beacon Ridge,Imported from sheet\n",
+        "csv",
+        "CSV upload",
+        {"Notes": "", "Missing": "lead_name"},
+    )
+
+    notes_mapping = next(item for item in preview.header_mappings if item.original_header == "Notes")
+    assert notes_mapping.mapped_field is None
 
 
 def test_build_google_sheets_csv_url_keeps_gid() -> None:

@@ -68,10 +68,19 @@ class LeadImportPreviewRow:
 
 
 @dataclass(frozen=True)
+class LeadImportHeaderMapping:
+    original_header: str
+    suggested_field: str | None
+    mapped_field: str | None
+
+
+@dataclass(frozen=True)
 class LeadImportPreview:
     source_type: str
     source_label: str
     normalized_headers: list[str]
+    header_mappings: list[LeadImportHeaderMapping]
+    available_fields: list[str]
     total_rows: int
     importable_rows: int
     duplicate_rows: int

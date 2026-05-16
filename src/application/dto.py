@@ -12,6 +12,7 @@ from src.domain.crm import (
     LeadFollowUp,
     LeadFollowUpOverview,
     LeadImportCommitResult,
+    LeadImportHeaderMapping,
     LeadImportIssue,
     LeadImportPreview,
     LeadImportPreviewRow,
@@ -177,10 +178,19 @@ class LeadImportPreviewRowDTO:
 
 
 @dataclass(frozen=True)
+class LeadImportHeaderMappingDTO:
+    original_header: str
+    suggested_field: str | None
+    mapped_field: str | None
+
+
+@dataclass(frozen=True)
 class LeadImportPreviewDTO:
     source_type: str
     source_label: str
     normalized_headers: list[str]
+    header_mappings: list[LeadImportHeaderMappingDTO]
+    available_fields: list[str]
     total_rows: int
     importable_rows: int
     duplicate_rows: int
@@ -361,6 +371,8 @@ def build_lead_import_preview_dto(preview: LeadImportPreview) -> LeadImportPrevi
         source_type=preview.source_type,
         source_label=preview.source_label,
         normalized_headers=list(preview.normalized_headers),
+        header_mappings=[build_lead_import_header_mapping_dto(item) for item in preview.header_mappings],
+        available_fields=list(preview.available_fields),
         total_rows=preview.total_rows,
         importable_rows=preview.importable_rows,
         duplicate_rows=preview.duplicate_rows,
@@ -381,6 +393,14 @@ def build_lead_import_preview_row_dto(row: LeadImportPreviewRow) -> LeadImportPr
         notes=row.notes,
         duplicate=row.duplicate,
         issues=[build_lead_import_issue_dto(issue) for issue in row.issues],
+    )
+
+
+def build_lead_import_header_mapping_dto(item: LeadImportHeaderMapping) -> LeadImportHeaderMappingDTO:
+    return LeadImportHeaderMappingDTO(
+        original_header=item.original_header,
+        suggested_field=item.suggested_field,
+        mapped_field=item.mapped_field,
     )
 
 

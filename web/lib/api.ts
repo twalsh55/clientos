@@ -155,7 +155,12 @@ export async function updateCrmFollowUp(
 }
 
 export async function previewCrmImport(
-  payload: { source_type: "csv" | "google_sheets"; csv_content?: string; sheet_url?: string },
+  payload: {
+    source_type: "csv" | "google_sheets";
+    csv_content?: string;
+    sheet_url?: string;
+    field_mapping?: Record<string, string | null>;
+  },
   options: ApiRequestOptions = {},
 ): Promise<CRMImportPreview> {
   return apiRequest<CRMImportPreview>(
@@ -169,7 +174,12 @@ export async function previewCrmImport(
 }
 
 export async function commitCrmImport(
-  payload: { source_type: "csv" | "google_sheets"; csv_content?: string; sheet_url?: string },
+  payload: {
+    source_type: "csv" | "google_sheets";
+    csv_content?: string;
+    sheet_url?: string;
+    field_mapping?: Record<string, string | null>;
+  },
   options: ApiRequestOptions = {},
 ): Promise<CRMImportResult> {
   return apiRequest<CRMImportResult>(
