@@ -8,6 +8,7 @@ import pandas as pd
 from src.application.account import AlertHistoryEntry, UserDashboardSettings
 from src.application.billing import BillingOverview
 from src.domain.auth import User
+from src.domain.crm import LeadFollowUp, LeadFollowUpOverview
 from src.domain.models import DashboardConfig, DashboardResult
 from src.domain.services import compute_buyer_participation_series, compute_new_high_ratio_series
 
@@ -109,6 +110,30 @@ class BillingOverviewDTO:
     current_period_end: str | None
     checkout_available: bool
     portal_available: bool
+
+
+@dataclass(frozen=True)
+class LeadFollowUpDTO:
+    id: str
+    lead_name: str
+    company_name: str
+    stage: str
+    priority: str
+    contact_channel: str
+    last_contacted_at: str | None
+    next_follow_up_at: str
+    next_step: str
+    notes: str
+
+
+@dataclass(frozen=True)
+class LeadFollowUpOverviewDTO:
+    generated_at: str
+    total_open: int
+    due_today: int
+    overdue: int
+    high_priority: int
+    items: list[LeadFollowUpDTO]
 
 
 def build_authenticated_user_dto(user: User) -> AuthenticatedUserDTO:
@@ -229,6 +254,32 @@ def build_billing_overview_dto(overview: BillingOverview) -> BillingOverviewDTO:
         current_period_end=overview.current_period_end.isoformat() if overview.current_period_end else None,
         checkout_available=overview.checkout_available,
         portal_available=overview.portal_available,
+    )
+
+
+def build_lead_follow_up_overview_dto(overview: LeadFollowUpOverview) -> LeadFollowUpOverviewDTO:
+    return LeadFollowUpOverviewDTO(
+        generated_at=overview.generated_at.isoformat(),
+        total_open=overview.total_open,
+        due_today=overview.due_today,
+        overdue=overview.overdue,
+        high_priority=overview.high_priority,
+        items=[build_lead_follow_up_dto(item) for item in overview.items],
+    )
+
+
+def build_lead_follow_up_dto(item: LeadFollowUp) -> LeadFollowUpDTO:
+    return LeadFollowUpDTO(
+        id=item.id,
+        lead_name=item.lead_name,
+        company_name=item.company_name,
+        stage=item.stage,
+        priority=item.priority,
+        contact_channel=item.contact_channel,
+        last_contacted_at=item.last_contacted_at.isoformat() if item.last_contacted_at else None,
+        next_follow_up_at=item.next_follow_up_at.isoformat(),
+        next_step=item.next_step,
+        notes=item.notes,
     )
 
 

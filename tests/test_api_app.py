@@ -30,6 +30,7 @@ from src.application.account import (
     UserDashboardSettings,
 )
 from src.application.billing import BillingOverview
+from src.application.crm import GetLeadFollowUpOverviewUseCase
 from src.application.dashboard import (
     build_dashboard_config,
     build_default_dashboard_settings,
@@ -40,10 +41,12 @@ from src.application.dto import (
     build_alert_history_entry_dto,
     build_authenticated_user_dto,
     build_dashboard_snapshot_dto,
+    build_lead_follow_up_overview_dto,
     build_user_dashboard_settings_dto,
     dto_to_dict,
 )
 from src.domain.auth import User
+from src.domain.crm import LeadFollowUp
 from src.domain.models import DashboardConfig, DashboardResult
 
 
@@ -262,6 +265,51 @@ def test_billing_overview_route_returns_disabled_status_when_stripe_is_unconfigu
         "checkout_available": False,
         "portal_available": False,
     }
+
+
+def test_crm_follow_up_overview_dto_and_use_case_sort_and_count_values() -> None:
+    user = make_user()
+    now = datetime(2024, 5, 6, 12, 30, tzinfo=UTC)
+    items = [
+        LeadFollowUp(
+            id="a",
+            lead_name="Amber",
+            company_name="Northstar",
+            stage="Discovery",
+            priority="high",
+            contact_channel="email",
+            last_contacted_at=now,
+            next_follow_up_at=now - pd.Timedelta(hours=1),
+            next_step="Follow up",
+            notes="Warm lead",
+        ),
+        LeadFollowUp(
+            id="b",
+            lead_name="Ben",
+            company_name="Riverbridge",
+            stage="Proposal",
+            priority="medium",
+            contact_channel="phone",
+            last_contacted_at=None,
+            next_follow_up_at=now + pd.Timedelta(days=1),
+            next_step="Check proposal",
+            notes="Waiting on stakeholder",
+        ),
+    ]
+
+    class FakeRepository:
+        def list_lead_follow_ups(self, user: User) -> list[LeadFollowUp]:
+            return items
+
+    overview = GetLeadFollowUpOverviewUseCase(FakeRepository(), now=lambda: now).execute(user)
+    payload = dto_to_dict(build_lead_follow_up_overview_dto(overview))
+
+    assert payload["total_open"] == 2
+    assert payload["due_today"] == 1
+    assert payload["overdue"] == 1
+    assert payload["high_priority"] == 1
+    assert payload["items"][0]["id"] == "a"
+    assert payload["items"][1]["last_contacted_at"] is None
 
 
 def test_extract_telegram_command_parses_supported_message_shapes() -> None:
@@ -827,6 +875,22 @@ def test_account_settings_endpoints_and_alert_history_round_trip() -> None:
     assert updated_dashboard.status_code == 200
     assert updated_dashboard.json()["config"]["benchmark"] == "QQQ"
     assert updated_dashboard.json()["config"]["universe"] == ["SPY", "QQQ"]
+
+
+def test_crm_followups_endpoint_requires_auth_and_returns_queue() -> None:
+    client = make_client(user=make_user())
+
+    unauthorized = client.get("/api/crm/followups")
+    assert unauthorized.status_code == 401
+    assert unauthorized.json()["detail"] == "Authentication required."
+
+    response = client.get("/api/crm/followups", headers={"Authorization": "Bearer session-token"})
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["total_open"] == 4
+    assert payload["high_priority"] == 2
+    assert payload["items"][0]["lead_name"] == "Amber Flores"
+    assert payload["items"][0]["stage"] == "Discovery"
 
 
 def test_account_settings_validation_and_alert_defaults_work() -> None:

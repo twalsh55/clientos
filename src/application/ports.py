@@ -7,6 +7,7 @@ from uuid import UUID
 import pandas as pd
 
 from src.domain.auth import ExternalIdentity, User
+from src.domain.crm import LeadFollowUp
 from src.domain.prospecting import ProspectMatch, SocialPost
 
 if TYPE_CHECKING:
@@ -54,6 +55,11 @@ class BillingPort(Protocol):
 
     def create_portal_session(self, user: User, return_url: str | None = None) -> str:
         """Create a Stripe Billing Portal session URL for the authenticated user."""
+
+
+class LeadFollowUpRepositoryPort(Protocol):
+    def list_lead_follow_ups(self, user: User) -> list[LeadFollowUp]:
+        """Return the current open lead follow-up queue for the authenticated user."""
 
 
 class SocialLeadSourcePort(Protocol):

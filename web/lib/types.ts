@@ -68,6 +68,28 @@ export type BillingOverview = {
   portal_available: boolean;
 };
 
+export type CRMLeadFollowUp = {
+  id: string;
+  lead_name: string;
+  company_name: string;
+  stage: string;
+  priority: string;
+  contact_channel: string;
+  last_contacted_at: string | null;
+  next_follow_up_at: string;
+  next_step: string;
+  notes: string;
+};
+
+export type CRMFollowUpOverview = {
+  generated_at: string;
+  total_open: number;
+  due_today: number;
+  overdue: number;
+  high_priority: number;
+  items: CRMLeadFollowUp[];
+};
+
 export type IndicatorPercentile = {
   name: string;
   current: number | null;

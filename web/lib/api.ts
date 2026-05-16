@@ -2,6 +2,7 @@ import type {
   AccountSettings,
   AlertHistoryResponse,
   BillingOverview,
+  CRMFollowUpOverview,
   DashboardFilters,
   DashboardSnapshot,
   SessionResponse,
@@ -130,6 +131,10 @@ export async function getAlertHistory(options: ApiRequestOptions = {}): Promise<
 
 export async function getBillingOverview(options: ApiRequestOptions = {}): Promise<BillingOverview> {
   return apiRequest<BillingOverview>("/api/account/billing", {}, options);
+}
+
+export async function getCrmFollowUpOverview(options: ApiRequestOptions = {}): Promise<CRMFollowUpOverview> {
+  return apiRequest<CRMFollowUpOverview>("/api/crm/followups", {}, options);
 }
 
 export async function createBillingCheckoutSession(

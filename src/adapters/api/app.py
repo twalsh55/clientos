@@ -30,6 +30,7 @@ from src.adapters.auth.runtime import (
 from src.adapters.market_data.yfinance_provider import YFinanceMarketDataAdapter
 from src.adapters.notifications.smtp_email_notifier import EmailNotificationError
 from src.adapters.notifications.telegram_notifier import TelegramNotificationError, TelegramNotifier
+from src.adapters.crm.runtime import build_lead_follow_up_repository
 from src.adapters.persistence.runtime import build_personalization_repository
 from src.adapters.prospecting.runtime import collect_prospecting_config_errors, run_prospecting_job
 from src.adapters.sentiment.runtime import collect_etf_sentiment_config_errors, deliver_etf_sentiment_job, run_etf_sentiment_job
@@ -46,6 +47,7 @@ from src.application.billing import (
     CreateCheckoutSessionUseCase,
     GetBillingOverviewUseCase,
 )
+from src.application.crm import GetLeadFollowUpOverviewUseCase
 from src.application.dashboard import (
     DEFAULT_BENCHMARK,
     DEFAULT_LONG_YIELD_SYMBOL,
@@ -62,6 +64,7 @@ from src.application.dto import (
     build_authenticated_user_dto,
     build_billing_overview_dto,
     build_dashboard_snapshot_dto,
+    build_lead_follow_up_overview_dto,
     build_user_dashboard_settings_dto,
     dto_to_dict,
 )
@@ -214,6 +217,18 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
             "items": [dto_to_dict(build_alert_history_entry_dto(entry)) for entry in entries],
             "count": len(entries),
         }
+
+    @app.get("/api/crm/followups")
+    def crm_followups(
+        authorization: str | None = Header(default=None),
+        session_cookie: str | None = Cookie(default=None, alias=CLERK_SESSION_COOKIE),
+    ) -> dict[str, object]:
+        user = _require_authenticated_user(deps, authorization, session_cookie)
+        overview = GetLeadFollowUpOverviewUseCase(
+            repository=build_lead_follow_up_repository(),
+            now=deps.now,
+        ).execute(user)
+        return dto_to_dict(build_lead_follow_up_overview_dto(overview))
 
     @app.get("/api/account/billing")
     def billing_overview(

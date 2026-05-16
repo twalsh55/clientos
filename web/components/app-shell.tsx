@@ -37,6 +37,12 @@ export function AppShell({ data }: AppShellProps) {
           <p className="text-sm leading-6 text-slate-300">
             Monitor market stress, participation, and crash-risk cues while Python remains the calculation engine.
           </p>
+          <Link
+            href="/"
+            className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200 transition hover:border-cyan-300/40 hover:bg-white/10"
+          >
+            Back to portal hub
+          </Link>
         </div>
         <nav className="mt-8 space-y-2">
           {navItems.map((item) => (
@@ -102,7 +108,7 @@ export function AppShell({ data }: AppShellProps) {
               <SignOutButton />
             ) : (
               <Link
-                href="/sign-in?redirectTo=%2F"
+                href="/sign-in?redirectTo=%2Fcrash-monitor"
                 className="inline-flex items-center justify-center rounded-full bg-primary px-5 py-2.5 text-sm font-medium text-primary-foreground shadow-sm transition hover:opacity-90"
               >
                 Sign in
