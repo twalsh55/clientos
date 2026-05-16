@@ -243,7 +243,7 @@ Use this section to give the next session a fast, practical starting point. Refr
   - deployed to Railway and Vercel
   - logged into `product_updates.jsonl`
   - summarized by email through the operator briefing flow
-- The latest frontend UX improvement is clearer login state across the portal hub, CRM entry page, sign-in screen, and crash-monitor shell.
+- The latest frontend UX improvement is much more explicit login-state messaging across the portal hub, CRM entry page, sign-in screen, and crash-monitor shell, including stronger guest-versus-signed-in banners and clearer next-step copy.
 - The latest platform automation addition is the Telegram `/code` workflow on the API side; it is production-facing and should be kept in sync with the fast-start notes and README.
 - The newest reliability fix is that `/code` and `/prospect` now tolerate SMTP failure as long as Telegram delivery still works.
 - The newest remote-autonomy bridge is that production prospect runs can now queue strong build recommendations into the same durable inbox path used for founder `/code` requests.

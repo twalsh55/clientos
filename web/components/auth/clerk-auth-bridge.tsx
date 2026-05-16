@@ -162,6 +162,13 @@ export function ClerkAuthBridge({ publishableKey, host, redirectTo }: ClerkAuthB
         <p className="font-medium">{statusAppearance.label}</p>
         <p className="mt-1">{status}</p>
       </div>
+      <div className="mt-4 rounded-[1.25rem] border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-700">
+        <p className="font-medium">Account state</p>
+        <p className="mt-1">
+          Until this finishes, Brivoly treats you as signed out. Once the secure session is completed, you will be
+          redirected automatically.
+        </p>
+      </div>
       <p className="mt-4 text-sm text-slate-500">
         New here?{" "}
         <Link className="font-medium text-slate-900 underline underline-offset-4" href="/?from=sign-in">

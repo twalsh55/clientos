@@ -57,9 +57,11 @@ export function AppShell({ data }: AppShellProps) {
         </nav>
         <div className={`mt-8 rounded-[1.5rem] border p-4 ${user ? "border-emerald-300/20 bg-emerald-300/10" : "border-amber-300/20 bg-amber-300/10"}`}>
           <p className={`text-xs font-semibold uppercase tracking-[0.24em] ${user ? "text-emerald-200" : "text-amber-200"}`}>
-            {user ? "Signed in" : "Sign-in needed"}
+            {user ? "Signed in to crash monitor" : "Guest mode in crash monitor"}
           </p>
-          <p className="mt-2 text-lg font-medium">{user ? user.display_name ?? user.email ?? user.auth_subject : "No active account session"}</p>
+          <p className="mt-2 text-lg font-medium">
+            {user ? user.display_name ?? user.email ?? user.auth_subject : "No active account session detected"}
+          </p>
           <p className="mt-2 text-sm text-slate-300">
             {user ? "Your account is connected and live dashboard data is available." : "Sign in to load live dashboard data, saved settings, alerts, and billing access."}
           </p>
@@ -85,6 +87,25 @@ export function AppShell({ data }: AppShellProps) {
                 The dashboard pulls price history, breadth, volatility, yield, and participation signals from the
                 Python backend so the web app behaves like the original product rather than a thin frontend wrapper.
               </p>
+              <div
+                className={`rounded-[1.5rem] border px-5 py-4 ${
+                  user ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"
+                }`}
+              >
+                <p className="text-xs font-semibold uppercase tracking-[0.22em]">
+                  {user ? "Account session active" : "Account session missing"}
+                </p>
+                <p className="mt-2 text-lg font-semibold">
+                  {user
+                    ? `Signed in as ${user.display_name ?? user.email ?? user.auth_subject}`
+                    : "You are viewing the crash monitor without a signed-in account."}
+                </p>
+                <p className="mt-2 text-sm leading-6">
+                  {user
+                    ? "Live dashboard data, saved settings, alert history, and billing controls should all be available."
+                    : "You can view the shell, but live dashboard data, saved settings, alerts, and billing actions need sign-in before they will load."}
+                </p>
+              </div>
             </div>
 
             <div className="grid min-w-[280px] gap-3 md:w-[360px]">
@@ -145,7 +166,7 @@ export function AppShell({ data }: AppShellProps) {
             description={
               user
                 ? `${user.display_name ?? user.email ?? user.auth_subject} is recognized and mapped to an internal application user.`
-                : "This dashboard shell loaded, but it did not receive an authenticated account session for this request."
+                : "This dashboard shell loaded without an authenticated account session, so account-specific dashboard features stay unavailable until sign-in."
             }
           >
             <div className="space-y-3">

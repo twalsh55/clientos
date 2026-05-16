@@ -62,6 +62,11 @@ export default async function HomePage() {
             </div>
 
             <div className="grid w-full gap-3 sm:grid-cols-3 lg:w-[360px] lg:grid-cols-1">
+              <StatusChip
+                label="Account Status"
+                value={user ? "Signed in on this device" : "Guest mode right now"}
+                tone={user ? "positive" : "warning"}
+              />
               <StatusChip label="Portal Count" value="2 active" tone="neutral" />
               <StatusChip label="Crash Monitor" value="Live today" tone="positive" />
               <StatusChip label="CRM" value="Portal ready" tone="warning" />
@@ -100,19 +105,34 @@ export default async function HomePage() {
         </section>
 
         <section className="mt-6 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
-          <div className="rounded-[1.75rem] border bg-white/80 p-6 shadow-sm">
+          <div
+            className={`rounded-[1.75rem] border p-6 shadow-sm ${
+              user ? "border-emerald-200 bg-emerald-50/80" : "border-amber-200 bg-amber-50/80"
+            }`}
+          >
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Access Status</p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-              {user ? "You are signed in and ready to work." : "Choose a workspace, then sign in when you’re ready."}
+              {user ? "You are signed in and ready to enter either workspace." : "You are browsing as a guest right now."}
             </h2>
             <p className="mt-3 max-w-2xl text-sm leading-7 text-slate-600">
               {user
                 ? "Your account is active on this device, so both product portals can load authenticated data and account-aware actions."
-                : "You can browse the workspace hub first. When you open a protected flow, Brivoly will guide you through a clean sign-in and send you back to the right product area."}
+                : "You can browse the workspace hub first, but live CRM queues, saved settings, alert history, and billing actions need sign-in before they will load."}
             </p>
+            <div className="mt-5 rounded-[1.4rem] border border-white/70 bg-white/70 px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-500">Current state</p>
+              <p className="mt-2 text-lg font-semibold text-slate-950">
+                {user ? `Signed in as ${user.display_name ?? user.email ?? user.auth_subject}` : "No active account session detected"}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                {user
+                  ? "Open CRM or Crash Monitor directly. Protected views should load with your account context."
+                  : "Use the sign-in button before entering a protected flow if you want the app to load your account-specific data immediately."}
+              </p>
+            </div>
             <div className="mt-6 grid gap-3 md:grid-cols-3">
-              <MiniTile label="Status" value={user ? "Signed in" : "Not signed in"} />
-              <MiniTile label="Next stop" value={user ? "Open either portal" : "Sign in from CRM or crash monitor"} />
+              <MiniTile label="Status" value={user ? "Signed in" : "Guest"} />
+              <MiniTile label="Next step" value={user ? "Open either portal" : "Sign in, then open CRM or crash monitor"} />
               <MiniTile label="Connection" value={bootstrap ? "Backend connected" : "Bootstrap unavailable"} />
             </div>
           </div>

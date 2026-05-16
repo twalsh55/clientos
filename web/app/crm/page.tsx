@@ -42,11 +42,16 @@ export default async function CRMPortalPage() {
               the crash-monitor experience.
             </p>
             <div className={`mt-6 rounded-[1.5rem] border px-5 py-4 ${user ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
-              <p className="text-xs font-semibold uppercase tracking-[0.22em]">{user ? "Signed in" : "Sign in required for the live queue"}</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.22em]">{user ? "Signed in to CRM" : "Guest mode in CRM"}</p>
+              <p className="mt-2 text-lg font-semibold">
+                {user
+                  ? `${user.display_name ?? user.email ?? user.auth_subject} is recognized on this device.`
+                  : "No account session is active, so the live CRM queue is locked."}
+              </p>
               <p className="mt-2 text-sm leading-6">
                 {user
                   ? `Welcome back, ${user.display_name ?? user.email ?? user.auth_subject}. Your follow-up queue and account history are ready below.`
-                  : "You can look around the CRM portal now, but sign in to open the actual follow-up queue, notes, and relationship memory."}
+                  : "You can look around the CRM portal now, but sign in to open the actual follow-up queue, notes, relationship memory, and account history."}
               </p>
             </div>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -67,9 +72,9 @@ export default async function CRMPortalPage() {
           <div className="w-full max-w-md rounded-[1.75rem] border bg-slate-950 p-5 text-slate-50 shadow-[0_24px_80px_-50px_rgba(15,23,42,0.9)]">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Portal Status</p>
             <div className="mt-4 space-y-3">
-              <CRMStatusRow label="Session" value={user ? "Signed in and recognized" : "Browsing as guest"} />
-              <CRMStatusRow label="Product state" value={followUps ? "Follow-up queue live" : "Sign in to load live queue"} />
-              <CRMStatusRow label="Next focus" value="Lead follow-up discipline" />
+              <CRMStatusRow label="Session" value={user ? "Signed in and recognized" : "Guest access only"} />
+              <CRMStatusRow label="Live CRM data" value={followUps ? "Queue, notes, and timeline loaded" : "Blocked until sign-in"} />
+              <CRMStatusRow label="Next step" value={user ? "Work the follow-up queue" : "Sign in to unlock your queue"} />
             </div>
           </div>
         </div>

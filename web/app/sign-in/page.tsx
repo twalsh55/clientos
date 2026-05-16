@@ -29,6 +29,10 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             is simple: make it obvious where you are, get you authenticated cleanly, and send you back into the app.
           </p>
           <div className="mt-8 grid gap-3 text-sm text-slate-300">
+            <div className="rounded-[1.4rem] border border-cyan-300/20 bg-cyan-300/10 px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200">Current access state</p>
+              <p className="mt-2 leading-6">You are not signed in yet. Complete sign-in here, then Brivoly will return you to the correct workspace.</p>
+            </div>
             <div className="rounded-[1.4rem] border border-white/10 bg-white/5 px-4 py-4">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-emerald-200">What happens</p>
               <p className="mt-2 leading-6">Sign in below, Brivoly secures your session, then returns you to your workspace.</p>

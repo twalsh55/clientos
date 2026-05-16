@@ -26,13 +26,16 @@ test.beforeEach(async ({ request }) => {
 test("bootstraps a local app session and renders the authenticated dashboard shell", async ({ page }) => {
   await page.goto("/");
   await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
+  await expect(page.getByText("You are browsing as a guest right now.")).toBeVisible();
 
   await bootstrapSession(page);
   await page.goto("/");
 
-  await expect(page.getByText("Signed in as Ada Lovelace")).toBeVisible();
+  await expect(page.locator("main").getByText("Signed in as Ada Lovelace").first()).toBeVisible();
+  await expect(page.getByText("You are signed in and ready to enter either workspace.")).toBeVisible();
   await page.getByRole("link", { name: "Open Crash Monitor" }).click();
 
+  await expect(page.getByText("Account session active")).toBeVisible();
   await expect(page.getByText("Ada Lovelace", { exact: true })).toBeVisible();
   await expect(page.getByTestId("dashboard-benchmark-value")).toHaveText("SPY");
   await expect(page.getByRole("button", { name: "Sign out" })).toBeVisible();
