@@ -189,7 +189,11 @@ Use this section to give the next session a fast, practical starting point. Refr
   - CSV upload import preview and commit
   - Google Sheets import preview and commit
   - messy header normalization and duplicate detection before import
+  - guided import mapping with inline remapping before commit
   - imported owner visibility in the queue and memory panel
+  - a paid-only AI Intake Profile foundation in CRM
+  - per-user AI intake prompts stored with account settings
+  - per-user preferred import-format memory stored with account settings
   - a clearer signed-in versus signed-out portal state
   - a more explicit and welcoming sign-in handoff
 - The current CRM wedge is:
@@ -260,6 +264,11 @@ Use this section to give the next session a fast, practical starting point. Refr
   - preview now exposes original headers and Brivoly's suggested field mapping
   - users can remap ambiguous columns inline without editing the source sheet first
   - imports require a refreshed preview after mapping changes so validation stays trustworthy
+- The latest CRM monetization/intake foundation is AI Intake Profile:
+  - CRM now exposes a per-user AI intake prompt and preferred format memory
+  - these settings persist through the existing account-settings persistence layer, including Postgres
+  - the CRM workspace now shows advanced AI intake as paywalled unless billing is active or trialing
+  - this is only the control-plane foundation, not full AI file/image ingestion yet
 - The latest frontend UX improvement is much more explicit login-state messaging across the portal hub, CRM entry page, sign-in screen, and crash-monitor shell, including stronger guest-versus-signed-in banners and clearer next-step copy.
 - The latest frontend polish fix is that the CRM portal label now uses the Brivoly logo blue/navy brand colors instead of the old red accent.
 - The latest platform automation addition is the Telegram `/code` workflow on the API side; it is production-facing and should be kept in sync with the fast-start notes and README.
@@ -274,12 +283,14 @@ Use this section to give the next session a fast, practical starting point. Refr
   - `cd web && npm run typecheck`
   - `cd web && npm run build`
   - `cd web && npm run e2e`
+- `web` typecheck now clears `tsconfig.tsbuildinfo` first to avoid stale `.next/types` false negatives.
 - Current frontend e2e coverage now assumes `/` is the portal hub and `/crash-monitor` is the authenticated dashboard route.
 - Current CRM e2e coverage now also exercises spreadsheet import preview and commit through the local proxy routes.
 
 ### Next Recommended Product Moves
 
 - Highest-conviction next CRM features:
+  - actual AI-assisted messy-file and image interpretation behind the paid gate
   - richer handoff history and stage memory
   - deeper spreadsheet cleanup and field-mapping controls after preview
   - consultant / agency specific templates or checklists

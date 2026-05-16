@@ -5,7 +5,7 @@ import { BrandLockup } from "@/components/brand-lockup";
 import { CRMFollowUpWorkspace } from "@/components/crm-follow-up-workspace";
 import { Button } from "@/components/ui/button";
 import { BRIVOLY_SESSION_COOKIE, LEGACY_TRADE_SESSION_COOKIE } from "@/lib/auth";
-import { getCrmFollowUpOverview, getSession, getSettingsBootstrap } from "@/lib/api";
+import { getAccountSettings, getBillingOverview, getCrmFollowUpOverview, getSession, getSettingsBootstrap } from "@/lib/api";
 
 export const dynamic = "force-dynamic";
 
@@ -22,7 +22,13 @@ export default async function CRMPortalPage() {
   ]);
 
   const user = session?.user;
-  const followUps = user ? await getCrmFollowUpOverview({ sessionToken, cookieHeader }).catch(() => null) : null;
+  const [followUps, accountSettings, billing] = user
+    ? await Promise.all([
+        getCrmFollowUpOverview({ sessionToken, cookieHeader }).catch(() => null),
+        getAccountSettings({ sessionToken, cookieHeader }).catch(() => null),
+        getBillingOverview({ sessionToken, cookieHeader }).catch(() => null),
+      ])
+    : [null, null, null];
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6 lg:px-8">
@@ -85,7 +91,7 @@ export default async function CRMPortalPage() {
       </section>
 
       {followUps ? (
-        <CRMFollowUpWorkspace initialOverview={followUps} />
+        <CRMFollowUpWorkspace initialOverview={followUps} initialSettings={accountSettings} initialBilling={billing} />
       ) : (
         <>
           <section className="mt-6 rounded-[1.75rem] border border-amber-200 bg-amber-50 p-6 shadow-sm">

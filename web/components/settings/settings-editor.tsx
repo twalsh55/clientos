@@ -31,6 +31,9 @@ export function SettingsEditor({
       long_yield_symbol: "^TNX",
       lookback_years: fallbackLookbackYears,
       telegram_enabled: false,
+      crm_ai_prompt:
+        "Focus on extracting follow-up-critical CRM fields from messy spreadsheets, files, and images. Prioritize lead name, company, owner, stage, next follow-up date, notes, and next step. Preserve evidence when uncertain.",
+      crm_preferred_import_formats: ["csv", "google_sheets", "spreadsheet_screenshot"],
     },
   );
 
@@ -50,6 +53,8 @@ export function SettingsEditor({
       risk_proxy: form.risk_proxy.trim().toUpperCase(),
       short_yield_symbol: form.short_yield_symbol.trim().toUpperCase(),
       long_yield_symbol: form.long_yield_symbol.trim().toUpperCase(),
+      crm_ai_prompt: form.crm_ai_prompt.trim(),
+      crm_preferred_import_formats: form.crm_preferred_import_formats.map((item) => item.trim()).filter(Boolean),
     };
     const validationErrors = validateForm(payload);
     setErrors(validationErrors);
@@ -161,7 +166,30 @@ export function SettingsEditor({
             Enable Telegram alerts in dashboard defaults
           </label>
         </Field>
+        <Field label="AI Intake Formats">
+          <input
+            className={inputClassName(Boolean(errors.crm_preferred_import_formats))}
+            value={form.crm_preferred_import_formats.join(", ")}
+            onChange={(event) =>
+              updateField(
+                "crm_preferred_import_formats",
+                event.target.value.split(",").map((item) => item.trim()),
+              )
+            }
+          />
+          {errors.crm_preferred_import_formats ? <FieldError message={errors.crm_preferred_import_formats} /> : null}
+        </Field>
       </div>
+
+      <Field label="AI Intake Prompt">
+        <textarea
+          className={inputClassName(Boolean(errors.crm_ai_prompt))}
+          value={form.crm_ai_prompt}
+          onChange={(event) => updateField("crm_ai_prompt", event.target.value)}
+          rows={5}
+        />
+        {errors.crm_ai_prompt ? <FieldError message={errors.crm_ai_prompt} /> : null}
+      </Field>
 
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={isPending} data-testid="settings-save-button">
@@ -218,6 +246,12 @@ function validateForm(form: AccountSettings) {
   }
   if (form.lookback_years < 1 || form.lookback_years > 10) {
     nextErrors.lookback_years = "Lookback must be between 1 and 10 years.";
+  }
+  if (form.crm_ai_prompt.length > 4000) {
+    nextErrors.crm_ai_prompt = "AI prompt must be 4000 characters or fewer.";
+  }
+  if (form.crm_preferred_import_formats.length > 12) {
+    nextErrors.crm_preferred_import_formats = "Keep preferred formats to 12 or fewer entries.";
   }
   return nextErrors;
 }

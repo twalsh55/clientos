@@ -56,6 +56,9 @@ function makeState() {
       long_yield_symbol: "^TNX",
       lookback_years: 4,
       telegram_enabled: false,
+      crm_ai_prompt:
+        "Focus on extracting follow-up-critical CRM fields from messy spreadsheets, files, and images. Prioritize lead name, company, owner, stage, next follow-up date, notes, and next step. Preserve evidence when uncertain.",
+      crm_preferred_import_formats: ["csv", "google_sheets", "spreadsheet_screenshot"],
     },
     alertRequests: 0,
     alerts: [

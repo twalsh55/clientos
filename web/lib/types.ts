@@ -41,6 +41,8 @@ export type AccountSettings = {
   long_yield_symbol: string;
   lookback_years: number;
   telegram_enabled: boolean;
+  crm_ai_prompt: string;
+  crm_preferred_import_formats: string[];
 };
 
 export type AlertHistoryEntry = {

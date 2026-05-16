@@ -20,6 +20,8 @@ class UserDashboardSettings:
     long_yield_symbol: str
     lookback_years: int
     telegram_enabled: bool
+    crm_ai_prompt: str
+    crm_preferred_import_formats: list[str]
 
 
 @dataclass(frozen=True)

@@ -97,6 +97,8 @@ class UserDashboardSettingsDTO:
     long_yield_symbol: str
     lookback_years: int
     telegram_enabled: bool
+    crm_ai_prompt: str
+    crm_preferred_import_formats: list[str]
 
 
 @dataclass(frozen=True)
@@ -301,6 +303,8 @@ def build_user_dashboard_settings_dto(settings: UserDashboardSettings) -> UserDa
         long_yield_symbol=settings.long_yield_symbol,
         lookback_years=settings.lookback_years,
         telegram_enabled=settings.telegram_enabled,
+        crm_ai_prompt=settings.crm_ai_prompt,
+        crm_preferred_import_formats=list(settings.crm_preferred_import_formats),
     )
 
 

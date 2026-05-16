@@ -239,6 +239,8 @@ def test_account_settings_and_alert_history_dtos_serialize_values() -> None:
         long_yield_symbol="^TNX",
         lookback_years=4,
         telegram_enabled=True,
+        crm_ai_prompt="Extract CRM fields from spreadsheets and screenshots.",
+        crm_preferred_import_formats=["csv", "spreadsheet_screenshot"],
     )
     alert = AlertHistoryEntry(
         occurred_at=datetime(2024, 5, 6, 12, 30, tzinfo=UTC),
@@ -253,6 +255,7 @@ def test_account_settings_and_alert_history_dtos_serialize_values() -> None:
 
     assert settings_payload["universe"] == ["SPY", "QQQ"]
     assert settings_payload["telegram_enabled"] is True
+    assert settings_payload["crm_preferred_import_formats"] == ["csv", "spreadsheet_screenshot"]
     assert alert_payload["title"] == "Updated"
     assert alert_payload["occurred_at"] == "2024-05-06T12:30:00+00:00"
 
@@ -809,6 +812,8 @@ def test_account_use_cases_and_in_memory_repository_round_trip_settings_and_aler
         long_yield_symbol="^TNX",
         lookback_years=4,
         telegram_enabled=False,
+        crm_ai_prompt="default prompt",
+        crm_preferred_import_formats=["csv"],
     )
     get_use_case = GetUserDashboardSettingsUseCase(repository=repository, default_factory=lambda user_id: defaults)
     update_use_case = UpdateUserDashboardSettingsUseCase(repository=repository)
@@ -828,6 +833,8 @@ def test_account_use_cases_and_in_memory_repository_round_trip_settings_and_aler
             long_yield_symbol="^TNX",
             lookback_years=2,
             telegram_enabled=True,
+            crm_ai_prompt="Keep owner and next follow-up visible.",
+            crm_preferred_import_formats=["pdf_export", "csv"],
         ),
     )
 
@@ -856,6 +863,7 @@ def test_dashboard_settings_helpers_normalize_defaults_and_build_config() -> Non
     defaults = build_default_dashboard_settings(user.id, telegram_enabled=True)
     assert defaults.universe == ["SPY", "QQQ", "IWM", "EFA", "EEM"]
     assert defaults.telegram_enabled is True
+    assert "follow-up-critical CRM fields" in defaults.crm_ai_prompt
 
     normalized = normalize_dashboard_settings(
         UserDashboardSettings(
@@ -868,11 +876,15 @@ def test_dashboard_settings_helpers_normalize_defaults_and_build_config() -> Non
             long_yield_symbol=" ^tnx ",
             lookback_years=2,
             telegram_enabled=False,
+            crm_ai_prompt="  Keep OCR evidence when uncertain.  ",
+            crm_preferred_import_formats=[" CSV ", "csv", "Spreadsheet Screenshot"],
         )
     )
     assert normalized.universe == ["SPY", "QQQ"]
     assert normalized.benchmark == "SPY"
     assert normalized.vix_symbol == "^VIX"
+    assert normalized.crm_ai_prompt == "Keep OCR evidence when uncertain."
+    assert normalized.crm_preferred_import_formats == ["csv", "spreadsheet_screenshot"]
 
     config = build_dashboard_config(normalized, end_date=date(2024, 5, 6))
     assert config.start_date == date(2022, 5, 7)
@@ -1047,12 +1059,15 @@ def test_account_settings_endpoints_and_alert_history_round_trip() -> None:
             "long_yield_symbol": "^tnx",
             "lookback_years": 3,
             "telegram_enabled": True,
+            "crm_ai_prompt": "Prefer extracting next step and owner from screenshots.",
+            "crm_preferred_import_formats": ["spreadsheet_screenshot", "pdf_export"],
         },
     )
     assert update_response.status_code == 200
     assert update_response.json()["benchmark"] == "QQQ"
     assert update_response.json()["universe"] == ["SPY", "QQQ"]
     assert update_response.json()["telegram_enabled"] is True
+    assert update_response.json()["crm_preferred_import_formats"] == ["spreadsheet_screenshot", "pdf_export"]
 
     alerts_response = client.get("/api/alerts/history", headers={"Authorization": "Bearer session-token"})
     assert alerts_response.status_code == 200
@@ -1268,6 +1283,8 @@ def test_account_settings_validation_and_alert_defaults_work() -> None:
             "long_yield_symbol": "^TNX",
             "lookback_years": 0,
             "telegram_enabled": False,
+            "crm_ai_prompt": "",
+            "crm_preferred_import_formats": [],
         },
     )
     assert invalid_update.status_code == 422

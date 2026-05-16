@@ -5,6 +5,8 @@ import { useEffect, useRef, useState, useTransition } from "react";
 
 import { Button } from "@/components/ui/button";
 import type {
+  AccountSettings,
+  BillingOverview,
   CRMFollowUpOverview,
   CRMImportHeaderMapping,
   CRMImportPreview,
@@ -12,10 +14,19 @@ import type {
   CRMLeadFollowUp,
 } from "@/lib/types";
 
-export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRMFollowUpOverview }) {
+export function CRMFollowUpWorkspace({
+  initialOverview,
+  initialSettings,
+  initialBilling,
+}: {
+  initialOverview: CRMFollowUpOverview;
+  initialSettings: AccountSettings | null;
+  initialBilling: BillingOverview | null;
+}) {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [overview, setOverview] = useState(initialOverview);
+  const [settings, setSettings] = useState<AccountSettings | null>(initialSettings);
   const [selectedLeadId, setSelectedLeadId] = useState(initialOverview.items[0]?.id ?? null);
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
@@ -28,8 +39,12 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
   const [isImportMappingDirty, setIsImportMappingDirty] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
+  const [aiPromptDraft, setAiPromptDraft] = useState(initialSettings?.crm_ai_prompt ?? "");
+  const [aiFormatsDraft, setAiFormatsDraft] = useState((initialSettings?.crm_preferred_import_formats ?? []).join(", "));
+  const [aiSettingsStatus, setAiSettingsStatus] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isImportPending, startImportTransition] = useTransition();
+  const [isAiSettingsPending, startAiSettingsTransition] = useTransition();
 
   useEffect(() => {
     if (!selectedLeadId && initialOverview.items[0]) {
@@ -38,6 +53,7 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
   }, [initialOverview.items, selectedLeadId]);
 
   const selectedLead = overview.items.find((item) => item.id === selectedLeadId) ?? overview.items[0] ?? null;
+  const advancedAiUnlocked = hasAdvancedAiAccess(initialBilling);
 
   function runAction(
     followUpId: string,
@@ -177,6 +193,40 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
     }));
     setImportStatus(null);
     setIsImportMappingDirty(true);
+  }
+
+  function saveAiImportSettings() {
+    if (!settings) {
+      return;
+    }
+    setAiSettingsStatus("Saving AI intake preferences...");
+    startAiSettingsTransition(async () => {
+      const payload: AccountSettings = {
+        ...settings,
+        crm_ai_prompt: aiPromptDraft.trim(),
+        crm_preferred_import_formats: aiFormatsDraft
+          .split(",")
+          .map((item) => item.trim())
+          .filter(Boolean),
+      };
+      try {
+        const response = await fetch("/api/account/settings", {
+          method: "PUT",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload),
+        });
+        const body = (await response.json().catch(() => null)) as AccountSettings | { error?: string } | null;
+        if (!response.ok || !body || !("benchmark" in body)) {
+          throw new Error((body && "error" in body && body.error) || "Unable to save AI intake settings.");
+        }
+        setSettings(body);
+        setAiPromptDraft(body.crm_ai_prompt);
+        setAiFormatsDraft(body.crm_preferred_import_formats.join(", "));
+        setAiSettingsStatus("AI intake preferences saved.");
+      } catch (saveError) {
+        setAiSettingsStatus(saveError instanceof Error ? saveError.message : "Unable to save AI intake settings.");
+      }
+    });
   }
 
   return (
@@ -350,6 +400,18 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
               isSavingNote={pendingId === selectedLead.id && isPending}
             />
           ) : null}
+          <AIIntakePanel
+            advancedAiUnlocked={advancedAiUnlocked}
+            billingStatus={initialBilling?.subscription_status ?? null}
+            aiPromptDraft={aiPromptDraft}
+            aiFormatsDraft={aiFormatsDraft}
+            onAiPromptDraftChange={setAiPromptDraft}
+            onAiFormatsDraftChange={setAiFormatsDraft}
+            onSave={saveAiImportSettings}
+            saveStatus={aiSettingsStatus}
+            isSaving={isAiSettingsPending}
+            canPersistSettings={Boolean(settings)}
+          />
           <section className="rounded-[1.75rem] border bg-slate-950 p-6 text-slate-50 shadow-[0_24px_90px_-55px_rgba(15,23,42,0.9)]">
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Why This Slice</p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight">Relationship memory matters.</h2>
@@ -362,6 +424,82 @@ export function CRMFollowUpWorkspace({ initialOverview }: { initialOverview: CRM
         </section>
       </section>
     </>
+  );
+}
+
+function AIIntakePanel({
+  advancedAiUnlocked,
+  billingStatus,
+  aiPromptDraft,
+  aiFormatsDraft,
+  onAiPromptDraftChange,
+  onAiFormatsDraftChange,
+  onSave,
+  saveStatus,
+  isSaving,
+  canPersistSettings,
+}: {
+  advancedAiUnlocked: boolean;
+  billingStatus: string | null;
+  aiPromptDraft: string;
+  aiFormatsDraft: string;
+  onAiPromptDraftChange: (value: string) => void;
+  onAiFormatsDraftChange: (value: string) => void;
+  onSave: () => void;
+  saveStatus: string | null;
+  isSaving: boolean;
+  canPersistSettings: boolean;
+}) {
+  return (
+    <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm">
+      <div className="flex items-start justify-between gap-4">
+        <div>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">AI Intake Profile</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Teach Brivoly your messy files.</h2>
+          <p className="mt-3 text-sm leading-6 text-slate-600">
+            Store a custom prompt and common source formats per user so future AI-assisted spreadsheet, file, and image interpretation can stay close to how that team actually works.
+          </p>
+        </div>
+        <div className={`rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] ${advancedAiUnlocked ? "border-emerald-200 bg-emerald-50 text-emerald-700" : "border-amber-200 bg-amber-50 text-amber-800"}`}>
+          {advancedAiUnlocked ? "Advanced AI unlocked" : "Advanced AI paywalled"}
+        </div>
+      </div>
+
+      {!advancedAiUnlocked ? (
+        <div className="mt-5 rounded-[1.3rem] border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-900">
+          AI-assisted file, spreadsheet, and image interpretation should stay behind a paid plan. Current billing status: {formatBillingStatusLabel(billingStatus)}.
+        </div>
+      ) : null}
+
+      <div className="mt-5 space-y-4">
+        <label className="block">
+          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Common import formats</span>
+          <input
+            value={aiFormatsDraft}
+            onChange={(event) => onAiFormatsDraftChange(event.target.value)}
+            placeholder="csv, google_sheets, spreadsheet_screenshot, pdf_export"
+            className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white"
+          />
+        </label>
+        <label className="block">
+          <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Custom AI intake prompt</span>
+          <textarea
+            value={aiPromptDraft}
+            onChange={(event) => onAiPromptDraftChange(event.target.value)}
+            rows={6}
+            className="mt-2 min-h-36 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white"
+          />
+        </label>
+      </div>
+
+      <div className="mt-5 flex items-center gap-3">
+        <Button onClick={onSave} disabled={isSaving || !canPersistSettings}>
+          {isSaving ? "Saving..." : "Save AI intake profile"}
+        </Button>
+        {saveStatus ? <p className="text-sm text-slate-500">{saveStatus}</p> : null}
+      </div>
+      {!canPersistSettings ? <p className="mt-3 text-sm text-slate-500">AI intake settings are unavailable until account settings finish loading.</p> : null}
+    </section>
   );
 }
 
@@ -637,4 +775,15 @@ function formatImportFieldLabel(value: string) {
     .split("_")
     .map((part) => part.slice(0, 1).toUpperCase() + part.slice(1))
     .join(" ");
+}
+
+function hasAdvancedAiAccess(billing: BillingOverview | null) {
+  return billing?.enabled === true && ["active", "trialing"].includes(billing.subscription_status ?? "");
+}
+
+function formatBillingStatusLabel(status: string | null) {
+  if (!status) {
+    return "no active subscription";
+  }
+  return status.replaceAll("_", " ");
 }

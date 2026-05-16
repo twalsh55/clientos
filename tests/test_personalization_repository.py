@@ -27,6 +27,8 @@ def make_settings() -> UserDashboardSettings:
         long_yield_symbol="^TNX",
         lookback_years=4,
         telegram_enabled=True,
+        crm_ai_prompt="Extract CRM fields from spreadsheets and screenshots.",
+        crm_preferred_import_formats=["csv", "spreadsheet_screenshot"],
     )
 
 
@@ -91,6 +93,8 @@ def test_row_mappers_convert_database_shapes() -> None:
         "long_yield_symbol": "^TNX",
         "lookback_years": 4,
         "telegram_enabled": True,
+        "crm_ai_prompt": "Extract CRM fields from spreadsheets and screenshots.",
+        "crm_preferred_import_formats": ["csv", "spreadsheet_screenshot"],
     }
     alert_row = {
         "occurred_at": "2024-05-06T12:30:00+00:00",
@@ -117,9 +121,11 @@ def test_postgres_personalization_repository_ensure_schema(monkeypatch) -> None:
     repository = PostgresPersonalizationRepository("postgres://example")
     repository.ensure_schema()
 
-    assert len(cursor.executed) == 3
+    assert len(cursor.executed) == 5
     assert "user_dashboard_settings" in cursor.executed[0][0]
-    assert "alert_history" in cursor.executed[1][0]
+    assert "ALTER TABLE user_dashboard_settings" in cursor.executed[1][0]
+    assert "ALTER TABLE user_dashboard_settings" in cursor.executed[2][0]
+    assert "alert_history" in cursor.executed[3][0]
     assert connection.committed is True
 
 
@@ -137,6 +143,8 @@ def test_postgres_personalization_repository_get_and_save_settings(monkeypatch) 
                 "long_yield_symbol": "^TNX",
                 "lookback_years": 4,
                 "telegram_enabled": True,
+                "crm_ai_prompt": "Extract CRM fields from spreadsheets and screenshots.",
+                "crm_preferred_import_formats": ["csv", "spreadsheet_screenshot"],
             }
         )
     )
@@ -150,6 +158,8 @@ def test_postgres_personalization_repository_get_and_save_settings(monkeypatch) 
         "long_yield_symbol": "^TNX",
         "lookback_years": 4,
         "telegram_enabled": True,
+        "crm_ai_prompt": "Extract CRM fields from spreadsheets and screenshots.",
+        "crm_preferred_import_formats": ["csv", "spreadsheet_screenshot"],
     }
     saved_connection = FakeConnection(FakeCursor(fetchone_result=saved_row))
     calls = [missing_connection, existing_connection, saved_connection]

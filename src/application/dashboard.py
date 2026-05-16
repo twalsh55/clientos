@@ -26,6 +26,8 @@ def build_default_dashboard_settings(user_id: UUID, *, telegram_enabled: bool) -
         long_yield_symbol=DEFAULT_LONG_YIELD_SYMBOL,
         lookback_years=DEFAULT_LOOKBACK_YEARS,
         telegram_enabled=telegram_enabled,
+        crm_ai_prompt="Focus on extracting follow-up-critical CRM fields from messy spreadsheets, files, and images. Prioritize lead name, company, owner, stage, next follow-up date, notes, and next step. Preserve evidence when uncertain.",
+        crm_preferred_import_formats=["csv", "google_sheets", "spreadsheet_screenshot"],
     )
 
 
@@ -38,6 +40,8 @@ def normalize_dashboard_settings(settings: UserDashboardSettings) -> UserDashboa
         risk_proxy=_normalize_symbol(settings.risk_proxy, DEFAULT_RISK_PROXY),
         short_yield_symbol=_normalize_symbol(settings.short_yield_symbol, DEFAULT_SHORT_YIELD_SYMBOL),
         long_yield_symbol=_normalize_symbol(settings.long_yield_symbol, DEFAULT_LONG_YIELD_SYMBOL),
+        crm_ai_prompt=settings.crm_ai_prompt.strip(),
+        crm_preferred_import_formats=_normalize_import_formats(settings.crm_preferred_import_formats),
     )
 
 
@@ -64,3 +68,15 @@ def _normalize_universe(universe: list[str]) -> list[str]:
 def _normalize_symbol(value: str, fallback: str) -> str:
     normalized = value.upper().strip()
     return normalized or fallback
+
+
+def _normalize_import_formats(formats: list[str]) -> list[str]:
+    seen: set[str] = set()
+    cleaned: list[str] = []
+    for item in formats:
+        normalized = item.strip().lower().replace(" ", "_")
+        if not normalized or normalized in seen:
+            continue
+        seen.add(normalized)
+        cleaned.append(normalized)
+    return cleaned[:12]

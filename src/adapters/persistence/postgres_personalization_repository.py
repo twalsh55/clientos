@@ -29,9 +29,23 @@ class PostgresPersonalizationRepository:
                         long_yield_symbol TEXT NOT NULL,
                         lookback_years INTEGER NOT NULL CHECK (lookback_years BETWEEN 1 AND 10),
                         telegram_enabled BOOLEAN NOT NULL DEFAULT FALSE,
+                        crm_ai_prompt TEXT NOT NULL DEFAULT '',
+                        crm_preferred_import_formats TEXT[] NOT NULL DEFAULT '{}',
                         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     )
+                    """
+                )
+                cursor.execute(
+                    """
+                    ALTER TABLE user_dashboard_settings
+                    ADD COLUMN IF NOT EXISTS crm_ai_prompt TEXT NOT NULL DEFAULT ''
+                    """
+                )
+                cursor.execute(
+                    """
+                    ALTER TABLE user_dashboard_settings
+                    ADD COLUMN IF NOT EXISTS crm_preferred_import_formats TEXT[] NOT NULL DEFAULT '{}'
                     """
                 )
                 cursor.execute(
@@ -69,7 +83,9 @@ class PostgresPersonalizationRepository:
                         short_yield_symbol,
                         long_yield_symbol,
                         lookback_years,
-                        telegram_enabled
+                        telegram_enabled,
+                        crm_ai_prompt,
+                        crm_preferred_import_formats
                     FROM user_dashboard_settings
                     WHERE user_id = %(user_id)s
                     """,
@@ -96,6 +112,8 @@ class PostgresPersonalizationRepository:
                         long_yield_symbol,
                         lookback_years,
                         telegram_enabled,
+                        crm_ai_prompt,
+                        crm_preferred_import_formats,
                         created_at,
                         updated_at
                     )
@@ -109,6 +127,8 @@ class PostgresPersonalizationRepository:
                         %(long_yield_symbol)s,
                         %(lookback_years)s,
                         %(telegram_enabled)s,
+                        %(crm_ai_prompt)s,
+                        %(crm_preferred_import_formats)s,
                         NOW(),
                         NOW()
                     )
@@ -122,6 +142,8 @@ class PostgresPersonalizationRepository:
                         long_yield_symbol = EXCLUDED.long_yield_symbol,
                         lookback_years = EXCLUDED.lookback_years,
                         telegram_enabled = EXCLUDED.telegram_enabled,
+                        crm_ai_prompt = EXCLUDED.crm_ai_prompt,
+                        crm_preferred_import_formats = EXCLUDED.crm_preferred_import_formats,
                         updated_at = NOW()
                     RETURNING
                         user_id,
@@ -132,7 +154,9 @@ class PostgresPersonalizationRepository:
                         short_yield_symbol,
                         long_yield_symbol,
                         lookback_years,
-                        telegram_enabled
+                        telegram_enabled,
+                        crm_ai_prompt,
+                        crm_preferred_import_formats
                     """,
                     {
                         "user_id": settings.user_id,
@@ -144,6 +168,8 @@ class PostgresPersonalizationRepository:
                         "long_yield_symbol": settings.long_yield_symbol,
                         "lookback_years": settings.lookback_years,
                         "telegram_enabled": settings.telegram_enabled,
+                        "crm_ai_prompt": settings.crm_ai_prompt,
+                        "crm_preferred_import_formats": list(settings.crm_preferred_import_formats),
                     },
                 )
                 row = cursor.fetchone()
@@ -223,6 +249,10 @@ def _row_to_dashboard_settings(row: dict[str, object]) -> UserDashboardSettings:
         long_yield_symbol=str(row["long_yield_symbol"]),
         lookback_years=int(row["lookback_years"]),
         telegram_enabled=bool(row["telegram_enabled"]),
+        crm_ai_prompt=str(row.get("crm_ai_prompt") or ""),
+        crm_preferred_import_formats=[
+            str(item) for item in row.get("crm_preferred_import_formats", [])
+        ] if isinstance(row.get("crm_preferred_import_formats"), list) else [],
     )
 
 

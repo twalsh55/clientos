@@ -16,12 +16,24 @@ class InMemoryPersonalizationRepository:
         settings = self._settings.get(user_id)
         if settings is None:
             return None
-        return replace(settings, universe=list(settings.universe))
+        return replace(
+            settings,
+            universe=list(settings.universe),
+            crm_preferred_import_formats=list(settings.crm_preferred_import_formats),
+        )
 
     def save_dashboard_settings(self, settings: UserDashboardSettings) -> UserDashboardSettings:
-        stored = replace(settings, universe=list(settings.universe))
+        stored = replace(
+            settings,
+            universe=list(settings.universe),
+            crm_preferred_import_formats=list(settings.crm_preferred_import_formats),
+        )
         self._settings[stored.user_id] = stored
-        return replace(stored, universe=list(stored.universe))
+        return replace(
+            stored,
+            universe=list(stored.universe),
+            crm_preferred_import_formats=list(stored.crm_preferred_import_formats),
+        )
 
     def list_alert_history(self, user_id: UUID, limit: int) -> list[AlertHistoryEntry]:
         alerts = self._alerts.get(user_id)

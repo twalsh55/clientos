@@ -6,7 +6,7 @@
     "dev": "next dev",
     "build": "next build",
     "start": "next start",
-    "typecheck": "next typegen && tsc --noEmit",
+    "typecheck": "rm -f tsconfig.tsbuildinfo && next typegen && tsc --noEmit",
     "e2e": "playwright test",
     "e2e:headed": "playwright test --headed"
   },

@@ -105,6 +105,8 @@ class UserDashboardSettingsPayload(BaseModel):
     long_yield_symbol: str
     lookback_years: int = Field(ge=1, le=10)
     telegram_enabled: bool
+    crm_ai_prompt: str = Field(default="", max_length=4000)
+    crm_preferred_import_formats: list[str] = Field(default_factory=list, max_length=12)
 
 
 class BillingSessionPayload(BaseModel):
@@ -223,6 +225,8 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
                 long_yield_symbol=payload.long_yield_symbol,
                 lookback_years=payload.lookback_years,
                 telegram_enabled=payload.telegram_enabled,
+                crm_ai_prompt=payload.crm_ai_prompt,
+                crm_preferred_import_formats=payload.crm_preferred_import_formats,
                 )
             ),
         )
@@ -432,6 +436,8 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
                 long_yield_symbol=long_yield_symbol,
                 lookback_years=lookback_years,
                 telegram_enabled=False,
+                crm_ai_prompt="",
+                crm_preferred_import_formats=[],
             )
         )
         if universe is None:
