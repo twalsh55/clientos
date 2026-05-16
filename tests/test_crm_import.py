@@ -17,11 +17,15 @@ from src.adapters.api.app import LeadImportPayload, _resolve_crm_import_source
 from src.application.crm_import import (
     CommitLeadImportUseCase,
     PreviewLeadImportUseCase,
+    PreviewLeadImportWithAssistanceUseCase,
     _build_duplicate_key,
     _build_imported_follow_up,
+    _extract_headers_and_sample_rows,
+    _needs_ai_header_assistance,
     _normalize_stage,
     _parse_datetime,
 )
+from src.domain.crm import LeadImportHeaderMapping
 from src.domain.crm import LeadImportPreviewRow
 from src.domain.auth import User
 
@@ -112,6 +116,113 @@ def test_preview_and_commit_lead_import_support_manual_field_mapping() -> None:
     assert imported.notes == "Imported from a messy client sheet"
 
 
+def test_preview_lead_import_can_use_ai_assistance_for_messy_headers() -> None:
+    now = datetime(2024, 5, 6, 12, 30, tzinfo=UTC)
+    repository = InMemoryLeadFollowUpRepository(now=lambda: now)
+
+    class FakeAssist:
+        def suggest_field_mapping(self, prompt, preferred_formats, source_label, headers, sample_rows):  # type: ignore[no-untyped-def]
+            assert headers == ["Person", "Organisation", "Touchpoint", "Blob"]
+            assert sample_rows[0]["Person"] == "Taylor Brooks"
+            assert source_label == "CSV upload"
+            return {
+                "Person": "lead_name",
+                "Organisation": "company_name",
+                "Touchpoint": "next_follow_up_at",
+                "Blob": "notes",
+            }
+
+    preview = PreviewLeadImportWithAssistanceUseCase(
+        repository=repository,
+        now=lambda: now,
+        spreadsheet_assist=FakeAssist(),
+    ).execute(
+        make_user(),
+        "Person,Organisation,Touchpoint,Blob\nTaylor Brooks,Summit Forge,2024-05-09,Imported from a messy client sheet\n",
+        "csv",
+        "CSV upload",
+        prompt="Focus on next follow-up and notes.",
+        preferred_formats=["csv"],
+    )
+
+    assert preview.importable_rows == 1
+    assert preview.header_mappings[0].mapped_field == "lead_name"
+    assert preview.rows[0].company_name == "Summit Forge"
+
+
+def test_preview_lead_import_with_assistance_returns_existing_preview_when_it_is_already_good() -> None:
+    now = datetime(2024, 5, 6, 12, 30, tzinfo=UTC)
+    repository = InMemoryLeadFollowUpRepository(now=lambda: now)
+
+    class FakeAssist:
+        def suggest_field_mapping(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+            raise AssertionError("AI assistance should not run for already importable previews.")
+
+    preview = PreviewLeadImportWithAssistanceUseCase(
+        repository=repository,
+        now=lambda: now,
+        spreadsheet_assist=FakeAssist(),
+    ).execute(
+        make_user(),
+        "Contact,Company,Next Follow-Up,Notes\nTaylor Brooks,Summit Forge,2024-05-09,Imported cleanly\n",
+        "csv",
+        "CSV upload",
+        prompt="Focus on next follow-up and notes.",
+        preferred_formats=["csv"],
+    )
+
+    assert preview.importable_rows == 1
+
+
+def test_preview_lead_import_with_assistance_reraises_non_header_errors() -> None:
+    now = datetime(2024, 5, 6, 12, 30, tzinfo=UTC)
+    repository = InMemoryLeadFollowUpRepository(now=lambda: now)
+
+    class FakeAssist:
+        def suggest_field_mapping(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+            raise AssertionError("AI assistance should not run for blank spreadsheet content.")
+
+    use_case = PreviewLeadImportWithAssistanceUseCase(
+        repository=repository,
+        now=lambda: now,
+        spreadsheet_assist=FakeAssist(),
+    )
+
+    with pytest.raises(ValueError, match="Spreadsheet content is required."):
+        use_case.execute(make_user(), "   ", "csv", "CSV upload", prompt="prompt", preferred_formats=["csv"])
+
+
+def test_preview_lead_import_with_assistance_keeps_manual_overrides_over_ai() -> None:
+    now = datetime(2024, 5, 6, 12, 30, tzinfo=UTC)
+    repository = InMemoryLeadFollowUpRepository(now=lambda: now)
+
+    class FakeAssist:
+        def suggest_field_mapping(self, *args, **kwargs):  # type: ignore[no-untyped-def]
+            return {
+                "Person": "lead_name",
+                "Organisation": "company_name",
+                "Followup": "next_follow_up_at",
+                "Context": "notes",
+            }
+
+    preview = PreviewLeadImportWithAssistanceUseCase(
+        repository=repository,
+        now=lambda: now,
+        spreadsheet_assist=FakeAssist(),
+    ).execute(
+        make_user(),
+        "Person,Organisation,Followup,Context\nTaylor Brooks,Summit Forge,2024-05-09,Imported from a messy client sheet\n",
+        "csv",
+        "CSV upload",
+        prompt="prompt",
+        preferred_formats=["csv"],
+        field_mapping_overrides={"Context": ""},
+    )
+
+    context_mapping = next(item for item in preview.header_mappings if item.original_header == "Context")
+    assert context_mapping.mapped_field is None
+
+
 def test_preview_lead_import_rejects_invalid_manual_field_mapping() -> None:
     repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
     use_case = PreviewLeadImportUseCase(repository=repository, now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
@@ -170,6 +281,64 @@ def test_preview_lead_import_rejects_blank_and_unrecognized_content() -> None:
 
     with pytest.raises(ValueError, match="No recognizable CRM headers were found"):
         use_case.execute(make_user(), "foo,bar\n1,2\n", "csv", "CSV upload")
+
+
+def test_extract_headers_and_sample_rows_returns_first_rows() -> None:
+    headers, rows = _extract_headers_and_sample_rows(
+        "Person,Organisation,Touchpoint\nTaylor Brooks,Summit Forge,2024-05-09\nAvery Hale,Northstar,2024-05-10\n"
+    )
+
+    assert headers == ["Person", "Organisation", "Touchpoint"]
+    assert rows[0]["Person"] == "Taylor Brooks"
+    assert rows[1]["Organisation"] == "Northstar"
+
+
+def test_extract_headers_and_sample_rows_rejects_blank_or_headerless_content(monkeypatch) -> None:
+    with pytest.raises(ValueError, match="Spreadsheet content is required."):
+        _extract_headers_and_sample_rows("   ")
+
+    class _Reader:
+        fieldnames = None
+
+        def __iter__(self):
+            return iter(())
+
+    monkeypatch.setattr("src.application.crm_import.csv.DictReader", lambda *args, **kwargs: _Reader())
+    with pytest.raises(ValueError, match="header row"):
+        _extract_headers_and_sample_rows("contact,company")
+
+
+def test_extract_headers_and_sample_rows_limits_rows_and_surfaces_csv_errors(monkeypatch) -> None:
+    headers, rows = _extract_headers_and_sample_rows(
+        "Person,Organisation\nA,One\nB,Two\nC,Three\nD,Four\n",
+        sample_limit=2,
+    )
+    assert headers == ["Person", "Organisation"]
+    assert len(rows) == 2
+
+    class _BrokenReader:
+        fieldnames = ["Person"]
+
+        def __iter__(self):
+            raise csv.Error("broken csv")
+
+    monkeypatch.setattr("src.application.crm_import.csv.DictReader", lambda *args, **kwargs: _BrokenReader())
+    with pytest.raises(ValueError, match="could not be parsed as CSV"):
+        _extract_headers_and_sample_rows("Person\nTaylor\n")
+
+
+def test_needs_ai_header_assistance_detects_missing_identity_or_follow_up() -> None:
+    assert _needs_ai_header_assistance(
+        [
+            LeadImportHeaderMapping("Context", "notes", "notes"),
+        ]
+    ) is True
+    assert _needs_ai_header_assistance(
+        [
+            LeadImportHeaderMapping("Contact", "lead_name", "lead_name"),
+            LeadImportHeaderMapping("Followup", "next_follow_up_at", "next_follow_up_at"),
+        ]
+    ) is False
 
 
 def test_preview_lead_import_handles_windows_newlines_without_csv_reader_crashing() -> None:

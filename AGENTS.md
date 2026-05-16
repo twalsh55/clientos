@@ -190,6 +190,7 @@ Use this section to give the next session a fast, practical starting point. Refr
   - Google Sheets import preview and commit
   - messy header normalization and duplicate detection before import
   - guided import mapping with inline remapping before commit
+  - AI-assisted header rescue when no recognizable CRM headers are found in a spreadsheet
   - imported owner visibility in the queue and memory panel
   - a paid-only AI Intake Profile foundation in CRM
   - per-user AI intake prompts stored with account settings
@@ -275,6 +276,10 @@ Use this section to give the next session a fast, practical starting point. Refr
   - preview now exposes original headers and Brivoly's suggested field mapping
   - users can remap ambiguous columns inline without editing the source sheet first
   - imports require a refreshed preview after mapping changes so validation stays trustworthy
+- The latest CRM AI-intake refinement is spreadsheet header rescue:
+  - when import preview cannot recognize CRM headers, paid AI assistance can infer likely CRM field mappings from messy headers and sample rows
+  - manual field-mapping overrides still win over AI suggestions
+  - already-good imports skip the AI path entirely
 - The latest CRM reliability refinement is hardened spreadsheet parsing:
   - messy CSV exports with problematic line endings no longer crash preview or commit
   - native Excel uploads now normalize into the same preview/import flow

@@ -1680,6 +1680,32 @@ def test_crm_import_preview_and_commit_endpoints_support_csv_and_google_sheets(m
     assert image_preview.json()["source_type"] == "image"
     assert image_preview.json()["rows"][0]["notes"] == "Imported from note image"
 
+    class FakeSpreadsheetAssist:
+        def suggest_field_mapping(self, prompt: str, preferred_formats: list[str], source_label: str, headers: list[str], sample_rows: list[dict[str, str]]) -> dict[str, str | None]:
+            assert "follow-up-critical CRM fields" in prompt
+            assert source_label == "CSV upload"
+            assert headers == ["Person", "Organisation", "Followup", "Context"]
+            assert sample_rows[0]["Person"] == "Taylor Brooks"
+            return {
+                "Person": "lead_name",
+                "Organisation": "company_name",
+                "Followup": "next_follow_up_at",
+                "Context": "notes",
+            }
+
+    monkeypatch.setattr(api_app_module, "build_crm_spreadsheet_assist_agent_from_env", lambda: FakeSpreadsheetAssist())
+    ai_mapped_preview = client.post(
+        "/api/crm/import/preview",
+        headers={"Authorization": "Bearer session-token"},
+        json={
+            "source_type": "csv",
+            "csv_content": "Person,Organisation,Followup,Context\nTaylor Brooks,Summit Forge,2024-05-09,Imported from a messy client sheet\n",
+        },
+    )
+    assert ai_mapped_preview.status_code == 200
+    assert ai_mapped_preview.json()["importable_rows"] == 1
+    assert ai_mapped_preview.json()["header_mappings"][0]["mapped_field"] == "lead_name"
+
 
 def test_crm_import_endpoints_return_validation_errors_for_bad_sources(monkeypatch) -> None:
     client = make_client(user=make_user(), lead_follow_up_repository=InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC)))
@@ -1770,6 +1796,22 @@ def test_crm_import_endpoints_return_validation_errors_for_bad_sources(monkeypat
     )
     assert no_ai_key.status_code == 422
     assert "no app OpenAI key is configured" in no_ai_key.json()["detail"]
+
+    monkeypatch.setattr(
+        api_app_module,
+        "build_crm_spreadsheet_assist_agent_from_env",
+        lambda: (_ for _ in ()).throw(ValueError("AI spreadsheet header assistance is unavailable because no app OpenAI key is configured.")),
+    )
+    no_spreadsheet_ai_key = paid_client.post(
+        "/api/crm/import/preview",
+        headers={"Authorization": "Bearer session-token"},
+        json={
+            "source_type": "csv",
+            "csv_content": "Person,Organisation,Followup,Context\nTaylor Brooks,Summit Forge,2024-05-09,Imported from a messy client sheet\n",
+        },
+    )
+    assert no_spreadsheet_ai_key.status_code == 422
+    assert "AI spreadsheet header assistance is unavailable" in no_spreadsheet_ai_key.json()["detail"]
 
 
 def test_account_settings_validation_and_alert_defaults_work() -> None:

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from src.adapters.crm.in_memory_follow_up_repository import InMemoryLeadFollowUpRepository
 from src.adapters.llm.openai_crm_image_intake import OpenAICRMImageIntakeAgent
+from src.adapters.llm.openai_crm_spreadsheet_assist import OpenAICRMSpreadsheetAssistAgent
 from src.env_utils import get_first_configured_env
 
 
@@ -20,6 +21,16 @@ def build_crm_image_intake_agent_from_env() -> OpenAICRMImageIntakeAgent:
     if not api_key:
         raise ValueError("AI note image intake is unavailable because no app OpenAI key is configured.")
     return OpenAICRMImageIntakeAgent(
+        api_key=api_key,
+        model="gpt-4.1-mini",
+    )
+
+
+def build_crm_spreadsheet_assist_agent_from_env() -> OpenAICRMSpreadsheetAssistAgent:
+    api_key = get_first_configured_env("APP_OPENAI_API_KEY", "OPENAI_API_KEY")
+    if not api_key:
+        raise ValueError("AI spreadsheet header assistance is unavailable because no app OpenAI key is configured.")
+    return OpenAICRMSpreadsheetAssistAgent(
         api_key=api_key,
         model="gpt-4.1-mini",
     )

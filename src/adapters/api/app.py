@@ -39,7 +39,7 @@ from src.adapters.notifications.smtp_email_notifier import EmailNotificationErro
 from src.adapters.notifications.telegram_notifier import TelegramNotificationError, TelegramNotifier
 from src.adapters.operator_briefing.runtime import collect_operator_briefing_config_errors, run_daily_operator_briefing_job
 from src.adapters.crm.google_sheets import fetch_google_sheets_csv
-from src.adapters.crm.runtime import build_crm_image_intake_agent_from_env
+from src.adapters.crm.runtime import build_crm_image_intake_agent_from_env, build_crm_spreadsheet_assist_agent_from_env
 from src.adapters.crm.spreadsheet_files import convert_excel_bytes_to_csv, decode_base64_file_content
 from src.adapters.crm.runtime import build_lead_follow_up_repository
 from src.adapters.persistence.runtime import build_personalization_repository, build_user_repository
@@ -62,7 +62,12 @@ from src.application.autonomous_build import decide_autonomous_build_brief, form
 from src.application.founder_code import ListFounderCodeRequestsUseCase, QueueFounderCodeRequestUseCase
 from src.application.crm import GetLeadFollowUpOverviewUseCase
 from src.application.crm import AddLeadFollowUpNoteUseCase, CompleteLeadFollowUpUseCase, SnoozeLeadFollowUpUseCase
-from src.application.crm_import import CommitLeadImportUseCase, GenerateLeadImportFromImageUseCase, PreviewLeadImportUseCase
+from src.application.crm_import import (
+    CommitLeadImportUseCase,
+    GenerateLeadImportFromImageUseCase,
+    PreviewLeadImportUseCase,
+    PreviewLeadImportWithAssistanceUseCase,
+)
 from src.application.dashboard import (
     DEFAULT_BENCHMARK,
     DEFAULT_LONG_YIELD_SYMBOL,
@@ -347,12 +352,20 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
         repository = deps.lead_follow_up_repository_factory()
         try:
             csv_content, source_label, source_type = _resolve_crm_import_source(payload, user, deps)
-            preview = PreviewLeadImportUseCase(repository=repository, now=deps.now).execute(
-                user,
-                csv_content,
-                source_type,
-                source_label,
-                payload.field_mapping,
+            settings = GetUserDashboardSettingsUseCase(
+                repository=deps.personalization_repository_factory(),
+                default_factory=_build_default_dashboard_settings,
+            ).execute(user)
+            preview = _preview_crm_import_with_optional_ai_assistance(
+                user=user,
+                repository=repository,
+                now=deps.now,
+                csv_content=csv_content,
+                source_type=source_type,
+                source_label=source_label,
+                field_mapping=payload.field_mapping,
+                settings=settings,
+                deps=deps,
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -1020,6 +1033,53 @@ def _resolve_crm_import_source(
             raise ValueError("A Google Sheets URL is required.")
         return fetch_google_sheets_csv(payload.sheet_url), "Google Sheets", "google_sheets"
     raise ValueError("Unsupported import source.")
+
+
+def _preview_crm_import_with_optional_ai_assistance(
+    *,
+    user: User,
+    repository,
+    now: Callable[[], datetime],
+    csv_content: str,
+    source_type: str,
+    source_label: str,
+    field_mapping: dict[str, str | None] | None,
+    settings: UserDashboardSettings,
+    deps: ApiDependencies,
+):
+    try:
+        preview = PreviewLeadImportUseCase(repository=repository, now=now).execute(
+            user,
+            csv_content,
+            source_type,
+            source_label,
+            field_mapping,
+        )
+    except ValueError as exc:
+        if str(exc) != "No recognizable CRM headers were found in the spreadsheet.":
+            raise
+    else:
+        if preview.importable_rows > 0:
+            return preview
+        mapped_fields = {item.mapped_field for item in preview.header_mappings if item.mapped_field}
+        has_identity = "lead_name" in mapped_fields or "company_name" in mapped_fields
+        has_follow_up = "next_follow_up_at" in mapped_fields
+        if has_identity and has_follow_up:
+            return preview
+        _ensure_advanced_ai_intake_access(user, deps)
+        return PreviewLeadImportWithAssistanceUseCase(
+            repository=repository,
+            now=now,
+            spreadsheet_assist=build_crm_spreadsheet_assist_agent_from_env(),
+        ).execute(
+            user,
+            csv_content,
+            source_type,
+            source_label,
+            prompt=settings.crm_ai_prompt,
+            preferred_formats=settings.crm_preferred_import_formats,
+            field_mapping_overrides=field_mapping,
+        )
 
 
 def _ensure_advanced_ai_intake_access(user: User, deps: ApiDependencies) -> None:

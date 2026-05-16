@@ -103,3 +103,21 @@ def test_build_crm_image_intake_agent_from_env_requires_key(monkeypatch) -> None
 
     with pytest.raises(ValueError, match="no app OpenAI key is configured"):
         crm_runtime.build_crm_image_intake_agent_from_env()
+
+
+def test_build_crm_spreadsheet_assist_agent_from_env_uses_app_key(monkeypatch) -> None:
+    monkeypatch.setenv("APP_OPENAI_API_KEY", "app-key")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    agent = crm_runtime.build_crm_spreadsheet_assist_agent_from_env()
+
+    assert agent.api_key == "app-key"
+    assert agent.model == "gpt-4.1-mini"
+
+
+def test_build_crm_spreadsheet_assist_agent_from_env_requires_key(monkeypatch) -> None:
+    monkeypatch.delenv("APP_OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+
+    with pytest.raises(ValueError, match="AI spreadsheet header assistance is unavailable"):
+        crm_runtime.build_crm_spreadsheet_assist_agent_from_env()

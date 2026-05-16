@@ -8,7 +8,7 @@ from datetime import UTC, datetime, time
 from typing import Callable
 from urllib.parse import quote_plus
 
-from src.application.ports import CRMImageIntakePort, LeadFollowUpRepositoryPort
+from src.application.ports import CRMImageIntakePort, CRMSpreadsheetAssistPort, LeadFollowUpRepositoryPort
 from src.domain.auth import User
 from src.domain.crm import (
     LeadFollowUp,
@@ -138,6 +138,51 @@ class PreviewLeadImportUseCase:
         return _build_preview(csv_content, source_type, source_label, existing_items, field_mapping_overrides)
 
 
+class PreviewLeadImportWithAssistanceUseCase:
+    def __init__(
+        self,
+        repository: LeadFollowUpRepositoryPort,
+        now: Callable[[], datetime],
+        spreadsheet_assist: CRMSpreadsheetAssistPort,
+    ) -> None:
+        self.repository = repository
+        self.now = now
+        self.spreadsheet_assist = spreadsheet_assist
+
+    def execute(
+        self,
+        user: User,
+        csv_content: str,
+        source_type: str,
+        source_label: str,
+        prompt: str,
+        preferred_formats: list[str],
+        field_mapping_overrides: dict[str, str | None] | None = None,
+    ) -> LeadImportPreview:
+        existing_items = self.repository.list_lead_follow_ups(user)
+        try:
+            preview = _build_preview(csv_content, source_type, source_label, existing_items, field_mapping_overrides)
+        except ValueError as exc:
+            if str(exc) != "No recognizable CRM headers were found in the spreadsheet.":
+                raise
+        else:
+            if preview.importable_rows > 0 or not _needs_ai_header_assistance(preview.header_mappings):
+                return preview
+
+        headers, sample_rows = _extract_headers_and_sample_rows(csv_content)
+        suggested_mapping = self.spreadsheet_assist.suggest_field_mapping(
+            prompt=prompt,
+            preferred_formats=preferred_formats,
+            source_label=source_label,
+            headers=headers,
+            sample_rows=sample_rows,
+        )
+        merged_overrides = dict(suggested_mapping)
+        if field_mapping_overrides:
+            merged_overrides.update(field_mapping_overrides)
+        return _build_preview(csv_content, source_type, source_label, existing_items, merged_overrides)
+
+
 class CommitLeadImportUseCase:
     def __init__(self, repository: LeadFollowUpRepositoryPort, now: Callable[[], datetime]) -> None:
         self.repository = repository
@@ -258,6 +303,39 @@ def _build_preview(
         rows=rows,
         issues=issues,
     )
+
+
+def _extract_headers_and_sample_rows(csv_content: str, sample_limit: int = 3) -> tuple[list[str], list[dict[str, str]]]:
+    normalized_content = csv_content.strip()
+    if not normalized_content:
+        raise ValueError("Spreadsheet content is required.")
+
+    try:
+        reader = csv.DictReader(io.StringIO(normalized_content, newline=""))
+        if not reader.fieldnames:
+            raise ValueError("The spreadsheet must include a header row.")
+        sample_rows: list[dict[str, str]] = []
+        for raw_row in reader:
+            sample_rows.append(
+                {
+                    header: str(raw_row.get(header) or "").strip()
+                    for header in reader.fieldnames
+                }
+            )
+            if len(sample_rows) >= sample_limit:
+                break
+        return list(reader.fieldnames), sample_rows
+    except csv.Error as exc:
+        raise ValueError(
+            "This spreadsheet export could not be parsed as CSV. Re-export it as CSV or clean up broken line breaks first."
+        ) from exc
+
+
+def _needs_ai_header_assistance(header_mappings: list[LeadImportHeaderMapping]) -> bool:
+    mapped_fields = {item.mapped_field for item in header_mappings if item.mapped_field}
+    has_identity = "lead_name" in mapped_fields or "company_name" in mapped_fields
+    has_follow_up = "next_follow_up_at" in mapped_fields
+    return not has_identity or not has_follow_up
 
 
 def _build_preview_row(

@@ -90,6 +90,18 @@ class CRMImageIntakePort(Protocol):
         """Extract CRM-shaped rows from an uploaded note image and return CSV content."""
 
 
+class CRMSpreadsheetAssistPort(Protocol):
+    def suggest_field_mapping(
+        self,
+        prompt: str,
+        preferred_formats: list[str],
+        source_label: str,
+        headers: list[str],
+        sample_rows: list[dict[str, str]],
+    ) -> dict[str, str | None]:
+        """Suggest canonical CRM field mappings for messy spreadsheet headers."""
+
+
 class SocialLeadSourcePort(Protocol):
     def search_recent_posts(self, search_term: str, limit: int) -> list[SocialPost]:
         """Return recent social posts for a search term."""
