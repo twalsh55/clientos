@@ -151,6 +151,7 @@ class RunDailyOperatorBriefingUseCase:
 
 
 def format_operator_briefing_email(config: DailyOperatorBriefingConfig, briefing: OperatorBriefing) -> str:
+    model_path, intelligence_setting = _describe_model_usage(briefing.token_usage)
     lines = [
         f"Daily operator briefing generated at {briefing.generated_at.isoformat()}",
         f"Lookback window start: {briefing.lookback_started_at.isoformat()}",
@@ -160,6 +161,8 @@ def format_operator_briefing_email(config: DailyOperatorBriefingConfig, briefing
         f"- Prospect runs reviewed: {briefing.prospect_run_count}",
         f"- Posts scanned: {briefing.total_scanned_posts}",
         f"- Opportunity ideas shortlisted: {briefing.total_shortlisted_ideas}",
+        f"- Model path: {model_path}",
+        f"- Intelligence setting: {intelligence_setting}",
     ]
     if briefing.token_usage is not None:
         lines.append(
@@ -218,6 +221,12 @@ def format_operator_briefing_email(config: DailyOperatorBriefingConfig, briefing
     )
 
     return "\n".join(lines).rstrip()
+
+
+def _describe_model_usage(token_usage: ProspectTokenUsage | None) -> tuple[str, str]:
+    if token_usage is None:
+        return ("template fallback", "deterministic fallback, no live OpenAI reasoning")
+    return (token_usage.model, "live OpenAI reasoning")
 
 
 def _collect_top_ideas(prospect_runs: list[ProspectRunRecord]) -> tuple[ShortlistedIdeaRecord, ...]:
