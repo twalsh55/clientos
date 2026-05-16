@@ -62,6 +62,12 @@ class LeadFollowUpRepositoryPort(Protocol):
     def list_lead_follow_ups(self, user: User) -> list[LeadFollowUp]:
         """Return the current open lead follow-up queue for the authenticated user."""
 
+    def complete_lead_follow_up(self, user: User, follow_up_id: str, completed_at: datetime) -> None:
+        """Mark a lead follow-up complete."""
+
+    def snooze_lead_follow_up(self, user: User, follow_up_id: str, next_follow_up_at: datetime) -> None:
+        """Move the next follow-up time forward."""
+
 
 class SocialLeadSourcePort(Protocol):
     def search_recent_posts(self, search_term: str, limit: int) -> list[SocialPost]:

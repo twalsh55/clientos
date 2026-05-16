@@ -137,6 +137,21 @@ export async function getCrmFollowUpOverview(options: ApiRequestOptions = {}): P
   return apiRequest<CRMFollowUpOverview>("/api/crm/followups", {}, options);
 }
 
+export async function updateCrmFollowUp(
+  followUpId: string,
+  payload: { action: "complete" | "snooze"; snooze_hours?: number },
+  options: ApiRequestOptions = {},
+): Promise<CRMFollowUpOverview> {
+  return apiRequest<CRMFollowUpOverview>(
+    `/api/crm/followups/${followUpId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    options,
+  );
+}
+
 export async function createBillingCheckoutSession(
   payload: { return_url?: string | null } = {},
   options: ApiRequestOptions = {},

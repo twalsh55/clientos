@@ -21,6 +21,7 @@ from src.adapters.api.app import (
     create_app,
 )
 from src.adapters.auth.clerk_auth import AuthenticationError
+from src.adapters.crm.in_memory_follow_up_repository import InMemoryLeadFollowUpRepository
 from src.adapters.persistence.in_memory_personalization_repository import InMemoryPersonalizationRepository
 from src.application.account import (
     AlertHistoryEntry,
@@ -195,17 +196,20 @@ def make_client(
     dashboard_result: DashboardResult | None = None,
     seen_tokens: list[str] | None = None,
     personalization_repository: InMemoryPersonalizationRepository | None = None,
+    lead_follow_up_repository: InMemoryLeadFollowUpRepository | None = None,
     billing_port: FakeBillingPort | None = None,
 ) -> TestClient:
     result = dashboard_result or make_dashboard_result()
     now = datetime(2024, 5, 6, 12, 30, tzinfo=UTC)
     auth_use_case = FakeAuthUseCase(user=user, error=auth_error, seen_tokens=seen_tokens)
     repository = personalization_repository or InMemoryPersonalizationRepository()
+    crm_repository = lead_follow_up_repository or InMemoryLeadFollowUpRepository(now=lambda: now)
     app = create_app(
         ApiDependencies(
             auth_use_case_factory=lambda: auth_use_case,
             market_data_factory=lambda: FakeMarketDataAdapter(result=result, captured_configs=[]),
             personalization_repository_factory=lambda: repository,
+            lead_follow_up_repository_factory=lambda: crm_repository,
             billing_port_factory=lambda: billing_port,
             now=lambda: now,
         )
@@ -942,6 +946,51 @@ def test_crm_followups_endpoint_requires_auth_and_returns_queue() -> None:
     assert payload["items"][0]["stage"] == "Discovery"
 
 
+def test_crm_followups_endpoint_supports_complete_and_snooze() -> None:
+    repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
+    client = make_client(user=make_user(), lead_follow_up_repository=repository)
+
+    complete = client.patch(
+        "/api/crm/followups/lead-amber-studio",
+        headers={"Authorization": "Bearer session-token"},
+        json={"action": "complete"},
+    )
+    assert complete.status_code == 200
+    assert complete.json()["total_open"] == 3
+    assert all(item["id"] != "lead-amber-studio" for item in complete.json()["items"])
+
+    snooze = client.patch(
+        "/api/crm/followups/lead-riverbridge",
+        headers={"Authorization": "Bearer session-token"},
+        json={"action": "snooze", "snooze_hours": 24},
+    )
+    assert snooze.status_code == 200
+    riverbridge = next(item for item in snooze.json()["items"] if item["id"] == "lead-riverbridge")
+    assert riverbridge["next_follow_up_at"] == "2024-05-07T12:30:00+00:00"
+
+    missing = client.patch(
+        "/api/crm/followups/missing-id",
+        headers={"Authorization": "Bearer session-token"},
+        json={"action": "complete"},
+    )
+    assert missing.status_code == 404
+    assert missing.json()["detail"] == "CRM follow-up not found."
+
+    invalid = client.patch(
+        "/api/crm/followups/lead-riverbridge",
+        headers={"Authorization": "Bearer session-token"},
+        json={"action": "snooze"},
+    )
+    assert invalid.status_code == 422
+
+    bad_action = client.patch(
+        "/api/crm/followups/lead-riverbridge",
+        headers={"Authorization": "Bearer session-token"},
+        json={"action": "archive"},
+    )
+    assert bad_action.status_code == 422
+
+
 def test_account_settings_validation_and_alert_defaults_work() -> None:
     client = make_client(user=make_user())
 
@@ -1007,6 +1056,9 @@ def test_dashboard_endpoint_maps_value_errors_to_422() -> None:
                     },
                 )(),
                 personalization_repository_factory=lambda: InMemoryPersonalizationRepository(),
+                lead_follow_up_repository_factory=lambda: InMemoryLeadFollowUpRepository(
+                    now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC)
+                ),
                 billing_port_factory=lambda: None,
                 now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC),
             )

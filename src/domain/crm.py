@@ -19,6 +19,13 @@ class LeadFollowUp:
 
 
 @dataclass(frozen=True)
+class LeadFollowUpActionResult:
+    follow_up_id: str
+    action: str
+    effective_at: datetime
+
+
+@dataclass(frozen=True)
 class LeadFollowUpOverview:
     generated_at: datetime
     total_open: int

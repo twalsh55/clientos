@@ -165,6 +165,13 @@ web/
 
 Keep this file up to date whenever the stack, deployment model, architecture, or core tooling changes. Update it when adding or removing major frameworks, infrastructure dependencies, auth providers, databases, package managers, or primary developer workflows.
 
+## Autonomy Rule
+
+- The agent should proactively implement the next high-conviction feature set when product direction is already clear, without waiting for explicit step-by-step instructions.
+- Each autonomous change set should include implementation, local verification, commit, push, and deployment when the affected surface is production-facing and deployment credentials are already available.
+- The agent should use existing email and operator-briefing mechanisms to keep the founder updated on shipped work, validation learnings, and profitability progress.
+- The agent should still pause when a change would introduce hidden risk, destructive actions, major architectural drift, or unclear product tradeoffs.
+
 ## Handoff Rule
 
 Always read `HANDOFF.md` at the start of a new session if it exists.

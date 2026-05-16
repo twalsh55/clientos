@@ -49,6 +49,7 @@ from src.application.billing import (
     GetBillingOverviewUseCase,
 )
 from src.application.crm import GetLeadFollowUpOverviewUseCase
+from src.application.crm import CompleteLeadFollowUpUseCase, SnoozeLeadFollowUpUseCase
 from src.application.dashboard import (
     DEFAULT_BENCHMARK,
     DEFAULT_LONG_YIELD_SYMBOL,
@@ -82,6 +83,7 @@ class ApiDependencies:
     auth_use_case_factory: Callable[[], object]
     market_data_factory: Callable[[], object]
     personalization_repository_factory: Callable[[], object]
+    lead_follow_up_repository_factory: Callable[[], object]
     billing_port_factory: Callable[[], object | None]
     now: Callable[[], datetime]
 
@@ -101,6 +103,11 @@ class BillingSessionPayload(BaseModel):
     return_url: str | None = None
 
 
+class LeadFollowUpActionPayload(BaseModel):
+    action: str
+    snooze_hours: int | None = Field(default=None, ge=1, le=24 * 14)
+
+
 def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
     load_env_file()
     logger = configure_api_logger()
@@ -108,6 +115,7 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
         auth_use_case_factory=build_authenticate_user_use_case,
         market_data_factory=YFinanceMarketDataAdapter,
         personalization_repository_factory=build_personalization_repository,
+        lead_follow_up_repository_factory=build_lead_follow_up_repository,
         billing_port_factory=build_billing_adapter,
         now=lambda: datetime.now(tz=UTC),
     )
@@ -226,9 +234,37 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
     ) -> dict[str, object]:
         user = _require_authenticated_user(deps, authorization, session_cookie)
         overview = GetLeadFollowUpOverviewUseCase(
-            repository=build_lead_follow_up_repository(),
+            repository=deps.lead_follow_up_repository_factory(),
             now=deps.now,
         ).execute(user)
+        return dto_to_dict(build_lead_follow_up_overview_dto(overview))
+
+    @app.patch("/api/crm/followups/{follow_up_id}")
+    def crm_followup_action(
+        follow_up_id: str,
+        payload: LeadFollowUpActionPayload,
+        authorization: str | None = Header(default=None),
+        session_cookie: str | None = Cookie(default=None, alias=CLERK_SESSION_COOKIE),
+    ) -> dict[str, object]:
+        user = _require_authenticated_user(deps, authorization, session_cookie)
+        repository = deps.lead_follow_up_repository_factory()
+        try:
+            if payload.action == "complete":
+                CompleteLeadFollowUpUseCase(repository=repository, now=deps.now).execute(user, follow_up_id)
+            elif payload.action == "snooze":
+                if payload.snooze_hours is None:
+                    raise HTTPException(status_code=422, detail="snooze_hours is required for snooze.")
+                SnoozeLeadFollowUpUseCase(repository=repository, now=deps.now).execute(
+                    user,
+                    follow_up_id,
+                    payload.snooze_hours,
+                )
+            else:
+                raise HTTPException(status_code=422, detail="Unsupported CRM follow-up action.")
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="CRM follow-up not found.") from exc
+
+        overview = GetLeadFollowUpOverviewUseCase(repository=repository, now=deps.now).execute(user)
         return dto_to_dict(build_lead_follow_up_overview_dto(overview))
 
     @app.get("/api/account/billing")

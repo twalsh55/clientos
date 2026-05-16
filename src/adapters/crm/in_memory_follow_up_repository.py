@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime, timedelta
 
 from src.domain.auth import User
@@ -9,11 +10,25 @@ from src.domain.crm import LeadFollowUp
 class InMemoryLeadFollowUpRepository:
     def __init__(self, now: callable | None = None) -> None:
         self.now = now or (lambda: datetime.now(tz=UTC))
+        self._items = self._build_seed_data()
 
     def list_lead_follow_ups(self, user: User) -> list[LeadFollowUp]:
+        return [replace(item) for item in self._items.values()]
+
+    def complete_lead_follow_up(self, user: User, follow_up_id: str, completed_at: datetime) -> None:
+        if follow_up_id not in self._items:
+            raise KeyError(follow_up_id)
+        del self._items[follow_up_id]
+
+    def snooze_lead_follow_up(self, user: User, follow_up_id: str, next_follow_up_at: datetime) -> None:
+        item = self._items.get(follow_up_id)
+        if item is None:
+            raise KeyError(follow_up_id)
+        self._items[follow_up_id] = replace(item, next_follow_up_at=next_follow_up_at)
+
+    def _build_seed_data(self) -> dict[str, LeadFollowUp]:
         current_time = self.now()
-        owner = user.given_name or user.display_name or user.email or "You"
-        return [
+        items = [
             LeadFollowUp(
                 id="lead-amber-studio",
                 lead_name="Amber Flores",
@@ -23,7 +38,7 @@ class InMemoryLeadFollowUpRepository:
                 contact_channel="email",
                 last_contacted_at=current_time - timedelta(days=5),
                 next_follow_up_at=current_time - timedelta(hours=4),
-                next_step=f"Send {owner}'s concise recap and propose two call slots.",
+                next_step="Send a concise recap and propose two call slots.",
                 notes="Interested, but waiting on a clearer summary of timeline and scope.",
             ),
             LeadFollowUp(
@@ -63,3 +78,4 @@ class InMemoryLeadFollowUpRepository:
                 notes="Likes the direction, but comparing against doing it manually one more quarter.",
             ),
         ]
+        return {item.id: item for item in items}
