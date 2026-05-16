@@ -30,18 +30,30 @@ async function buildImportPayload(request: NextRequest) {
   const formData = await request.formData();
   const sourceType = formData.get("source_type");
   const fieldMapping = parseFieldMapping(formData.get("field_mapping"));
-  if (sourceType !== "csv" && sourceType !== "google_sheets") {
-    throw new Error("Choose CSV upload or Google Sheets before previewing.");
+  if (sourceType !== "file_upload" && sourceType !== "google_sheets") {
+    throw new Error("Choose a spreadsheet file or Google Sheets before previewing.");
   }
 
-  if (sourceType === "csv") {
+  if (sourceType === "file_upload") {
     const file = formData.get("file");
-    if (!hasTextReader(file)) {
-      throw new Error("Choose a CSV file before previewing.");
+    if (!hasArrayBufferReader(file)) {
+      throw new Error("Choose a spreadsheet file before previewing.");
+    }
+    const fileName = file.name || "spreadsheet";
+    if (fileName.toLowerCase().endsWith(".csv")) {
+      return {
+        source_type: "csv" as const,
+        csv_content: await file.text(),
+        field_mapping: fieldMapping,
+      };
+    }
+    if (!fileName.toLowerCase().endsWith(".xlsx") && !fileName.toLowerCase().endsWith(".xls")) {
+      throw new Error("Upload a supported spreadsheet file: .csv, .xlsx, or .xls.");
     }
     return {
-      source_type: "csv" as const,
-      csv_content: await file.text(),
+      source_type: "excel" as const,
+      file_name: fileName,
+      file_content_base64: toBase64(await file.arrayBuffer()),
       field_mapping: fieldMapping,
     };
   }
@@ -57,8 +69,8 @@ async function buildImportPayload(request: NextRequest) {
   };
 }
 
-function hasTextReader(value: FormDataEntryValue | null): value is File {
-  return typeof value === "object" && value !== null && typeof value.text === "function";
+function hasArrayBufferReader(value: FormDataEntryValue | null): value is File {
+  return typeof value === "object" && value !== null && typeof value.arrayBuffer === "function" && typeof value.text === "function";
 }
 
 function parseFieldMapping(value: FormDataEntryValue | null): Record<string, string | null> | undefined {
@@ -78,4 +90,8 @@ function parseFieldMapping(value: FormDataEntryValue | null): Record<string, str
   return Object.fromEntries(
     Object.entries(parsed as Record<string, unknown>).map(([key, field]) => [key, typeof field === "string" ? field : null]),
   );
+}
+
+function toBase64(buffer: ArrayBuffer): string {
+  return Buffer.from(buffer).toString("base64");
 }

@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, date, datetime
+from base64 import b64encode
+from io import BytesIO
 from uuid import UUID
 
 import pandas as pd
@@ -1235,6 +1237,42 @@ def test_crm_import_preview_and_commit_endpoints_support_csv_and_google_sheets(m
     assert mapped_preview.json()["importable_rows"] == 1
     assert mapped_preview.json()["header_mappings"][0]["mapped_field"] == "lead_name"
 
+    excel_buffer = BytesIO()
+    pd.DataFrame(
+        [
+            {
+                "Contact": "Nina Patel",
+                "Company": "Summit Harbor",
+                "Owner": "Riley Chen",
+                "Next Follow-Up": "2024-05-11",
+                "Notes": "Imported from Excel",
+            }
+        ]
+    ).to_excel(excel_buffer, index=False, engine="openpyxl")
+    excel_preview = client.post(
+        "/api/crm/import/preview",
+        headers={"Authorization": "Bearer session-token"},
+        json={
+            "source_type": "excel",
+            "file_name": "leads.xlsx",
+            "file_content_base64": b64encode(excel_buffer.getvalue()).decode("ascii"),
+        },
+    )
+    assert excel_preview.status_code == 200
+    assert excel_preview.json()["rows"][0]["lead_name"] == "Nina Patel"
+
+    excel_commit = client.post(
+        "/api/crm/import",
+        headers={"Authorization": "Bearer session-token"},
+        json={
+            "source_type": "excel",
+            "file_name": "leads.xlsx",
+            "file_content_base64": b64encode(excel_buffer.getvalue()).decode("ascii"),
+        },
+    )
+    assert excel_commit.status_code == 200
+    assert excel_commit.json()["imported_count"] == 1
+
 
 def test_crm_import_endpoints_return_validation_errors_for_bad_sources() -> None:
     client = make_client(user=make_user(), lead_follow_up_repository=InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC)))
@@ -1266,6 +1304,14 @@ def test_crm_import_endpoints_return_validation_errors_for_bad_sources() -> None
     )
     assert bad_mapping.status_code == 422
     assert "Unsupported field mapping" in bad_mapping.json()["detail"]
+
+    missing_excel_name = client.post(
+        "/api/crm/import/preview",
+        headers={"Authorization": "Bearer session-token"},
+        json={"source_type": "excel", "file_content_base64": "aGVsbG8="},
+    )
+    assert missing_excel_name.status_code == 422
+    assert missing_excel_name.json()["detail"] == "Spreadsheet file name is required."
 
 
 def test_account_settings_validation_and_alert_defaults_work() -> None:

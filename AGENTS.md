@@ -186,7 +186,7 @@ Use this section to give the next session a fast, practical starting point. Refr
   - complete and snooze/reschedule actions
   - contact timeline history per lead
   - lightweight internal note capture
-  - CSV upload import preview and commit
+  - CSV, XLSX, and XLS upload import preview and commit
   - Google Sheets import preview and commit
   - messy header normalization and duplicate detection before import
   - guided import mapping with inline remapping before commit
@@ -264,9 +264,10 @@ Use this section to give the next session a fast, practical starting point. Refr
   - preview now exposes original headers and Brivoly's suggested field mapping
   - users can remap ambiguous columns inline without editing the source sheet first
   - imports require a refreshed preview after mapping changes so validation stays trustworthy
-- The latest CRM reliability refinement is hardened CSV parsing:
-  - messy spreadsheet exports with problematic line endings no longer crash preview or commit
-  - malformed CSV now returns a user-facing validation error instead of a backend 500
+- The latest CRM reliability refinement is hardened spreadsheet parsing:
+  - messy CSV exports with problematic line endings no longer crash preview or commit
+  - native Excel uploads now normalize into the same preview/import flow
+  - malformed spreadsheet files now return a user-facing validation error instead of a backend 500
 - The latest CRM monetization/intake foundation is AI Intake Profile:
   - CRM now exposes a per-user AI intake prompt and preferred format memory
   - these settings persist through the existing account-settings persistence layer, including Postgres

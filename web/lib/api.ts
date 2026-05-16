@@ -156,9 +156,11 @@ export async function updateCrmFollowUp(
 
 export async function previewCrmImport(
   payload: {
-    source_type: "csv" | "google_sheets";
+    source_type: "csv" | "excel" | "google_sheets";
     csv_content?: string;
     sheet_url?: string;
+    file_name?: string;
+    file_content_base64?: string;
     field_mapping?: Record<string, string | null>;
   },
   options: ApiRequestOptions = {},
@@ -175,9 +177,11 @@ export async function previewCrmImport(
 
 export async function commitCrmImport(
   payload: {
-    source_type: "csv" | "google_sheets";
+    source_type: "csv" | "excel" | "google_sheets";
     csv_content?: string;
     sheet_url?: string;
+    file_name?: string;
+    file_content_base64?: string;
     field_mapping?: Record<string, string | null>;
   },
   options: ApiRequestOptions = {},

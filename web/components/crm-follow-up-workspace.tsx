@@ -31,7 +31,7 @@ export function CRMFollowUpWorkspace({
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
-  const [sourceType, setSourceType] = useState<"csv" | "google_sheets">("csv");
+  const [sourceType, setSourceType] = useState<"file_upload" | "google_sheets">("file_upload");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [sheetUrl, setSheetUrl] = useState("");
   const [importPreview, setImportPreview] = useState<CRMImportPreview | null>(null);
@@ -106,9 +106,9 @@ export function CRMFollowUpWorkspace({
     if (Object.keys(importFieldMapping).length) {
       formData.set("field_mapping", JSON.stringify(importFieldMapping));
     }
-    if (sourceType === "csv") {
+    if (sourceType === "file_upload") {
       if (!selectedFile) {
-        throw new Error("Choose a CSV file first.");
+        throw new Error("Choose a spreadsheet file first.");
       }
       formData.set("file", selectedFile);
       return formData;
@@ -244,25 +244,25 @@ export function CRMFollowUpWorkspace({
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Spreadsheet Import</p>
             <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Bring your lead sheet in without retyping it.</h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">
-              Upload a CSV or paste a Google Sheets link. Brivoly normalizes messy headers, flags validation problems, and skips duplicates before anything enters the follow-up queue.
+              Upload a CSV, XLSX, or XLS file, or paste a Google Sheets link. Brivoly normalizes messy headers, flags validation problems, and skips duplicates before anything enters the follow-up queue.
             </p>
 
             <div className="mt-5 flex flex-wrap gap-3">
-              <Button variant={sourceType === "csv" ? "default" : "outline"} onClick={() => setSourceType("csv")}>
-                CSV upload
+              <Button variant={sourceType === "file_upload" ? "default" : "outline"} onClick={() => setSourceType("file_upload")}>
+                Spreadsheet file
               </Button>
               <Button variant={sourceType === "google_sheets" ? "default" : "outline"} onClick={() => setSourceType("google_sheets")}>
                 Google Sheets
               </Button>
             </div>
 
-            {sourceType === "csv" ? (
+            {sourceType === "file_upload" ? (
               <section className="mt-5 rounded-[1.4rem] border bg-slate-50/80 p-5">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">CSV file</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Spreadsheet file</p>
                 <input
                   ref={fileInputRef}
                   type="file"
-                  accept=".csv,text/csv"
+                  accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xls,application/vnd.ms-excel"
                   className="mt-3 block w-full rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-600"
                   onChange={(event) => {
                     setSelectedFile(event.target.files?.[0] ?? null);
@@ -274,7 +274,7 @@ export function CRMFollowUpWorkspace({
                   }}
                 />
                 <p className="mt-3 text-xs text-slate-500">
-                  Suggested columns: contact, company, owner, status, next follow-up, and notes.
+                  Supported uploads: CSV, XLSX, and XLS. Suggested columns: contact, company, owner, status, next follow-up, and notes.
                 </p>
                 {selectedFile ? <p className="mt-2 text-sm font-medium text-slate-700">{selectedFile.name}</p> : null}
               </section>

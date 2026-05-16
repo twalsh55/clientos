@@ -1,9 +1,12 @@
 from __future__ import annotations
 
 import csv
+from base64 import b64encode
 from datetime import UTC, datetime
+from io import BytesIO
 from uuid import UUID
 
+import pandas as pd
 import pytest
 
 import src.adapters.api.app as api_app_module
@@ -337,6 +340,23 @@ def test_google_sheet_fetch_and_source_resolution_cover_error_paths(monkeypatch)
     assert build_google_sheets_csv_url("https://docs.google.com/spreadsheets/d/abc123/edit?gid=789") == (
         "https://docs.google.com/spreadsheets/d/abc123/export?format=csv&gid=789"
     )
+
+    buffer = BytesIO()
+    pd.DataFrame([{"Contact": "Taylor Brooks", "Company": "Beacon Ridge"}]).to_excel(buffer, index=False, engine="openpyxl")
+    excel_payload = LeadImportPayload(
+        source_type="excel",
+        file_name="leads.xlsx",
+        file_content_base64=b64encode(buffer.getvalue()).decode("ascii"),
+    )
+    excel_content, excel_label = _resolve_crm_import_source(excel_payload)
+    assert "Contact,Company" in excel_content
+    assert excel_label == "leads.xlsx"
+
+    with pytest.raises(ValueError, match="Spreadsheet file name is required"):
+        _resolve_crm_import_source(LeadImportPayload(source_type="excel", file_content_base64="aGVsbG8="))
+
+    with pytest.raises(ValueError, match="Spreadsheet file content is required"):
+        _resolve_crm_import_source(LeadImportPayload(source_type="excel", file_name="leads.xlsx"))
 
     assert _resolve_crm_import_source(LeadImportPayload(source_type="csv", csv_content="a,b\n1,2")) == ("a,b\n1,2", "CSV upload")
     with pytest.raises(ValueError, match="CSV content is required"):

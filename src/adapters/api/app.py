@@ -34,6 +34,7 @@ from src.adapters.notifications.smtp_email_notifier import EmailNotificationErro
 from src.adapters.notifications.telegram_notifier import TelegramNotificationError, TelegramNotifier
 from src.adapters.operator_briefing.runtime import collect_operator_briefing_config_errors, run_daily_operator_briefing_job
 from src.adapters.crm.google_sheets import fetch_google_sheets_csv
+from src.adapters.crm.spreadsheet_files import convert_excel_bytes_to_csv, decode_base64_file_content
 from src.adapters.crm.runtime import build_lead_follow_up_repository
 from src.adapters.persistence.runtime import build_personalization_repository
 from src.adapters.prospecting.runtime import collect_prospecting_config_errors, run_prospecting_job
@@ -120,9 +121,11 @@ class LeadFollowUpActionPayload(BaseModel):
 
 
 class LeadImportPayload(BaseModel):
-    source_type: str = Field(pattern="^(csv|google_sheets)$")
+    source_type: str = Field(pattern="^(csv|excel|google_sheets)$")
     csv_content: str | None = Field(default=None, min_length=1)
     sheet_url: str | None = None
+    file_name: str | None = None
+    file_content_base64: str | None = None
     field_mapping: dict[str, str | None] | None = None
 
 
@@ -740,6 +743,14 @@ def _resolve_crm_import_source(payload: LeadImportPayload) -> tuple[str, str]:
         if not payload.csv_content:
             raise ValueError("CSV content is required for spreadsheet import.")
         return payload.csv_content, "CSV upload"
+    if payload.source_type == "excel":
+        if not payload.file_name:
+            raise ValueError("Spreadsheet file name is required.")
+        if not payload.file_content_base64:
+            raise ValueError("Spreadsheet file content is required.")
+        file_bytes = decode_base64_file_content(payload.file_content_base64)
+        csv_content = convert_excel_bytes_to_csv(payload.file_name, file_bytes)
+        return csv_content, payload.file_name
     if payload.source_type == "google_sheets":
         if not payload.sheet_url:
             raise ValueError("A Google Sheets URL is required.")

@@ -128,7 +128,7 @@ export type CRMImportHeaderMapping = {
 };
 
 export type CRMImportPreview = {
-  source_type: "csv" | "google_sheets";
+  source_type: "csv" | "excel" | "google_sheets";
   source_label: string;
   normalized_headers: string[];
   header_mappings: CRMImportHeaderMapping[];
