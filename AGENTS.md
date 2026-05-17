@@ -99,6 +99,7 @@ cd web && npm run e2e
   - attention board view by relationship stage
   - complete and snooze actions
   - relationship history + internal notes
+  - relationship memory summaries, reconnect cues, and recent upload context
   - auto email designer for reconnects and follow-ups with in-app draft editing
   - last meaningful interaction tracking
   - dormant client detection

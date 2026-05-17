@@ -401,6 +401,7 @@ def test_crm_follow_up_overview_dto_and_use_case_sort_and_count_values() -> None
     assert payload["items"][0]["relationship_timing_nudge"]
     assert payload["items"][0]["relationship_context_summary"]
     assert payload["items"][0]["relationship_recent_changes_summary"]
+    assert "relationship_recent_upload_summary" in payload["items"][0]
     assert payload["items"][0]["relationship_last_30_days_summary"]
     assert payload["items"][0]["relationship_meeting_prep_summary"]
     assert payload["relationship_summary"]["active_count"] == 1
@@ -982,6 +983,8 @@ def test_crm_intake_upload_imports_rows(monkeypatch) -> None:
     assert "imported your note image" in payload["message"].lower()
     overview = GetLeadFollowUpOverviewUseCase(repository=repository, now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC)).execute(user)
     assert any(item.notes == "Imported from magic link image" for item in overview.items)
+    imported = next(item for item in overview.items if item.notes == "Imported from magic link image")
+    assert "shared upload link" in imported.relationship_recent_upload_summary
 
 
 def test_crm_intake_upload_returns_validation_errors(monkeypatch) -> None:

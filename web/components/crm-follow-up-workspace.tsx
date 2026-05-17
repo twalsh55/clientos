@@ -2302,6 +2302,12 @@ function LeadMemoryPanel({
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Latest raw context</p>
           <p className="mt-2 text-sm leading-6 text-slate-700">{lead.notes}</p>
         </div>
+        {lead.relationship_recent_upload_summary ? (
+          <div className="mt-4 rounded-[1.2rem] border bg-white px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Recent upload context</p>
+            <p className="mt-2 text-sm leading-6 text-slate-700">{lead.relationship_recent_upload_summary}</p>
+          </div>
+        ) : null}
       </section>
 
       <section className="mt-6 rounded-[1.5rem] border bg-white p-5">

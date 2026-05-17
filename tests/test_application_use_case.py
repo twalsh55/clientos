@@ -27,6 +27,7 @@ from src.application.crm import (
     _build_relationship_context_summary,
     _build_last_30_days_summary,
     _build_meeting_prep_summary,
+    _build_recent_upload_summary,
     _build_reconnect_message_hint,
     _build_reconnect_next_move,
     _build_reconnect_why_now,
@@ -35,6 +36,7 @@ from src.application.crm import (
     _build_thread_memory_summary,
     _build_thread_next_touch_hint,
     _compute_relationship_health_score,
+    _describe_upload_source,
     _derive_company_from_email,
     _derive_name_from_email,
     _ensure_sentence,
@@ -311,6 +313,7 @@ def test_follow_up_overview_enriches_relationship_intelligence() -> None:
     assert amber.relationship_timing_nudge
     assert amber.relationship_context_summary
     assert amber.relationship_recent_changes_summary
+    assert amber.relationship_recent_upload_summary == ""
     assert amber.relationship_last_30_days_summary
     assert amber.relationship_meeting_prep_summary
     assert amber.relationship_reconnect_why_now
@@ -664,6 +667,57 @@ def test_crm_helper_branches_cover_remaining_health_context_and_merge_paths() ->
     assert _relationship_state(40, False, build_follow_up(now=now, next_follow_up_at=now), now) == "at_risk"
     assert _relationship_state(72, False, build_follow_up(now=now, next_follow_up_at=now), now) == "warm"
     assert _build_relationship_context_summary(build_follow_up(now=now, notes="   ", timeline=(), threads=())) == "Brivoly has not captured enough relationship context yet."
+    upload_follow_up = build_follow_up(
+        now=now,
+        notes="Imported from note image",
+        timeline=(
+            LeadTimelineEntry(
+                id="upload-1",
+                occurred_at=now - timedelta(days=1),
+                kind="import",
+                channel="magic_link",
+                summary="Imported from magic link image. Owner: Ada Lovelace. Stage: Discovery.",
+            ),
+        ),
+    )
+    assert "the shared upload link" in _build_recent_upload_summary(upload_follow_up, now)
+    assert "Notes captured: Imported from note image." in _build_recent_upload_summary(upload_follow_up, now)
+    duplicate_note_follow_up = build_follow_up(
+        now=now,
+        notes="Imported from phone-note.jpg",
+        timeline=(
+            LeadTimelineEntry(
+                id="upload-dup",
+                occurred_at=now,
+                kind="import",
+                channel="custom",
+                summary="Imported from phone-note.jpg",
+            ),
+        ),
+    )
+    assert _build_recent_upload_summary(duplicate_note_follow_up, now).endswith("Imported from phone-note.jpg.")
+    plain_note_follow_up = build_follow_up(
+        now=now,
+        notes="Client sent three screenshots after the call",
+        timeline=(
+            LeadTimelineEntry(
+                id="upload-plain",
+                occurred_at=now,
+                kind="import",
+                channel="custom",
+                summary="uploaded context from note.png",
+            ),
+        ),
+    )
+    assert _build_recent_upload_summary(plain_note_follow_up, now).endswith("Uploaded context from note.png.")
+    assert _build_recent_upload_summary(build_follow_up(now=now, timeline=()), now) == ""
+    assert _describe_upload_source("image", "Imported from note.png") == "an uploaded image"
+    assert _describe_upload_source("telegram", "Imported from mobile upload") == "a shared mobile upload"
+    assert _describe_upload_source("csv_upload", "Imported from CSV upload") == "an imported client file"
+    assert _describe_upload_source("custom", "Imported from latest file.csv") == "an imported client file"
+    assert _describe_upload_source("custom", "Imported from latest capture", "Imported from magic link image") == "the shared upload link"
+    assert _describe_upload_source("custom", "Imported from magic link image") == "the shared upload link"
+    assert _describe_upload_source("custom", "Imported from latest capture") == "a recent upload"
     assert _next_occurrence(date(2024, 2, 29), date(2025, 1, 1)) is None
     assert _next_occurrence(date(2024, 2, 29), date(2024, 3, 1)) is None
 

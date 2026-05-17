@@ -109,6 +109,7 @@ class LeadFollowUp:
     relationship_timing_nudge: str = ""
     relationship_context_summary: str = ""
     relationship_recent_changes_summary: str = ""
+    relationship_recent_upload_summary: str = ""
     relationship_last_30_days_summary: str = ""
     relationship_meeting_prep_summary: str = ""
     relationship_reconnect_why_now: str = ""

@@ -103,6 +103,7 @@ export type CRMLeadFollowUp = {
   relationship_timing_nudge: string;
   relationship_context_summary: string;
   relationship_recent_changes_summary: string;
+  relationship_recent_upload_summary: string;
   relationship_last_30_days_summary: string;
   relationship_meeting_prep_summary: string;
   relationship_reconnect_why_now: string;

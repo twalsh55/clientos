@@ -71,6 +71,7 @@ def _enrich_follow_up(item: LeadFollowUp, current_time: datetime) -> LeadFollowU
     context_summary = _build_relationship_context_summary(item_with_reminders)
     timing_nudge = _build_relationship_timing_nudge(item_with_reminders, current_time)
     recent_changes_summary = _build_recent_changes_summary(item_with_reminders, current_time)
+    recent_upload_summary = _build_recent_upload_summary(item_with_reminders, current_time)
     last_30_days_summary = _build_last_30_days_summary(item_with_reminders, current_time)
     meeting_prep_summary = _build_meeting_prep_summary(item_with_reminders, current_time)
     reconnect_why_now = _build_reconnect_why_now(item_with_reminders, current_time)
@@ -85,6 +86,7 @@ def _enrich_follow_up(item: LeadFollowUp, current_time: datetime) -> LeadFollowU
         relationship_timing_nudge=timing_nudge,
         relationship_context_summary=context_summary,
         relationship_recent_changes_summary=recent_changes_summary,
+        relationship_recent_upload_summary=recent_upload_summary,
         relationship_last_30_days_summary=last_30_days_summary,
         relationship_meeting_prep_summary=meeting_prep_summary,
         relationship_reconnect_why_now=reconnect_why_now,
@@ -321,6 +323,31 @@ def _build_recent_changes_summary(item: LeadFollowUp, current_time: datetime) ->
     return " ".join(changes[:2])
 
 
+def _build_recent_upload_summary(item: LeadFollowUp, current_time: datetime) -> str:
+    latest_upload = next(
+        (
+            entry
+            for entry in sorted(item.timeline, key=lambda entry: entry.occurred_at, reverse=True)
+            if entry.kind == "import" or entry.channel in {"image", "magic_link", "telegram"}
+        ),
+        None,
+    )
+    if latest_upload is None:
+        return ""
+
+    source = _describe_upload_source(latest_upload.channel, latest_upload.summary, item.notes)
+    summary = _sentence_case(latest_upload.summary.rstrip("."))
+    if item.notes.strip() and _looks_like_imported_context(item.notes):
+        note = _sentence_case(item.notes.strip().rstrip("."))
+        if note.lower() not in summary.lower():
+            summary = f"{summary}. Notes captured: {note}."
+        else:
+            summary = f"{summary}."
+    else:
+        summary = _ensure_sentence(summary)
+    return f"{_relative_days(latest_upload.occurred_at, current_time)} Brivoly attached new client context from {source}: {summary}"
+
+
 def _build_last_30_days_summary(item: LeadFollowUp, current_time: datetime) -> str:
     window_start = current_time - timedelta(days=30)
     recent_entries = [entry for entry in sorted(item.timeline, key=lambda entry: entry.occurred_at, reverse=True) if entry.occurred_at >= window_start]
@@ -435,6 +462,33 @@ def summarize_timeline_kind(kind: str) -> str:
         "email": "an email update",
     }
     return mapping.get(normalized, "an update")
+
+
+def _describe_upload_source(channel: str, summary: str, notes: str = "") -> str:
+    normalized = channel.strip().lower()
+    if normalized == "magic_link":
+        return "the shared upload link"
+    if normalized == "image":
+        return "an uploaded image"
+    if normalized == "telegram":
+        return "a shared mobile upload"
+    if normalized in {"csv_upload", "excel_upload", "google_sheets", "sheet"}:
+        return "an imported client file"
+    summary_lower = summary.lower()
+    notes_lower = notes.lower()
+    if "magic link" in notes_lower:
+        return "the shared upload link"
+    if "magic link" in summary_lower:
+        return "the shared upload link"
+    if "image" in summary_lower or "photo" in summary_lower or any(ext in summary_lower for ext in (".jpg", ".jpeg", ".png", ".heic", ".webp")):
+        return "an uploaded image"
+    if "sheet" in summary_lower or "csv" in summary_lower or "excel" in summary_lower:
+        return "an imported client file"
+    return "a recent upload"
+
+
+def _looks_like_imported_context(value: str) -> bool:
+    return value.strip().lower().startswith("imported from ")
 
 
 def _relative_days(occurred_at: datetime, current_time: datetime) -> str:

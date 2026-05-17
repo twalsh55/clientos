@@ -168,6 +168,7 @@ class LeadFollowUpDTO:
     relationship_timing_nudge: str
     relationship_context_summary: str
     relationship_recent_changes_summary: str
+    relationship_recent_upload_summary: str
     relationship_last_30_days_summary: str
     relationship_meeting_prep_summary: str
     relationship_reconnect_why_now: str
@@ -539,6 +540,7 @@ def build_lead_follow_up_dto(item: LeadFollowUp) -> LeadFollowUpDTO:
         relationship_timing_nudge=item.relationship_timing_nudge,
         relationship_context_summary=item.relationship_context_summary,
         relationship_recent_changes_summary=item.relationship_recent_changes_summary,
+        relationship_recent_upload_summary=item.relationship_recent_upload_summary,
         relationship_last_30_days_summary=item.relationship_last_30_days_summary,
         relationship_meeting_prep_summary=item.relationship_meeting_prep_summary,
         relationship_reconnect_why_now=item.relationship_reconnect_why_now,
