@@ -28,7 +28,7 @@ declare global {
 
 export function ClerkAuthBridge({ publishableKey, host, redirectTo, mode = "sign-in" }: ClerkAuthBridgeProps) {
   const isSignUp = mode === "sign-up";
-  const [status, setStatus] = useState(isSignUp ? "Loading secure account creation..." : "Loading secure sign-in...");
+  const [status, setStatus] = useState(isSignUp ? "Opening account creation..." : "Opening sign-in...");
   const [isCompleting, setIsCompleting] = useState(false);
 
   useEffect(() => {
@@ -106,20 +106,20 @@ export function ClerkAuthBridge({ publishableKey, host, redirectTo, mode = "sign
 
     async function init() {
       try {
-        setStatus(isSignUp ? "Loading secure account creation..." : "Loading secure sign-in...");
+        setStatus(isSignUp ? "Opening account creation..." : "Opening sign-in...");
         const clerk = await ensureClerk();
         if (cancelled) {
           return;
         }
 
         if (clerk?.isSignedIn && clerk.session) {
-          setStatus(isSignUp ? "Your account is ready. Finalizing Client OS..." : "You're signed in. Finalizing Client OS...");
+          setStatus(isSignUp ? "Your account is ready. Opening Client OS..." : "You're signed in. Opening Client OS...");
           const token = await clerk.session.getToken({ skipCache: true });
           if (!token) {
             setStatus(
               isSignUp
-                ? "Account creation was detected, but the secure session could not be completed. Please try again."
-                : "Sign-in was detected, but the secure session could not be completed. Please try again.",
+                ? "Account creation was detected, but the session could not be completed. Please try again."
+                : "Sign-in was detected, but the session could not be completed. Please try again.",
             );
             return;
           }
@@ -129,7 +129,7 @@ export function ClerkAuthBridge({ publishableKey, host, redirectTo, mode = "sign
 
         const mountTarget = document.getElementById("clerk-auth-root");
         if (!mountTarget || !clerk) {
-          setStatus(isSignUp ? "We could not open account creation. Refresh and try again." : "We could not open the sign-in form. Refresh and try again.");
+          setStatus(isSignUp ? "We could not open account creation. Refresh and try again." : "We could not open sign-in. Refresh and try again.");
           return;
         }
         mountTarget.replaceChildren();
@@ -170,7 +170,7 @@ export function ClerkAuthBridge({ publishableKey, host, redirectTo, mode = "sign
       <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
         {isSignUp
           ? "Create your account, then Brivoly will open Client OS."
-          : "Use your account to open Client OS."}
+          : "Sign in and Brivoly opens Client OS."}
       </p>
       <div className="relative mt-6 min-h-[360px] overflow-hidden rounded-[1.5rem] border bg-slate-50 p-4">
         <div
@@ -185,7 +185,7 @@ export function ClerkAuthBridge({ publishableKey, host, redirectTo, mode = "sign
               </div>
               <h3 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">Opening Client OS.</h3>
               <p className="mt-3 text-sm leading-6 text-slate-600">
-                We’re securing your session and loading the app so the handoff feels cleaner.
+                We’re securing your session and loading the app.
               </p>
               <div className="mt-5 flex items-center gap-3">
                 <div className="h-3 w-3 animate-pulse rounded-full bg-cyan-500" />
@@ -227,7 +227,7 @@ function getStatusAppearance(status: string) {
   }
 
   return {
-    label: "Current status",
+    label: "Status",
     className: "border-slate-200 bg-slate-50 text-slate-700",
   };
 }
