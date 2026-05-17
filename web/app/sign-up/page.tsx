@@ -35,17 +35,17 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
                 Client OS
               </p>
               <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
-                Create your account and enter Client OS directly.
+                Create your account and step into Client OS.
               </h1>
             </div>
             <p className="mt-6 max-w-2xl text-base leading-7 text-slate-600">
-              This keeps account creation inside Brivoly so the handoff into Client OS feels continuous instead of bouncing through a hosted auth redirect.
+              Create your account here, then Brivoly brings you straight into your relationship flow.
             </p>
             <div className="mt-6 rounded-[1.5rem] border border-cyan-200 bg-cyan-50 px-5 py-4 text-cyan-950">
-              <p className="ui-eyebrow-strong text-cyan-900">New account access</p>
-              <p className="mt-2 text-lg font-semibold">Create the account here, then Brivoly will open Client OS.</p>
+              <p className="ui-eyebrow-strong text-cyan-900">New account</p>
+              <p className="mt-2 text-lg font-semibold">Create the account here, then Brivoly opens Client OS.</p>
               <p className="mt-2 text-sm leading-6">
-                No localhost redirect detour, no manual re-entry. The goal is one clean handoff into the app.
+                One clean handoff, no extra re-entry.
               </p>
             </div>
             <div className="mt-8 flex flex-wrap gap-3">
@@ -56,11 +56,11 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
           </div>
 
           <div className="w-full max-w-md rounded-[1.75rem] border bg-slate-950 p-5 text-slate-50 shadow-[0_24px_80px_-50px_rgba(15,23,42,0.9)]">
-            <p className="ui-eyebrow-inverse text-cyan-300">Sign-up status</p>
+            <p className="ui-eyebrow-inverse text-cyan-300">Account flow</p>
             <div className="mt-4 space-y-3">
-              <SignUpStatusRow label="Session" value="Creating a new account on this device" />
+              <SignUpStatusRow label="Session" value="Creating a new account here" />
               <SignUpStatusRow label="Destination" value={redirectTo === "/clientos" ? "Client OS" : "Brivoly"} />
-              <SignUpStatusRow label="Next step" value="Create account, then open your relationship flow" />
+              <SignUpStatusRow label="Next" value="Create account, then open your relationship flow" />
             </div>
           </div>
         </div>
@@ -68,23 +68,23 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
 
       <section className="mt-6 grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
         <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm">
-          <p className="ui-eyebrow">Before You Continue</p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Account creation should stay inside Brivoly.</h2>
+          <p className="ui-eyebrow">Before you continue</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Account creation stays inside Brivoly.</h2>
           <p className="mt-3 text-sm leading-7 text-slate-600">
-            This flow mirrors the Client OS entry surface so new users land in the same visual language and continue straight into their relationship flow.
+            This keeps the first handoff calm so new users continue straight into their relationship flow.
           </p>
           <div className="mt-5 space-y-3">
             <InfoCard
-              label="Current access state"
-              body="You do not have an active account session yet. Create the account here and Brivoly will finish the handoff automatically."
+              label="Right now"
+              body="You do not have an active account session yet. Create the account here and Brivoly finishes the handoff automatically."
             />
             <InfoCard
-              label="What happens"
-              body="Create the account below, Brivoly secures your session, then returns you to Client OS."
+              label="Next"
+              body="Create the account below, then Brivoly secures your session and opens Client OS."
             />
             <InfoCard
-              label="Why this path"
-              body="Keeping account creation in-app avoids broken external redirects and makes the first-run experience feel much calmer."
+              label="Why here"
+              body="Keeping account creation in-app avoids broken redirects and makes the first run feel calmer."
             />
           </div>
         </section>
@@ -99,7 +99,7 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
         ) : (
           <section className="rounded-[1.75rem] border bg-white/85 p-6 shadow-sm">
             <p className="ui-eyebrow">Configuration</p>
-            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">Sign-up is not ready yet</h2>
+            <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">Sign-up is unavailable</h2>
             <p className="mt-3 text-sm leading-6 text-slate-600">
               Set <code>CLERK_PUBLISHABLE_KEY</code> so the frontend can render account creation for users.
             </p>
