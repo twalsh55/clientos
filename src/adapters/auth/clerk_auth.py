@@ -67,7 +67,7 @@ class ClerkAuthProvider:
         )
         given_name = _first_non_empty(profile.get("first_name"), claims.get("given_name"))
         family_name = _first_non_empty(profile.get("last_name"), claims.get("family_name"))
-        display_name = _first_non_empty(profile.get("full_name"), email, claims.get("sub"))
+        display_name = _first_non_empty(profile.get("full_name"), email)
 
         return ExternalIdentity(
             provider=self.provider_name,

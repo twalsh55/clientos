@@ -59,6 +59,7 @@ function makeState() {
       business_name: "",
       business_website: "",
       outbound_sender_name: "",
+      profile_alias: "",
       business_logo_data_url: "",
       onboarding_profile_deferred: false,
       crm_ai_prompt:

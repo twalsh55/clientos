@@ -177,6 +177,7 @@ def test_design_lead_follow_up_email_uses_lead_context_and_business_profile() ->
         business_name="Northstar Studio",
         business_website="https://northstar.example",
         outbound_sender_name="Ada from Northstar",
+        profile_alias="ada",
         business_logo_data_url=settings.business_logo_data_url,
         onboarding_profile_deferred=settings.onboarding_profile_deferred,
         crm_ai_prompt=settings.crm_ai_prompt,

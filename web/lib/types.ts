@@ -44,6 +44,7 @@ export type AccountSettings = {
   business_name: string;
   business_website: string;
   outbound_sender_name: string;
+  profile_alias: string;
   business_logo_data_url: string;
   onboarding_profile_deferred: boolean;
   crm_ai_prompt: string;

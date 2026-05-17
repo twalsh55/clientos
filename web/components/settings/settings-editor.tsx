@@ -36,6 +36,7 @@ export function SettingsEditor({
       business_name: "",
       business_website: "",
       outbound_sender_name: "",
+      profile_alias: "",
       business_logo_data_url: "",
       onboarding_profile_deferred: false,
       crm_ai_prompt:
@@ -83,6 +84,7 @@ export function SettingsEditor({
       business_name: form.business_name.trim(),
       business_website: form.business_website.trim(),
       outbound_sender_name: form.outbound_sender_name.trim(),
+      profile_alias: form.profile_alias.trim(),
       business_logo_data_url: form.business_logo_data_url.trim(),
       onboarding_profile_deferred:
         form.onboarding_profile_deferred &&
@@ -132,6 +134,15 @@ export function SettingsEditor({
           Brivoly uses this brand context when it names automatic emails, personalizes onboarding, and presents the CRM workspace.
         </p>
         <div className="mt-4 grid gap-4 sm:grid-cols-2">
+          <Field label="User alias">
+            <input
+              className={inputClassName(Boolean(errors.profile_alias))}
+              value={form.profile_alias}
+              onChange={(event) => updateField("profile_alias", event.target.value)}
+              placeholder="tom"
+            />
+            {errors.profile_alias ? <FieldError message={errors.profile_alias} /> : null}
+          </Field>
           <Field label="Business name">
             <input
               className={inputClassName(Boolean(errors.business_name))}
@@ -400,6 +411,9 @@ function validateForm(form: AccountSettings) {
   }
   if (form.crm_image_intake_notes.length > 1000) {
     nextErrors.crm_image_intake_notes = "Routing notes must be 1000 characters or fewer.";
+  }
+  if (form.profile_alias.length > 80) {
+    nextErrors.profile_alias = "Alias must be 80 characters or fewer.";
   }
   return nextErrors;
 }

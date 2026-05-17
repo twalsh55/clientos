@@ -8,6 +8,7 @@ import { DashboardWorkspace } from "@/components/dashboard/dashboard-workspace";
 import { BusinessProfileOnboarding } from "@/components/settings/business-profile-onboarding";
 import { SettingsEditor } from "@/components/settings/settings-editor";
 import type { ShellData } from "@/lib/types";
+import { resolveUserDisplayName } from "@/lib/user-display";
 
 const navItems = [
   { label: "Overview", href: "#overview" },
@@ -25,6 +26,7 @@ export function AppShell({ data }: AppShellProps) {
   const user = data.session?.user;
   const alertItems = data.alerts?.items ?? [];
   const settings = data.settings;
+  const userLabel = resolveUserDisplayName(user, settings);
   const riskScore = data.dashboard?.risk_score ?? null;
   const crashTone = getCrashTone(riskScore);
 
@@ -61,7 +63,7 @@ export function AppShell({ data }: AppShellProps) {
             {user ? "Signed in to crash monitor" : "Guest mode in crash monitor"}
           </p>
           <p className="mt-2 text-lg font-medium">
-            {user ? user.display_name ?? user.email ?? user.auth_subject : "No active account session detected"}
+            {user ? userLabel ?? "Connected account" : "No active account session detected"}
           </p>
           <p className="mt-2 text-sm text-slate-300">
             {user ? "Your account is connected and live dashboard data is available." : "Sign in to load live dashboard data, saved settings, alerts, and billing access."}
@@ -98,7 +100,7 @@ export function AppShell({ data }: AppShellProps) {
                 </p>
                 <p className="mt-2 text-lg font-semibold">
                   {user
-                    ? `Signed in as ${user.display_name ?? user.email ?? user.auth_subject}`
+                    ? `Signed in as ${userLabel ?? "connected account"}`
                     : "You are viewing the crash monitor without a signed-in account."}
                 </p>
                 <p className="mt-2 text-sm leading-6">
@@ -173,7 +175,7 @@ export function AppShell({ data }: AppShellProps) {
             title={user ? "You are signed in" : "You are not signed in yet"}
             description={
               user
-                ? `${user.display_name ?? user.email ?? user.auth_subject} is recognized and mapped to an internal application user.`
+                ? `${userLabel ?? "This account"} is recognized and mapped to an internal application user.`
                 : "This dashboard shell loaded without an authenticated account session, so account-specific dashboard features stay unavailable until sign-in."
             }
           >

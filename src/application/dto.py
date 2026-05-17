@@ -107,6 +107,7 @@ class UserDashboardSettingsDTO:
     business_name: str
     business_website: str
     outbound_sender_name: str
+    profile_alias: str
     business_logo_data_url: str
     onboarding_profile_deferred: bool
     crm_ai_prompt: str
@@ -393,6 +394,7 @@ def build_user_dashboard_settings_dto(settings: UserDashboardSettings) -> UserDa
         business_name=settings.business_name,
         business_website=settings.business_website,
         outbound_sender_name=settings.outbound_sender_name,
+        profile_alias=settings.profile_alias,
         business_logo_data_url=settings.business_logo_data_url,
         onboarding_profile_deferred=settings.onboarding_profile_deferred,
         crm_ai_prompt=settings.crm_ai_prompt,

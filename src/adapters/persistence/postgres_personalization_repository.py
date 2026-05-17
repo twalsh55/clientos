@@ -32,6 +32,7 @@ class PostgresPersonalizationRepository:
                         business_name TEXT NOT NULL DEFAULT '',
                         business_website TEXT NOT NULL DEFAULT '',
                         outbound_sender_name TEXT NOT NULL DEFAULT '',
+                        profile_alias TEXT NOT NULL DEFAULT '',
                         business_logo_data_url TEXT NOT NULL DEFAULT '',
                         onboarding_profile_deferred BOOLEAN NOT NULL DEFAULT FALSE,
                         crm_ai_prompt TEXT NOT NULL DEFAULT '',
@@ -59,6 +60,12 @@ class PostgresPersonalizationRepository:
                     """
                     ALTER TABLE user_dashboard_settings
                     ADD COLUMN IF NOT EXISTS outbound_sender_name TEXT NOT NULL DEFAULT ''
+                    """
+                )
+                cursor.execute(
+                    """
+                    ALTER TABLE user_dashboard_settings
+                    ADD COLUMN IF NOT EXISTS profile_alias TEXT NOT NULL DEFAULT ''
                     """
                 )
                 cursor.execute(
@@ -136,6 +143,7 @@ class PostgresPersonalizationRepository:
                         business_name,
                         business_website,
                         outbound_sender_name,
+                        profile_alias,
                         business_logo_data_url,
                         onboarding_profile_deferred,
                         crm_ai_prompt,
@@ -171,6 +179,7 @@ class PostgresPersonalizationRepository:
                         business_name,
                         business_website,
                         outbound_sender_name,
+                        profile_alias,
                         business_logo_data_url,
                         onboarding_profile_deferred,
                         crm_ai_prompt,
@@ -193,6 +202,7 @@ class PostgresPersonalizationRepository:
                         %(business_name)s,
                         %(business_website)s,
                         %(outbound_sender_name)s,
+                        %(profile_alias)s,
                         %(business_logo_data_url)s,
                         %(onboarding_profile_deferred)s,
                         %(crm_ai_prompt)s,
@@ -215,6 +225,7 @@ class PostgresPersonalizationRepository:
                         business_name = EXCLUDED.business_name,
                         business_website = EXCLUDED.business_website,
                         outbound_sender_name = EXCLUDED.outbound_sender_name,
+                        profile_alias = EXCLUDED.profile_alias,
                         business_logo_data_url = EXCLUDED.business_logo_data_url,
                         onboarding_profile_deferred = EXCLUDED.onboarding_profile_deferred,
                         crm_ai_prompt = EXCLUDED.crm_ai_prompt,
@@ -235,6 +246,7 @@ class PostgresPersonalizationRepository:
                         business_name,
                         business_website,
                         outbound_sender_name,
+                        profile_alias,
                         business_logo_data_url,
                         onboarding_profile_deferred,
                         crm_ai_prompt,
@@ -255,6 +267,7 @@ class PostgresPersonalizationRepository:
                         "business_name": settings.business_name,
                         "business_website": settings.business_website,
                         "outbound_sender_name": settings.outbound_sender_name,
+                        "profile_alias": settings.profile_alias,
                         "business_logo_data_url": settings.business_logo_data_url,
                         "onboarding_profile_deferred": settings.onboarding_profile_deferred,
                         "crm_ai_prompt": settings.crm_ai_prompt,
@@ -343,6 +356,7 @@ def _row_to_dashboard_settings(row: dict[str, object]) -> UserDashboardSettings:
         business_name=str(row.get("business_name") or ""),
         business_website=str(row.get("business_website") or ""),
         outbound_sender_name=str(row.get("outbound_sender_name") or ""),
+        profile_alias=str(row.get("profile_alias") or ""),
         business_logo_data_url=str(row.get("business_logo_data_url") or ""),
         onboarding_profile_deferred=bool(row.get("onboarding_profile_deferred")),
         crm_ai_prompt=str(row.get("crm_ai_prompt") or ""),

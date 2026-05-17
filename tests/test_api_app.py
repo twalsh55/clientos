@@ -260,6 +260,7 @@ def test_account_settings_and_alert_history_dtos_serialize_values() -> None:
         business_name="Northstar Studio",
         business_website="https://northstar.example",
         outbound_sender_name="Ada from Northstar",
+        profile_alias="ada",
         business_logo_data_url="data:image/png;base64,ZmFrZQ==",
         onboarding_profile_deferred=False,
         crm_ai_prompt="Extract CRM fields from spreadsheets and screenshots.",
@@ -282,6 +283,7 @@ def test_account_settings_and_alert_history_dtos_serialize_values() -> None:
     assert settings_payload["telegram_enabled"] is True
     assert settings_payload["business_name"] == "Northstar Studio"
     assert settings_payload["outbound_sender_name"] == "Ada from Northstar"
+    assert settings_payload["profile_alias"] == "ada"
     assert settings_payload["crm_preferred_import_formats"] == ["csv", "spreadsheet_screenshot"]
     assert settings_payload["crm_image_intake_channels"] == ["upload", "whatsapp", "telegram"]
     assert alert_payload["title"] == "Updated"
@@ -1164,6 +1166,7 @@ def test_account_use_cases_and_in_memory_repository_round_trip_settings_and_aler
         business_name="",
         business_website="",
         outbound_sender_name="",
+        profile_alias="",
         business_logo_data_url="",
         onboarding_profile_deferred=False,
         crm_ai_prompt="default prompt",
@@ -1192,6 +1195,7 @@ def test_account_use_cases_and_in_memory_repository_round_trip_settings_and_aler
             business_name="Northstar Studio",
             business_website="https://northstar.example",
             outbound_sender_name="Ada from Northstar",
+            profile_alias="ada",
             business_logo_data_url="data:image/png;base64,ZmFrZQ==",
             onboarding_profile_deferred=False,
             crm_ai_prompt="Keep owner and next follow-up visible.",
@@ -1245,6 +1249,7 @@ def test_dashboard_settings_helpers_normalize_defaults_and_build_config() -> Non
             business_name="  Northstar Studio  ",
             business_website="  https://northstar.example  ",
             outbound_sender_name="  Ada from Northstar  ",
+            profile_alias="  ada  ",
             business_logo_data_url="  data:image/png;base64,ZmFrZQ==  ",
             onboarding_profile_deferred=True,
             crm_ai_prompt="  Keep OCR evidence when uncertain.  ",
@@ -1258,6 +1263,7 @@ def test_dashboard_settings_helpers_normalize_defaults_and_build_config() -> Non
     assert normalized.vix_symbol == "^VIX"
     assert normalized.business_name == "Northstar Studio"
     assert normalized.business_website == "https://northstar.example"
+    assert normalized.profile_alias == "ada"
     assert normalized.outbound_sender_name == "Ada from Northstar"
     assert normalized.business_logo_data_url == "data:image/png;base64,ZmFrZQ=="
     assert normalized.onboarding_profile_deferred is False
@@ -1442,6 +1448,7 @@ def test_account_settings_endpoints_and_alert_history_round_trip() -> None:
             "business_name": "Northstar Studio",
             "business_website": "https://northstar.example",
             "outbound_sender_name": "Ada from Northstar",
+            "profile_alias": "ada",
             "business_logo_data_url": "data:image/png;base64,ZmFrZQ==",
             "onboarding_profile_deferred": False,
             "crm_ai_prompt": "Prefer extracting next step and owner from screenshots.",
@@ -1456,6 +1463,7 @@ def test_account_settings_endpoints_and_alert_history_round_trip() -> None:
     assert update_response.json()["telegram_enabled"] is True
     assert update_response.json()["business_name"] == "Northstar Studio"
     assert update_response.json()["outbound_sender_name"] == "Ada from Northstar"
+    assert update_response.json()["profile_alias"] == "ada"
     assert update_response.json()["crm_preferred_import_formats"] == ["spreadsheet_screenshot", "pdf_export"]
     assert update_response.json()["crm_image_intake_channels"] == ["whatsapp", "telegram"]
 
@@ -1578,6 +1586,7 @@ def test_crm_followup_email_draft_endpoint_returns_designed_draft() -> None:
             business_name="Northstar Studio",
             business_website="https://northstar.example",
             outbound_sender_name="Ada from Northstar",
+            profile_alias="ada",
             business_logo_data_url="",
             onboarding_profile_deferred=False,
             crm_ai_prompt="",
@@ -1998,6 +2007,7 @@ def test_account_settings_validation_and_alert_defaults_work() -> None:
             "business_name": "",
             "business_website": "",
             "outbound_sender_name": "",
+            "profile_alias": "",
             "business_logo_data_url": "",
             "onboarding_profile_deferred": False,
             "crm_ai_prompt": "",

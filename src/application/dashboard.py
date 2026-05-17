@@ -29,6 +29,7 @@ def build_default_dashboard_settings(user_id: UUID, *, telegram_enabled: bool) -
         business_name="",
         business_website="",
         outbound_sender_name="",
+        profile_alias="",
         business_logo_data_url="",
         onboarding_profile_deferred=False,
         crm_ai_prompt="Focus on extracting follow-up-critical CRM fields from messy spreadsheets, files, and images. Prioritize lead name, company, owner, stage, next follow-up date, notes, and next step. Preserve evidence when uncertain.",
@@ -50,6 +51,7 @@ def normalize_dashboard_settings(settings: UserDashboardSettings) -> UserDashboa
         business_name=_normalize_free_text(settings.business_name),
         business_website=_normalize_free_text(settings.business_website),
         outbound_sender_name=_normalize_free_text(settings.outbound_sender_name),
+        profile_alias=_normalize_alias(settings.profile_alias),
         business_logo_data_url=settings.business_logo_data_url.strip(),
         onboarding_profile_deferred=bool(settings.onboarding_profile_deferred)
         and not (_normalize_free_text(settings.business_name) and _normalize_free_text(settings.outbound_sender_name)),
@@ -99,3 +101,8 @@ def _normalize_import_formats(formats: list[str]) -> list[str]:
 
 def _normalize_free_text(value: str) -> str:
     return value.strip()
+
+
+def _normalize_alias(value: str) -> str:
+    cleaned = " ".join(value.strip().split())
+    return cleaned[:80]

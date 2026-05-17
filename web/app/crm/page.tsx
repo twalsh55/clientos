@@ -6,6 +6,7 @@ import { CRMFollowUpWorkspace } from "@/components/crm-follow-up-workspace";
 import { Button } from "@/components/ui/button";
 import { BRIVOLY_SESSION_COOKIE, LEGACY_TRADE_SESSION_COOKIE } from "@/lib/auth";
 import { getAccountSettings, getBillingOverview, getCrmFollowUpOverview, getCrmRemoteIntakeChannel, getSession, getSettingsBootstrap } from "@/lib/api";
+import { resolveUserDisplayName } from "@/lib/user-display";
 
 export const dynamic = "force-dynamic";
 
@@ -30,6 +31,7 @@ export default async function CRMPortalPage() {
         getCrmRemoteIntakeChannel({ sessionToken, cookieHeader }).catch(() => null),
       ])
     : [null, null, null, null];
+  const userLabel = resolveUserDisplayName(user, accountSettings);
 
   return (
     <main className="mx-auto min-h-screen w-full max-w-6xl px-4 py-6 lg:px-8">
@@ -55,12 +57,16 @@ export default async function CRMPortalPage() {
               <p className="text-xs font-semibold uppercase tracking-[0.22em]">{user ? "Signed in to CRM" : "Guest mode in CRM"}</p>
               <p className="mt-2 text-lg font-semibold">
                 {user
-                  ? `${user.display_name ?? user.email ?? user.auth_subject} is recognized on this device.`
+                  ? userLabel
+                    ? `${userLabel} is recognized on this device.`
+                    : "Your account is recognized on this device."
                   : "No account session is active, so the live CRM queue is locked."}
               </p>
               <p className="mt-2 text-sm leading-6">
                 {user
-                  ? `Welcome back, ${user.display_name ?? user.email ?? user.auth_subject}. Your follow-up queue and account history are ready below.`
+                  ? userLabel
+                    ? `Welcome back, ${userLabel}. Your follow-up queue and account history are ready below.`
+                    : "Welcome back. Your follow-up queue and account history are ready below."
                   : "You can look around the CRM portal now, but sign in to open the actual follow-up queue, notes, relationship memory, and account history."}
               </p>
             </div>

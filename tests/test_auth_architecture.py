@@ -147,7 +147,7 @@ def test_clerk_auth_provider_authenticates_and_normalizes_profile(monkeypatch) -
     assert identity == make_identity()
 
 
-def test_clerk_auth_provider_falls_back_to_claims_and_subject(monkeypatch) -> None:
+def test_clerk_auth_provider_falls_back_to_claims_without_exposing_subject_as_display_name(monkeypatch) -> None:
     monkeypatch.setattr(jwt, "PyJWKClient", lambda url: SimpleNamespace(get_signing_key_from_jwt=lambda token: None))
     provider = ClerkAuthProvider(ClerkAuthConfig(publishable_key="pk_test_ZXhhbXBsZS5jbGVyay5hY2NvdW50cy5kZXYk"))
     monkeypatch.setattr(
@@ -165,7 +165,7 @@ def test_clerk_auth_provider_falls_back_to_claims_and_subject(monkeypatch) -> No
     identity = provider.authenticate_session_token("session-token")
 
     assert identity.email is None
-    assert identity.display_name == "user_123"
+    assert identity.display_name is None
     assert identity.given_name == "Ada"
     assert identity.family_name == "Lovelace"
     assert identity.session_id is None

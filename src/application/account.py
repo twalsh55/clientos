@@ -23,6 +23,7 @@ class UserDashboardSettings:
     business_name: str
     business_website: str
     outbound_sender_name: str
+    profile_alias: str
     business_logo_data_url: str
     onboarding_profile_deferred: bool
     crm_ai_prompt: str

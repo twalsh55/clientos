@@ -122,6 +122,7 @@ class UserDashboardSettingsPayload(BaseModel):
     business_name: str = Field(default="", max_length=160)
     business_website: str = Field(default="", max_length=255)
     outbound_sender_name: str = Field(default="", max_length=160)
+    profile_alias: str = Field(default="", max_length=80)
     business_logo_data_url: str = Field(default="", max_length=700_000)
     onboarding_profile_deferred: bool = False
     crm_ai_prompt: str = Field(default="", max_length=4000)
@@ -267,6 +268,7 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
                 business_name=payload.business_name,
                 business_website=payload.business_website,
                 outbound_sender_name=payload.outbound_sender_name,
+                profile_alias=payload.profile_alias,
                 business_logo_data_url=payload.business_logo_data_url,
                 onboarding_profile_deferred=payload.onboarding_profile_deferred,
                 crm_ai_prompt=payload.crm_ai_prompt,
@@ -571,6 +573,7 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
                 business_name="",
                 business_website="",
                 outbound_sender_name="",
+                profile_alias="",
                 business_logo_data_url="",
                 onboarding_profile_deferred=False,
                 crm_ai_prompt="",
