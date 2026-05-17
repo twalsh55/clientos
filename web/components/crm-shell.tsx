@@ -58,9 +58,9 @@ export function CRMShell({ data }: { data: CRMPageData }) {
 
 function describeLoadFailure(data: CRMPageData): string {
   if (data.session?.authenticated) {
-    return "Your account session is active, but the relationship workspace did not finish loading. Refresh and Brivoly should retry with the same account context.";
+    return "Your account session is active, but the relationship view did not finish loading. Refresh and Brivoly should retry with the same account context.";
   }
-  return "Brivoly could not finish loading the client workspace data. Refresh and it should retry the guest workspace automatically.";
+  return "Brivoly could not finish loading the relationship view. Refresh and it should retry the guest view automatically.";
 }
 
 function resolveCRMView(pathname: string): CRMWorkspaceView {

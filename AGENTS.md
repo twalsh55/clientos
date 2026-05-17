@@ -95,7 +95,7 @@ cd web && npm run e2e
   - left taskbar with dedicated Client OS pages
   - Today priorities with direct draft/review actions
   - follow-up queue
-  - inbox-native relationship page for auto-logging email threads
+  - inbox-native relationship page for auto-logging email threads and reconnect-aware next moves
   - email-thread ingestion that can auto-create/update contacts from inbox activity
   - attention view with reconnect-first guidance and direct draft actions
   - complete and snooze actions

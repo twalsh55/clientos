@@ -43,7 +43,7 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
             </p>
             <div className="mt-6 rounded-[1.5rem] border border-cyan-200 bg-cyan-50 px-5 py-4 text-cyan-950">
               <p className="ui-eyebrow-strong text-cyan-900">New account setup</p>
-              <p className="mt-2 text-lg font-semibold">Create the account here, then Brivoly will open your client workspace.</p>
+              <p className="mt-2 text-lg font-semibold">Create the account here, then Brivoly will open your relationship memory.</p>
               <p className="mt-2 text-sm leading-6">
                 No localhost redirect detour, no manual re-entry. The goal is one clean handoff into the app.
               </p>
@@ -56,11 +56,11 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
           </div>
 
           <div className="w-full max-w-md rounded-[1.75rem] border bg-slate-950 p-5 text-slate-50 shadow-[0_24px_80px_-50px_rgba(15,23,42,0.9)]">
-            <p className="ui-eyebrow-inverse text-cyan-300">Portal Status</p>
+            <p className="ui-eyebrow-inverse text-cyan-300">Sign-up status</p>
             <div className="mt-4 space-y-3">
               <SignUpStatusRow label="Session" value="Creating a new account on this device" />
-              <SignUpStatusRow label="Destination" value={redirectTo === "/clientos" ? "Client OS workspace" : "Brivoly workspace"} />
-              <SignUpStatusRow label="Next step" value="Create account, then open your queue" />
+              <SignUpStatusRow label="Destination" value={redirectTo === "/clientos" ? "Client OS" : "Brivoly"} />
+              <SignUpStatusRow label="Next step" value="Create account, then open your relationship flow" />
             </div>
           </div>
         </div>
@@ -71,7 +71,7 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
           <p className="ui-eyebrow">Before You Continue</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Account creation should stay inside the app.</h2>
           <p className="mt-3 text-sm leading-7 text-slate-600">
-            This flow mirrors the CRM entry surface so new users land in the same visual language and continue straight into their workspace.
+            This flow mirrors the Client OS entry surface so new users land in the same visual language and continue straight into their relationship flow.
           </p>
           <div className="mt-5 space-y-3">
             <InfoCard
@@ -80,7 +80,7 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
             />
             <InfoCard
               label="What happens"
-              body="Create the account below, Brivoly secures your session, then returns you to the client workspace."
+              body="Create the account below, Brivoly secures your session, then returns you to the relationship flow."
             />
             <InfoCard
               label="Why this path"

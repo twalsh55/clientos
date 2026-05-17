@@ -593,7 +593,7 @@ export function CRMFollowUpWorkspace({
         accent="amber"
         onSettingsUpdated={(nextSettings) => setSettings(nextSettings)}
         title="Set the basics once so Brivoly can sound like your business."
-        description="New accounts should quickly tell Brivoly the business name, sender name for automatic emails, and an optional logo. You can skip it for now, but this is how the CRM starts feeling like your workspace instead of a generic tool."
+        description="New accounts should quickly tell Brivoly the business name, sender name for automatic emails, and an optional logo. You can skip it for now, but this is what makes the relationship memory feel like your business instead of a generic tool."
       />
 
       <CRMViewHeader view={view} />
@@ -954,14 +954,7 @@ export function CRMFollowUpWorkspace({
             {selectedLead ? (
               <InboxNextMovePanel
                 lead={selectedLead}
-                onDraftReply={() => {
-                  generateEmailDraft({
-                    objective: "follow_up",
-                    tone: "warm",
-                    length: "short",
-                    status: "Drafting a reply that keeps the thread moving...",
-                  });
-                }}
+                onDraftAction={(draft) => generateEmailDraft(draft)}
                 isDrafting={isEmailPending}
                 draftStatus={emailStatus}
               />
@@ -1659,18 +1652,44 @@ function InboxActivityPanel({
 
 function InboxNextMovePanel({
   lead,
-  onDraftReply,
+  onDraftAction,
   isDrafting,
   draftStatus,
 }: {
   lead: CRMLeadFollowUp;
-  onDraftReply: () => void;
+  onDraftAction: (draft: {
+    objective: CRMEmailDraft["objective"];
+    tone: CRMEmailDraft["tone"];
+    length: CRMEmailDraft["length"];
+    status: string;
+  }) => void;
   isDrafting: boolean;
   draftStatus: string | null;
 }) {
   const latestThread = [...lead.recent_email_threads].sort(
     (left, right) => new Date(right.last_message_at).getTime() - new Date(left.last_message_at).getTime(),
   )[0] ?? null;
+  const quietReconnect = latestThread ? isQuietThread(latestThread) && !latestThread.needs_reply : false;
+  const shouldReconnect = quietReconnect || isReconnectMoment(lead);
+  const primaryAction = shouldReconnect
+    ? {
+        label: "Draft reconnect",
+        draft: {
+          objective: "revive" as const,
+          tone: "warm" as const,
+          length: "short" as const,
+          status: "Drafting a gentle reconnect from Inbox...",
+        },
+      }
+    : {
+        label: "Draft reply",
+        draft: {
+          objective: "follow_up" as const,
+          tone: "warm" as const,
+          length: "short" as const,
+          status: "Drafting a reply that keeps the thread moving...",
+        },
+      };
 
   return (
     <section className="mt-6 rounded-[1.4rem] border bg-white p-5 shadow-sm">
@@ -1679,7 +1698,7 @@ function InboxNextMovePanel({
       <p className="mt-1 text-sm text-slate-600">{lead.company_name}</p>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         <TimelineTile label="Brivoly read" value={latestThread ? latestThread.next_touch_hint : "No synced thread yet"} />
-        <TimelineTile label="Suggested next touch" value={lead.next_step} />
+        <TimelineTile label="Suggested next touch" value={shouldReconnect ? lead.relationship_reconnect_next_move || lead.next_step : lead.next_step} />
       </div>
       {latestThread ? (
         <div className="mt-4 rounded-[1.2rem] border bg-slate-50/80 px-4 py-4">
@@ -1688,9 +1707,22 @@ function InboxNextMovePanel({
           <p className="mt-2 text-sm leading-6 text-slate-600">{latestThread.memory_summary}</p>
         </div>
       ) : null}
+      {lead.relationship_recent_upload_summary ? (
+        <div className="mt-4 rounded-[1.2rem] border bg-slate-50/80 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Fresh client context</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{lead.relationship_recent_upload_summary}</p>
+        </div>
+      ) : null}
+      {shouldReconnect ? (
+        <div className="mt-4 rounded-[1.2rem] border bg-slate-50/80 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Gentle re-entry</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{lead.relationship_reconnect_why_now || lead.relationship_timing_nudge}</p>
+          <p className="mt-3 text-sm leading-6 text-slate-700">{lead.relationship_reconnect_message_hint || "Keep it warm, brief, and easy to answer."}</p>
+        </div>
+      ) : null}
       <div className="mt-4 flex flex-wrap gap-3">
-        <Button disabled={isDrafting} onClick={onDraftReply}>
-          {isDrafting ? "Drafting..." : "Draft reply"}
+        <Button disabled={isDrafting} onClick={() => onDraftAction(primaryAction.draft)}>
+          {isDrafting ? "Drafting..." : primaryAction.label}
         </Button>
         <Button asChild variant="outline">
           <Link href="/clientos/follow-ups">Open relationship</Link>
