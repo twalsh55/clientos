@@ -595,6 +595,8 @@ def _build_reconnect_next_move(item: LeadFollowUp, current_time: datetime) -> st
         return _sentence_case(_ensure_sentence(item.next_step))
     if item.last_meaningful_interaction_at:
         return f"Reference the last meaningful touch from {_relative_days(item.last_meaningful_interaction_at, current_time).lower()} and suggest one small next step."
+    if item.company_name.strip() and _has_thin_reconnect_context(item):
+        return f"Send a short check-in to {item.company_name}, keep the gap low-pressure, and offer one easy next step."
     if item.company_name.strip():
         return f"Keep it light: ask where things stand with {item.company_name} and offer one easy next step."
     latest_entries = sorted(item.timeline, key=lambda entry: entry.occurred_at, reverse=True)[:1]
@@ -627,6 +629,8 @@ def _build_reconnect_message_hint(item: LeadFollowUp, current_time: datetime) ->
         return f'Quick angle: "Wanted to circle back while the context around {_truncate_sentence(item.relationship_context_summary, 90)} is still fresh."'
     if item.last_meaningful_interaction_at:
         return f'Quick angle: "Wanted to reconnect after {_relative_days(item.last_meaningful_interaction_at, current_time).lower()} and make the next step easy from here."'
+    if item.company_name.strip() and _has_thin_reconnect_context(item):
+        return f'Quick angle: "Wanted to check in on {item.company_name} and see if it makes sense to pick this back up."'
     if item.company_name.strip():
         return f'Quick angle: "Wanted to check back in on {item.company_name} and see if this is worth picking back up."'
     latest_entries = sorted(item.timeline, key=lambda entry: entry.occurred_at, reverse=True)[:1]

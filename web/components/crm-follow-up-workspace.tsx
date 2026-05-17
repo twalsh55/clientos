@@ -1186,20 +1186,23 @@ function TodayPrioritiesPanel({
       ? {
           id: `${recentUploadLead.id}-upload`,
           href: "/clientos/follow-ups",
-          eyebrow: "Client upload",
-          title: `Review new files from ${recentUploadLead.lead_name}`,
+          eyebrow: isReconnectMoment(recentUploadLead) ? "Fresh way back in" : "Client upload",
+          title: isReconnectMoment(recentUploadLead) ? `Use new context to reopen ${recentUploadLead.lead_name}` : `Review new files from ${recentUploadLead.lead_name}`,
           body:
+            (isReconnectMoment(recentUploadLead)
+              ? recentUploadLead.relationship_reconnect_why_now || recentUploadLead.relationship_upload_follow_through_hint
+              : undefined) ||
             recentUploadLead.relationship_upload_follow_through_hint ||
             `${recentUploadLead.relationship_recent_upload_summary}${recentUploadLead.next_step.trim() ? ` Next touch: ${recentUploadLead.next_step}` : ""}`,
           meta: `${recentUploadLead.company_name} · ${formatDateTime(getLatestUploadContextEntry(recentUploadLead)?.occurred_at ?? null)}`,
           nextMove: recentUploadLead.relationship_upload_follow_through_hint || recentUploadLead.relationship_reconnect_next_move || "Turn the fresh client context into a quick follow-through note.",
-          actionLabel: "Draft note",
+          actionLabel: isReconnectMoment(recentUploadLead) ? "Draft reconnect" : "Draft note",
           onAction: () =>
             onRunAction(recentUploadLead.id, "/clientos/follow-ups", {
-              objective: "recap",
+              objective: isReconnectMoment(recentUploadLead) ? "revive" : "recap",
               tone: "warm",
               length: "short",
-              status: "Drafting a note from fresh client context...",
+              status: isReconnectMoment(recentUploadLead) ? "Drafting a reconnect from fresh client context..." : "Drafting a note from fresh client context...",
             }),
         }
       : null,
