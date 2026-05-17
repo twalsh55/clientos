@@ -9,9 +9,11 @@ from src.application.account import AlertHistoryEntry, UserDashboardSettings
 from src.application.billing import BillingOverview
 from src.domain.auth import User
 from src.domain.crm import (
+    LeadEmailThreadSummary,
     LeadFollowUp,
     LeadFollowUpEmailDraft,
     LeadFollowUpOverview,
+    LeadInboxSummary,
     LeadPipelineStageSummary,
     LeadPipelineSummary,
     LeadRelationshipReminder,
@@ -146,6 +148,7 @@ class LeadFollowUpDTO:
     lead_name: str
     company_name: str
     owner_name: str
+    email_address: str
     stage: str
     priority: str
     contact_channel: str
@@ -163,6 +166,7 @@ class LeadFollowUpDTO:
     relationship_health_label: str
     dormant: bool
     relationship_reminders: list["LeadRelationshipReminderDTO"]
+    recent_email_threads: list["LeadEmailThreadSummaryDTO"]
 
 
 @dataclass(frozen=True)
@@ -203,6 +207,20 @@ class LeadRelationshipSummaryDTO:
 
 
 @dataclass(frozen=True)
+class LeadEmailThreadSummaryDTO:
+    thread_id: str
+    subject: str
+    counterpart_name: str
+    counterpart_email: str
+    last_message_at: str
+    last_message_direction: str
+    message_count: int
+    snippet: str
+    needs_reply: bool
+    waiting_on_contact: bool
+
+
+@dataclass(frozen=True)
 class LeadPipelineStageSummaryDTO:
     stage: str
     lead_count: int
@@ -218,6 +236,16 @@ class LeadPipelineSummaryDTO:
 
 
 @dataclass(frozen=True)
+class LeadInboxSummaryDTO:
+    connected_contact_count: int
+    active_thread_count: int
+    needs_reply_count: int
+    waiting_on_contact_count: int
+    stale_thread_count: int
+    auto_created_contact_count: int
+
+
+@dataclass(frozen=True)
 class LeadFollowUpOverviewDTO:
     generated_at: str
     total_open: int
@@ -227,6 +255,7 @@ class LeadFollowUpOverviewDTO:
     items: list[LeadFollowUpDTO]
     relationship_summary: LeadRelationshipSummaryDTO | None
     pipeline_summary: LeadPipelineSummaryDTO | None
+    inbox_summary: LeadInboxSummaryDTO | None
 
 
 @dataclass(frozen=True)
@@ -456,6 +485,7 @@ def build_lead_follow_up_overview_dto(overview: LeadFollowUpOverview) -> LeadFol
         items=[build_lead_follow_up_dto(item) for item in overview.items],
         relationship_summary=build_lead_relationship_summary_dto(overview.relationship_summary),
         pipeline_summary=build_lead_pipeline_summary_dto(overview.pipeline_summary),
+        inbox_summary=build_lead_inbox_summary_dto(overview.inbox_summary),
     )
 
 
@@ -477,6 +507,7 @@ def build_lead_follow_up_dto(item: LeadFollowUp) -> LeadFollowUpDTO:
         lead_name=item.lead_name,
         company_name=item.company_name,
         owner_name=item.owner_name,
+        email_address=item.email_address,
         stage=item.stage,
         priority=item.priority,
         contact_channel=item.contact_channel,
@@ -494,6 +525,7 @@ def build_lead_follow_up_dto(item: LeadFollowUp) -> LeadFollowUpDTO:
         relationship_health_label=item.relationship_health_label,
         dormant=item.dormant,
         relationship_reminders=[build_lead_relationship_reminder_dto(item) for item in item.relationship_reminders],
+        recent_email_threads=[build_lead_email_thread_summary_dto(thread) for thread in item.recent_email_threads],
     )
 
 
@@ -558,6 +590,34 @@ def build_lead_pipeline_stage_summary_dto(stage: LeadPipelineStageSummary) -> Le
         due_this_week_count=stage.due_this_week_count,
         high_priority_count=stage.high_priority_count,
         dormant_count=stage.dormant_count,
+    )
+
+
+def build_lead_email_thread_summary_dto(thread: LeadEmailThreadSummary) -> LeadEmailThreadSummaryDTO:
+    return LeadEmailThreadSummaryDTO(
+        thread_id=thread.thread_id,
+        subject=thread.subject,
+        counterpart_name=thread.counterpart_name,
+        counterpart_email=thread.counterpart_email,
+        last_message_at=thread.last_message_at.isoformat(),
+        last_message_direction=thread.last_message_direction,
+        message_count=thread.message_count,
+        snippet=thread.snippet,
+        needs_reply=thread.needs_reply,
+        waiting_on_contact=thread.waiting_on_contact,
+    )
+
+
+def build_lead_inbox_summary_dto(summary: LeadInboxSummary | None) -> LeadInboxSummaryDTO | None:
+    if summary is None:
+        return None
+    return LeadInboxSummaryDTO(
+        connected_contact_count=summary.connected_contact_count,
+        active_thread_count=summary.active_thread_count,
+        needs_reply_count=summary.needs_reply_count,
+        waiting_on_contact_count=summary.waiting_on_contact_count,
+        stale_thread_count=summary.stale_thread_count,
+        auto_created_contact_count=summary.auto_created_contact_count,
     )
 
 

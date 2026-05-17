@@ -6,7 +6,15 @@ from uuid import UUID
 import pandas as pd
 
 from src.application.account import UserDashboardSettings
-from src.application.crm import AddLeadFollowUpNoteUseCase, CompleteLeadFollowUpUseCase, DesignLeadFollowUpEmailUseCase, GetLeadFollowUpOverviewUseCase, SnoozeLeadFollowUpUseCase
+from src.application.crm import (
+    AddLeadFollowUpNoteUseCase,
+    CompleteLeadFollowUpUseCase,
+    DesignLeadFollowUpEmailUseCase,
+    EmailThreadMessageInput,
+    GetLeadFollowUpOverviewUseCase,
+    IngestLeadEmailThreadUseCase,
+    SnoozeLeadFollowUpUseCase,
+)
 from src.application.dashboard import build_default_dashboard_settings
 from src.adapters.crm.in_memory_follow_up_repository import InMemoryLeadFollowUpRepository
 from src.application.use_cases import BuildCrashDashboardUseCase
@@ -229,3 +237,70 @@ def test_follow_up_overview_enriches_relationship_intelligence() -> None:
     assert overview.pipeline_summary is not None
     assert any(stage.stage == "Proposal" for stage in overview.pipeline_summary.stage_summaries)
     assert any(stage.high_priority_count >= 1 for stage in overview.pipeline_summary.stage_summaries)
+
+
+def test_ingest_lead_email_thread_auto_updates_relationship_memory() -> None:
+    now = datetime(2024, 5, 17, 12, 30, tzinfo=UTC)
+    repository = InMemoryLeadFollowUpRepository(now=lambda: now)
+    user = make_user()
+
+    overview = IngestLeadEmailThreadUseCase(repository=repository, now=lambda: now).execute(
+        user,
+        source="gmail",
+        thread_id="thread-priya-followup",
+        messages=[
+            EmailThreadMessageInput(
+                message_id="msg-1",
+                sent_at=now,
+                direction="inbound",
+                from_email="priya@latticelane.com",
+                from_name="Priya Nair",
+                to_emails=("ada@example.com",),
+                subject="Re: spreadsheet workflow question",
+                body_text="Still using Sheets first. Happy to look at examples next week.",
+                snippet="Still using Sheets first. Happy to look at examples next week.",
+            )
+        ],
+    )
+
+    lead = next(item for item in overview.items if item.email_address == "priya@latticelane.com")
+    assert lead.contact_channel == "email"
+    assert lead.priority == "high"
+    assert lead.next_step == "Reply to Priya Nair's latest email."
+    assert lead.recent_email_threads
+    assert lead.recent_email_threads[0].needs_reply is True
+    assert any(entry.id == "email-msg-1" for entry in lead.timeline)
+    assert overview.inbox_summary is not None
+    assert overview.inbox_summary.needs_reply_count >= 1
+
+
+def test_ingest_lead_email_thread_auto_creates_contact_when_unknown() -> None:
+    now = datetime(2024, 5, 17, 12, 30, tzinfo=UTC)
+    repository = InMemoryLeadFollowUpRepository(now=lambda: now)
+    user = make_user()
+
+    overview = IngestLeadEmailThreadUseCase(repository=repository, now=lambda: now).execute(
+        user,
+        source="outlook",
+        thread_id="thread-new-contact",
+        messages=[
+            EmailThreadMessageInput(
+                message_id="msg-new-1",
+                sent_at=now,
+                direction="inbound",
+                from_email="maria@seabreezecreative.com",
+                from_name="Maria Costa",
+                to_emails=("ada@example.com",),
+                subject="Need a simpler client follow-up system",
+                body_text="We keep losing track of who owes the next reply.",
+                snippet="We keep losing track of who owes the next reply.",
+            )
+        ],
+    )
+
+    lead = next(item for item in overview.items if item.email_address == "maria@seabreezecreative.com")
+    assert lead.stage == "Inbox"
+    assert lead.lead_name == "Maria Costa"
+    assert lead.company_name == "Seabreezecreative"
+    assert overview.inbox_summary is not None
+    assert overview.inbox_summary.auto_created_contact_count >= 1

@@ -4,7 +4,7 @@ from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
 
 from src.domain.auth import User
-from src.domain.crm import LeadFollowUp, LeadTimelineEntry
+from src.domain.crm import LeadEmailThreadSummary, LeadFollowUp, LeadTimelineEntry
 
 
 class InMemoryLeadFollowUpRepository:
@@ -63,6 +63,7 @@ class InMemoryLeadFollowUpRepository:
                 next_follow_up_at=current_time - timedelta(hours=4),
                 next_step="Send a concise recap and propose two call slots.",
                 notes="Interested, but waiting on a clearer summary of timeline and scope.",
+                email_address="amber@northstarstudio.com",
                 referral_source_name="Jules from Seabird Partners",
                 birthday=date(1991, 5, 28),
                 company_milestone_name="annual planning window",
@@ -83,12 +84,27 @@ class InMemoryLeadFollowUpRepository:
                         summary="Inbound request mentioned spreadsheet-heavy client onboarding and missed follow-ups.",
                     ),
                 ),
+                recent_email_threads=(
+                    LeadEmailThreadSummary(
+                        thread_id="thread-amber-recap",
+                        subject="Re: discovery recap",
+                        counterpart_name="Amber Flores",
+                        counterpart_email="amber@northstarstudio.com",
+                        last_message_at=current_time - timedelta(hours=4),
+                        last_message_direction="inbound",
+                        message_count=4,
+                        snippet="Could you tighten the recap and send two possible times for next week?",
+                        needs_reply=True,
+                        waiting_on_contact=False,
+                    ),
+                ),
             ),
             LeadFollowUp(
                 id="lead-riverbridge",
                 lead_name="Marcus Chen",
                 company_name="Riverbridge Ops",
                 owner_name="Ada Lovelace",
+                email_address="marcus@riverbridgeops.com",
                 stage="Proposal",
                 priority="high",
                 contact_channel="linkedin",
@@ -114,12 +130,27 @@ class InMemoryLeadFollowUpRepository:
                         summary="Initial outreach hit on CRM follow-up gaps and reporting overhead inside their ops team.",
                     ),
                 ),
+                recent_email_threads=(
+                    LeadEmailThreadSummary(
+                        thread_id="thread-riverbridge-proposal",
+                        subject="Proposal follow-up",
+                        counterpart_name="Marcus Chen",
+                        counterpart_email="marcus@riverbridgeops.com",
+                        last_message_at=current_time - timedelta(days=2),
+                        last_message_direction="outbound",
+                        message_count=3,
+                        snippet="Wanted to make sure the phased rollout option covered the concern around rollout burden.",
+                        needs_reply=False,
+                        waiting_on_contact=True,
+                    ),
+                ),
             ),
             LeadFollowUp(
                 id="lead-lattice",
                 lead_name="Priya Nair",
                 company_name="Lattice Lane",
                 owner_name="Samir Patel",
+                email_address="priya@latticelane.com",
                 stage="Qualification",
                 priority="medium",
                 contact_channel="email",
@@ -145,12 +176,27 @@ class InMemoryLeadFollowUpRepository:
                         summary="Referral intro said they keep losing context between discovery and follow-up.",
                     ),
                 ),
+                recent_email_threads=(
+                    LeadEmailThreadSummary(
+                        thread_id="thread-lattice-qualification",
+                        subject="Spreadsheet workflow question",
+                        counterpart_name="Priya Nair",
+                        counterpart_email="priya@latticelane.com",
+                        last_message_at=current_time - timedelta(days=1),
+                        last_message_direction="inbound",
+                        message_count=2,
+                        snippet="We still move new leads through Sheets first, so examples there would help.",
+                        needs_reply=True,
+                        waiting_on_contact=False,
+                    ),
+                ),
             ),
             LeadFollowUp(
                 id="lead-cedar",
                 lead_name="Jordan Pike",
                 company_name="Cedar Peak Agency",
                 owner_name="Samir Patel",
+                email_address="jordan@cedarpeakagency.com",
                 stage="Negotiation",
                 priority="medium",
                 contact_channel="phone",
@@ -172,6 +218,20 @@ class InMemoryLeadFollowUpRepository:
                         kind="proposal",
                         channel="email",
                         summary="Proposal framed the CRM around relationship memory, handoffs, and fewer dropped follow-ups.",
+                    ),
+                ),
+                recent_email_threads=(
+                    LeadEmailThreadSummary(
+                        thread_id="thread-cedar-pilot",
+                        subject="Checking timing on the pilot",
+                        counterpart_name="Jordan Pike",
+                        counterpart_email="jordan@cedarpeakagency.com",
+                        last_message_at=current_time - timedelta(days=9),
+                        last_message_direction="outbound",
+                        message_count=5,
+                        snippet="Following up in case a lighter pilot option helps before busy season starts.",
+                        needs_reply=False,
+                        waiting_on_contact=True,
                     ),
                 ),
             ),

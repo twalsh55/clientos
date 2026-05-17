@@ -20,8 +20,9 @@ import type {
   CRMRemoteIntakeChannel,
 } from "@/lib/types";
 
-export type CRMWorkspaceView = "overview" | "followups" | "pipeline" | "import" | "intake";
+export type CRMWorkspaceView = "overview" | "followups" | "inbox" | "pipeline" | "import" | "intake";
 type CRMIntakeTask = "hub" | "profile" | "routing" | "capture";
+type RelationshipFilter = "all" | "due" | "stale" | "at_risk";
 
 export function CRMFollowUpWorkspace({
   initialOverview,
@@ -45,6 +46,8 @@ export function CRMFollowUpWorkspace({
   const [pendingId, setPendingId] = useState<string | null>(null);
   const [noteDraft, setNoteDraft] = useState("");
   const [error, setError] = useState<string | null>(null);
+  const [relationshipQuery, setRelationshipQuery] = useState("");
+  const [relationshipFilter, setRelationshipFilter] = useState<RelationshipFilter>("all");
   const [sourceType, setSourceType] = useState<"file_upload" | "google_sheets">("file_upload");
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [sheetUrl, setSheetUrl] = useState("");
@@ -68,10 +71,19 @@ export function CRMFollowUpWorkspace({
   const [emailSubjectDraft, setEmailSubjectDraft] = useState("");
   const [emailBodyDraft, setEmailBodyDraft] = useState("");
   const [emailStatus, setEmailStatus] = useState<string | null>(null);
+  const [inboxThreadId, setInboxThreadId] = useState("");
+  const [inboxSource, setInboxSource] = useState("gmail");
+  const [inboxDirection, setInboxDirection] = useState<"inbound" | "outbound">("inbound");
+  const [inboxCounterpartName, setInboxCounterpartName] = useState("");
+  const [inboxCounterpartEmail, setInboxCounterpartEmail] = useState("");
+  const [inboxSubject, setInboxSubject] = useState("");
+  const [inboxMessageBody, setInboxMessageBody] = useState("");
+  const [inboxStatus, setInboxStatus] = useState<string | null>(null);
   const [isPending, startTransition] = useTransition();
   const [isImportPending, startImportTransition] = useTransition();
   const [isAiSettingsPending, startAiSettingsTransition] = useTransition();
   const [isEmailPending, startEmailTransition] = useTransition();
+  const [isInboxPending, startInboxTransition] = useTransition();
 
   useEffect(() => {
     if (!selectedLeadId && initialOverview.items[0]) {
@@ -89,10 +101,12 @@ export function CRMFollowUpWorkspace({
     setEmailLength("short");
   }, [selectedLeadId]);
 
-  const selectedLead = overview.items.find((item) => item.id === selectedLeadId) ?? overview.items[0] ?? null;
+  const filteredFollowUps = overview.items.filter((item) => matchesRelationshipQuery(item, relationshipQuery) && matchesRelationshipFilter(item, relationshipFilter));
+  const selectedLead = filteredFollowUps.find((item) => item.id === selectedLeadId) ?? filteredFollowUps[0] ?? null;
   const advancedAiUnlocked = hasAdvancedAiAccess(initialBilling);
   const showingOverview = view === "overview";
   const showingFollowups = view === "followups";
+  const showingInbox = view === "inbox";
   const showingPipeline = view === "pipeline";
   const showingImport = view === "import";
   const showingIntake = view === "intake";
@@ -104,6 +118,12 @@ export function CRMFollowUpWorkspace({
     setRoutingChannelsDraft((initialSettings?.crm_image_intake_channels ?? []).join(", "));
     setRoutingNotesDraft(initialSettings?.crm_image_intake_notes ?? "");
   }, [initialSettings]);
+
+  useEffect(() => {
+    if (!filteredFollowUps.some((item) => item.id === selectedLeadId)) {
+      setSelectedLeadId(filteredFollowUps[0]?.id ?? null);
+    }
+  }, [filteredFollowUps, selectedLeadId]);
 
   function runAction(
     followUpId: string,
@@ -448,6 +468,64 @@ export function CRMFollowUpWorkspace({
     });
   }
 
+  function syncInboxThread() {
+    setInboxStatus("Syncing the email thread into Brivoly...");
+    startInboxTransition(async () => {
+      try {
+        const threadId = inboxThreadId.trim() || `thread-${Date.now()}`;
+        const counterpartEmail = inboxCounterpartEmail.trim().toLowerCase();
+        if (!counterpartEmail) {
+          throw new Error("Add the contact email before syncing the thread.");
+        }
+        const response = await fetch("/api/crm/inbox/threads", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            source: inboxSource.trim() || "gmail",
+            thread_id: threadId,
+            messages: [
+              {
+                message_id: `${threadId}-${Date.now()}`,
+                sent_at: new Date().toISOString(),
+                direction: inboxDirection,
+                from_email:
+                  inboxDirection === "inbound"
+                    ? counterpartEmail
+                    : "owner@brivoly.local",
+                from_name:
+                  inboxDirection === "inbound"
+                    ? inboxCounterpartName.trim()
+                    : settings?.outbound_sender_name || settings?.business_name || "Brivoly",
+                to_emails:
+                  inboxDirection === "inbound"
+                    ? ["owner@brivoly.local"]
+                    : [counterpartEmail],
+                subject: inboxSubject.trim(),
+                body_text: inboxMessageBody.trim(),
+                snippet: inboxMessageBody.trim().slice(0, 220),
+              },
+            ],
+          }),
+        });
+        const body = (await response.json().catch(() => null)) as CRMFollowUpOverview | { error?: string } | null;
+        if (!response.ok || !body || !("items" in body)) {
+          throw new Error((body && "error" in body && body.error) || "Unable to sync the inbox thread.");
+        }
+        setOverview(body);
+        setSelectedLeadId(body.items[0]?.id ?? null);
+        setInboxStatus("Thread synced. Brivoly updated the relationship memory and follow-up queue.");
+        setInboxThreadId("");
+        setInboxCounterpartName("");
+        setInboxCounterpartEmail("");
+        setInboxSubject("");
+        setInboxMessageBody("");
+        router.refresh();
+      } catch (syncError) {
+        setInboxStatus(syncError instanceof Error ? syncError.message : "Unable to sync the inbox thread.");
+      }
+    });
+  }
+
   return (
     <div className="mt-6">
       <BusinessProfileOnboarding
@@ -619,14 +697,48 @@ export function CRMFollowUpWorkspace({
       {showingFollowups ? (
       <section className="mt-6 grid gap-6 xl:grid-cols-[1.05fr_0.95fr]">
         <section className="rounded-[1.75rem] border bg-white/80 p-6 shadow-sm">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Lead Follow-Up Queue</p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Who needs a follow-up next.</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Relationship Memory</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Keep client context close to the next action.</h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            Work the queue directly, then use the memory panel to keep discovery notes, context, and next-step details attached to the right lead.
+            Search fast, spot stale relationships, and work the next follow-up without losing the last meaningful interaction.
           </p>
           {error ? <p className="mt-4 rounded-2xl border border-rose-200 bg-rose-50 px-4 py-3 text-sm text-rose-700">{error}</p> : null}
+          <div className="mt-5 rounded-[1.4rem] border bg-slate-50/80 p-4">
+            <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
+              <input
+                value={relationshipQuery}
+                onChange={(event) => setRelationshipQuery(event.target.value)}
+                placeholder="Search client, company, notes, owner, or next step"
+                className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
+              />
+              <div className="flex flex-wrap gap-2">
+                {[
+                  { value: "all", label: "All" },
+                  { value: "due", label: "Due now" },
+                  { value: "stale", label: "Stale" },
+                  { value: "at_risk", label: "At risk" },
+                ].map((item) => (
+                  <button
+                    key={item.value}
+                    type="button"
+                    onClick={() => setRelationshipFilter(item.value as RelationshipFilter)}
+                    className={`rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition ${
+                      relationshipFilter === item.value
+                        ? "border-slate-900 bg-slate-950 text-white"
+                        : "border-slate-200 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900"
+                    }`}
+                  >
+                    {item.label}
+                  </button>
+                ))}
+              </div>
+            </div>
+            <p className="mt-3 text-xs text-slate-500">
+              {filteredFollowUps.length} relationship{filteredFollowUps.length === 1 ? "" : "s"} match the current view.
+            </p>
+          </div>
           <div className="mt-6 space-y-4">
-            {overview.items.map((item) => {
+            {filteredFollowUps.map((item) => {
               const rowPending = pendingId === item.id && isPending;
               const selected = item.id === selectedLead?.id;
               return (
@@ -644,7 +756,11 @@ export function CRMFollowUpWorkspace({
                         <p className="mt-1 text-sm text-slate-600">{item.company_name}</p>
                         <p className="mt-2 text-xs font-semibold uppercase tracking-[0.18em] text-slate-500">Owner · {item.owner_name}</p>
                       </div>
-                      <PriorityBadge priority={item.priority} />
+                      <div className="flex flex-wrap items-center gap-2">
+                        {item.dormant ? <MiniFlag tone="warning" label="Stale" /> : null}
+                        {item.relationship_health_label === "at_risk" ? <MiniFlag tone="critical" label="At risk" /> : null}
+                        <PriorityBadge priority={item.priority} />
+                      </div>
                     </div>
                     <p className="mt-4 text-sm font-medium text-slate-700">Next step</p>
                     <p className="mt-1 text-sm leading-6 text-slate-600">{item.next_step}</p>
@@ -675,6 +791,11 @@ export function CRMFollowUpWorkspace({
                 </article>
               );
             })}
+            {!filteredFollowUps.length ? (
+              <div className="rounded-[1.5rem] border border-dashed bg-slate-50/70 p-6 text-sm leading-6 text-slate-600">
+                No relationships match this search yet. Try a different keyword or filter.
+              </div>
+            ) : null}
           </div>
         </section>
 
@@ -704,16 +825,78 @@ export function CRMFollowUpWorkspace({
             />
           ) : null}
           <section className="rounded-[1.75rem] border bg-slate-950 p-6 text-slate-50 shadow-[0_24px_90px_-55px_rgba(15,23,42,0.9)]">
-            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Why This Slice</p>
-            <h2 className="mt-3 text-3xl font-semibold tracking-tight">Relationship memory matters.</h2>
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">North Star</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight">Brivoly remembers relationships so freelancers do not have to.</h2>
             <ul className="mt-5 space-y-3 text-sm leading-6 text-slate-300">
-              <li>Consultants and small agencies already keep their pipeline in spreadsheets, so import removes the adoption cliff.</li>
-              <li>A timeline turns the CRM into an operating memory instead of a static record.</li>
-              <li>This keeps the wedge narrow: faster follow-up, cleaner handoffs, and less spreadsheet sprawl.</li>
+              <li>Every note, touchpoint, and reminder should lower cognitive load instead of adding admin work.</li>
+              <li>Fast search and lightweight actions matter more than heavyweight CRM structure.</li>
+              <li>The goal is consistent follow-up and stronger client memory, not enterprise complexity.</li>
             </ul>
           </section>
         </section>
       </section>
+      ) : null}
+
+      {showingInbox ? (
+        <section className="mt-6 grid gap-6 xl:grid-cols-[0.92fr_1.08fr]">
+          <section className="rounded-[1.75rem] border bg-white/85 p-6 shadow-sm">
+            <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Inbox Automation</p>
+            <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Auto-log threads and let Brivoly keep contact memory current.</h2>
+            <p className="mt-3 text-sm leading-6 text-slate-600">
+              Brivoly turns email activity into relationship memory: it matches contacts by email, creates missing contacts automatically, and logs the thread back onto the right timeline.
+            </p>
+
+            <div className="mt-6 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <CompactMetricLight label="Connected contacts" value={String(overview.inbox_summary?.connected_contact_count ?? 0)} tone="neutral" />
+              <CompactMetricLight label="Needs your reply" value={String(overview.inbox_summary?.needs_reply_count ?? 0)} tone="critical" />
+              <CompactMetricLight label="Waiting on contact" value={String(overview.inbox_summary?.waiting_on_contact_count ?? 0)} tone="warning" />
+            </div>
+            <div className="mt-4 grid gap-4 md:grid-cols-2 xl:grid-cols-3">
+              <CompactMetricLight label="Active threads" value={String(overview.inbox_summary?.active_thread_count ?? 0)} tone="neutral" />
+              <CompactMetricLight label="Stale threads" value={String(overview.inbox_summary?.stale_thread_count ?? 0)} tone="warning" />
+              <CompactMetricLight label="Auto-created contacts" value={String(overview.inbox_summary?.auto_created_contact_count ?? 0)} tone="neutral" />
+            </div>
+
+            <section className="mt-6 rounded-[1.4rem] border bg-slate-50/80 p-5">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Thread sync tester</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                Use this to simulate a provider sync while we wire real inbox connections. The same API route is ready for Gmail or Outlook style thread events.
+              </p>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <input value={inboxThreadId} onChange={(event) => setInboxThreadId(event.target.value)} placeholder="Thread ID (optional)" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400" />
+                <input value={inboxSource} onChange={(event) => setInboxSource(event.target.value)} placeholder="Source (gmail, outlook, api)" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400" />
+                <input value={inboxCounterpartName} onChange={(event) => setInboxCounterpartName(event.target.value)} placeholder="Contact name" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400" />
+                <input value={inboxCounterpartEmail} onChange={(event) => setInboxCounterpartEmail(event.target.value)} placeholder="contact@client.com" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400" />
+                <input value={inboxSubject} onChange={(event) => setInboxSubject(event.target.value)} placeholder="Thread subject" className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400 md:col-span-2" />
+                <div className="flex flex-wrap gap-2 md:col-span-2">
+                  {(["inbound", "outbound"] as const).map((item) => (
+                    <button
+                      key={item}
+                      type="button"
+                      onClick={() => setInboxDirection(item)}
+                      className={`rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition ${
+                        inboxDirection === item
+                          ? "border-slate-900 bg-slate-950 text-white"
+                          : "border-slate-200 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900"
+                      }`}
+                    >
+                      {item === "inbound" ? "Inbound to you" : "Outbound from you"}
+                    </button>
+                  ))}
+                </div>
+                <textarea value={inboxMessageBody} onChange={(event) => setInboxMessageBody(event.target.value)} placeholder="Latest email body or key snippet" className="min-h-[150px] w-full rounded-[1.4rem] border border-slate-200 bg-white px-4 py-3 text-sm leading-6 text-slate-800 outline-none transition focus:border-slate-400 md:col-span-2" />
+              </div>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Button disabled={isInboxPending} onClick={syncInboxThread}>
+                  {isInboxPending ? "Syncing..." : "Sync thread"}
+                </Button>
+              </div>
+              {inboxStatus ? <p className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">{inboxStatus}</p> : null}
+            </section>
+          </section>
+
+          <InboxActivityPanel items={overview.items} onSelectLead={setSelectedLeadId} />
+        </section>
       ) : null}
 
       {showingIntake ? (
@@ -769,6 +952,7 @@ export function CRMFollowUpWorkspace({
             pipelineStages={overview.pipeline_summary?.stage_summaries ?? []}
             selectedLead={selectedLead}
             intakeChannel={initialIntakeChannel}
+            inboxSummary={overview.inbox_summary}
           />
           <section className="space-y-6">
             {overview.pipeline_summary?.stage_summaries?.length ? (
@@ -789,29 +973,34 @@ export function CRMFollowUpWorkspace({
 function CRMViewHeader({ view }: { view: CRMWorkspaceView }) {
   const copy = {
     overview: {
-      eyebrow: "CRM Overview",
-      title: "Overview",
-      body: "See current CRM activity, pipeline state, and intake status.",
+      eyebrow: "Client OS",
+      title: "Keep client relationships moving without extra admin.",
+      body: "Brivoly is a low-admin workspace for relationship memory, follow-up discipline, and client intake.",
     },
     followups: {
-      eyebrow: "Follow-Ups",
-      title: "Work the queue with lead memory beside it.",
-      body: "This page is for next actions, relationship context, and getting the right follow-up out the door fast.",
+      eyebrow: "Relationship Memory",
+      title: "Work the next follow-up with the full relationship in view.",
+      body: "Keep notes, last contact, relationship health, and the next action together so freelancers do not have to hold it all in their head.",
+    },
+    inbox: {
+      eyebrow: "Inbox-Native CRM",
+      title: "Let email threads update relationship memory automatically.",
+      body: "Use this page to keep contacts current from email activity, surface reply pressure quickly, and reduce manual CRM entry to almost nothing.",
     },
     pipeline: {
-      eyebrow: "Pipeline",
-      title: "See stage pressure across the whole deal flow.",
-      body: "Use this page to spot bottlenecks, overdue clusters, and where the pipeline is quietly going stale.",
+      eyebrow: "Relationship Health",
+      title: "See which client relationships need attention before they slip.",
+      body: "Use this page to spot dormant threads, at-risk relationships, and the follow-up pressure building across your client base.",
     },
     import: {
-      eyebrow: "Import",
-      title: "Bring spreadsheet-held CRM work into Brivoly cleanly.",
-      body: "Upload files, preview mappings, fix rows in-app, and commit only after the import looks safe.",
+      eyebrow: "Quick Intake",
+      title: "Bring client context into Brivoly with as little admin as possible.",
+      body: "Upload spreadsheets and raw note images, clean them up quickly, and only commit once the relationship data looks right.",
     },
     intake: {
-      eyebrow: "Intake",
-      title: "Work intake setup as clear, separate jobs.",
-      body: "Split intake into AI profile, routing preferences, and remote capture so each setup task has its own place.",
+      eyebrow: "Client Dropzones",
+      title: "Share simple intake paths without making clients learn your system.",
+      body: "Split dropzone setup into AI profile, routing preferences, and no-login upload links so intake stays mobile-friendly and low-friction.",
     },
   }[view];
 
@@ -841,35 +1030,42 @@ function OverviewQuickLinks({
   pipelineStages,
   selectedLead,
   intakeChannel,
+  inboxSummary,
 }: {
   pipelineStages: CRMPipelineStageSummary[];
   selectedLead: CRMLeadFollowUp | null;
   intakeChannel: CRMRemoteIntakeChannel | null;
+  inboxSummary: CRMFollowUpOverview["inbox_summary"];
 }) {
   return (
     <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Workspace Map</p>
-      <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Jump straight into the right CRM job.</h2>
+      <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Jump into the right client workflow.</h2>
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <QuickLinkCard
           href="/crm/follow-ups"
-          title="Follow-Ups"
-          body={selectedLead ? `Next lead ready: ${selectedLead.lead_name} at ${selectedLead.company_name}.` : "Work the live follow-up queue and lead memory."}
+          title="Relationships"
+          body={selectedLead ? `Next relationship ready: ${selectedLead.lead_name} at ${selectedLead.company_name}.` : "Work live follow-ups and relationship memory."}
         />
         <QuickLinkCard
           href="/crm/pipeline"
-          title="Pipeline"
-          body={pipelineStages.length ? `${pipelineStages.length} active stages are live in the board.` : "See the stage board and pipeline pressure."}
+          title="Health"
+          body={pipelineStages.length ? `${pipelineStages.length} relationship stages are active right now.` : "See stale, overdue, and at-risk relationships."}
+        />
+        <QuickLinkCard
+          href="/crm/inbox"
+          title="Inbox"
+          body={inboxSummary?.needs_reply_count ? `${inboxSummary.needs_reply_count} thread${inboxSummary.needs_reply_count === 1 ? "" : "s"} need your reply.` : "Auto-log email threads and keep contacts current."}
         />
         <QuickLinkCard
           href="/crm/import"
-          title="Import"
-          body="Bring in spreadsheets, rescue messy headers, and validate rows before commit."
+          title="Quick Intake"
+          body="Bring in spreadsheets, rescue messy headers, and validate relationship rows before commit."
         />
         <QuickLinkCard
           href="/crm/intake"
-          title="Intake"
-          body={intakeChannel?.magic_link_url ? "Magic-link remote note capture is configured." : "Set up AI intake guidance and remote note capture."}
+          title="Dropzones"
+          body={intakeChannel?.magic_link_url ? "No-login client upload links are configured." : "Set up AI intake guidance and client dropzones."}
         />
       </div>
     </section>
@@ -907,10 +1103,10 @@ function PipelineBoardPanel({
       <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm xl:col-span-2">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">CRM Pipeline</p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Pipeline</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Relationship Health</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Stale and at-risk relationships</h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            Review open leads by stage, urgency, and dormant risk.
+            Review client relationships by stage, urgency, and dormant risk.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
@@ -982,6 +1178,72 @@ function PipelineBoardPanel({
   );
 }
 
+function InboxActivityPanel({
+  items,
+  onSelectLead,
+}: {
+  items: CRMLeadFollowUp[];
+  onSelectLead: (leadId: string) => void;
+}) {
+  const threads = items
+    .flatMap((item) =>
+      item.recent_email_threads.map((thread) => ({
+        leadId: item.id,
+        leadName: item.lead_name,
+        companyName: item.company_name,
+        stage: item.stage,
+        thread,
+      })),
+    )
+    .sort((left, right) => new Date(right.thread.last_message_at).getTime() - new Date(left.thread.last_message_at).getTime());
+
+  return (
+    <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm">
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Recent Threads</p>
+      <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Email activity that Brivoly is holding onto for you.</h2>
+      <div className="mt-6 space-y-4">
+        {threads.map(({ leadId, leadName, companyName, stage, thread }) => (
+          <button
+            key={thread.thread_id}
+            type="button"
+            onClick={() => onSelectLead(leadId)}
+            className="block w-full rounded-[1.35rem] border bg-slate-50/80 px-5 py-5 text-left transition hover:border-slate-400 hover:bg-white"
+          >
+            <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                  {stage} · {thread.last_message_direction === "inbound" ? "Needs your reply" : "Waiting on contact"}
+                </p>
+                <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">{thread.subject}</h3>
+                <p className="mt-1 text-sm text-slate-600">
+                  {leadName} · {companyName}
+                </p>
+                <p className="mt-3 text-sm leading-6 text-slate-600">{thread.snippet}</p>
+              </div>
+              <div className="flex flex-wrap items-center gap-2">
+                {thread.needs_reply ? <MiniFlag tone="critical" label="Reply" /> : null}
+                {thread.waiting_on_contact ? <MiniFlag tone="warning" label="Waiting" /> : null}
+                <div className="rounded-full border border-slate-200 bg-white px-3 py-1 text-xs font-semibold uppercase tracking-[0.16em] text-slate-600">
+                  {thread.message_count} msg
+                </div>
+              </div>
+            </div>
+            <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <TimelineTile label="Counterpart" value={thread.counterpart_email} />
+              <TimelineTile label="Last message" value={formatDateTime(thread.last_message_at)} />
+            </div>
+          </button>
+        ))}
+        {!threads.length ? (
+          <div className="rounded-[1.35rem] border border-dashed bg-slate-50/70 p-6 text-sm leading-6 text-slate-600">
+            No synced email threads yet. Once inbox automation starts flowing, this page becomes the low-admin record of who said what and who needs a reply.
+          </div>
+        ) : null}
+      </div>
+    </section>
+  );
+}
+
 function RemoteImageCapturePanel({
   intakeChannel,
   advancedAiUnlocked,
@@ -997,11 +1259,10 @@ function RemoteImageCapturePanel({
 
   return (
     <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Remote Note Capture</p>
-      <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Send note photos from your phone.</h2>
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client Dropzones</p>
+      <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Share a no-login upload link with clients.</h2>
       <p className="mt-3 text-sm leading-6 text-slate-600">
-        Uploading inside Brivoly is great, but operators often snap notes on the move. A signed magic link keeps
-        that phone-first capture simple and shareable from any device.
+        Brivoly gives freelancers a simple mobile-first dropzone for files, screenshots, and note images. Clients can upload without logging in, and the intake lands back in your relationship workflow.
       </p>
 
       {!advancedAiUnlocked ? (
@@ -1013,7 +1274,7 @@ function RemoteImageCapturePanel({
       <div className="mt-5 rounded-[1.3rem] border bg-slate-50 px-4 py-4">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Current channel</p>
         <p className="mt-2 text-sm font-medium text-slate-900">
-          {intakeChannel?.magic_link_url ? "Magic-link upload is live for remote note images." : "Remote note capture is not configured yet."}
+          {intakeChannel?.magic_link_url ? "No-login client dropzone is live." : "Client dropzone is not configured yet."}
         </p>
         <p className="mt-2 text-sm leading-6 text-slate-600">
           {intakeChannel?.instructions ?? "Set the CRM intake secret to enable phone-first note capture."}
@@ -1026,7 +1287,7 @@ function RemoteImageCapturePanel({
         {routingNotes ? <p className="mt-2 text-sm leading-6 text-slate-600">{routingNotes}</p> : null}
         {intakeChannel?.magic_link_url ? (
           <>
-            <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Secure upload link</p>
+            <p className="mt-4 text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Client upload link</p>
             <a
               href={intakeChannel.magic_link_url}
               target="_blank"
@@ -1036,7 +1297,7 @@ function RemoteImageCapturePanel({
               {intakeChannel.magic_link_url}
             </a>
             <p className="mt-3 text-xs text-slate-500">
-              Open that link on your phone, upload a photo or screenshot, and Brivoly will import the note into your CRM queue.
+              Share that link with a client or open it yourself on mobile. Uploads flow back into Brivoly without requiring a login.
             </p>
           </>
         ) : null}
@@ -1047,15 +1308,15 @@ function RemoteImageCapturePanel({
 
 function IntakeTaskNav({ activeTask }: { activeTask: CRMIntakeTask }) {
   const items: Array<{ href: string; title: string; body: string; task: CRMIntakeTask }> = [
-    { href: "/crm/intake", title: "Intake Hub", body: "See the overall intake setup.", task: "hub" },
+    { href: "/crm/intake", title: "Dropzone Hub", body: "See the overall intake setup.", task: "hub" },
     { href: "/crm/intake/profile", title: "AI Profile", body: "Teach Brivoly your messy sources.", task: "profile" },
     { href: "/crm/intake/routing", title: "Routing", body: "Define preferred channels and notes.", task: "routing" },
-    { href: "/crm/intake/capture", title: "Remote Capture", body: "Share the phone upload path.", task: "capture" },
+    { href: "/crm/intake/capture", title: "Client Link", body: "Share the no-login upload path.", task: "capture" },
   ];
 
   return (
     <section className="rounded-[1.75rem] border bg-white/90 p-5 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Intake Tasks</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Dropzone Tasks</p>
       <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
         {items.map((item) => {
           const active = item.task === activeTask;
@@ -1105,8 +1366,8 @@ function IntakeTaskHub({
       <TaskSummaryCard
         href="/crm/intake/capture"
         eyebrow="Task 3"
-        title="Share remote capture"
-        body={hasMagicLink ? "A signed phone upload link is live and ready to share with operators." : "Finish setup so the remote upload path can be used from a phone."}
+        title="Share the client dropzone"
+        body={hasMagicLink ? "A signed no-login upload link is live and ready to share with clients." : "Finish setup so the client upload path can be used from a phone."}
       />
     </section>
   );
@@ -1588,7 +1849,7 @@ function LeadMemoryPanel({
   const launchHref = buildMailtoHref(emailSubjectDraft, emailBodyDraft);
   return (
     <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Contact Memory</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Relationship Memory</p>
       <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{lead.lead_name}</h2>
       <p className="mt-1 text-sm text-slate-600">{lead.company_name}</p>
 
@@ -1638,10 +1899,10 @@ function LeadMemoryPanel({
       <section className="mt-6 rounded-[1.5rem] border bg-white p-5">
         <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
           <div>
-            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Auto Email Designer</p>
-            <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Draft the next follow-up without starting from zero.</h3>
+            <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Follow-Up Intelligence</p>
+            <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">Draft the next client message without starting from zero.</h3>
             <p className="mt-2 text-sm leading-6 text-slate-600">
-              Brivoly uses the lead stage, next step, and your saved business profile to draft a follow-up you can edit before sending.
+              Brivoly uses the relationship stage, next step, and your saved business profile to suggest a follow-up you can edit before sending.
             </p>
           </div>
           <div className="rounded-[1.2rem] border bg-slate-50 px-4 py-3 text-sm text-slate-600 lg:max-w-xs">
@@ -1836,6 +2097,18 @@ function RelationshipReminderCard({ reminder }: { reminder: CRMRelationshipRemin
   );
 }
 
+function MiniFlag({ label, tone }: { label: string; tone: "warning" | "critical" }) {
+  return (
+    <span
+      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${
+        tone === "critical" ? "bg-rose-100 text-rose-800" : "bg-amber-100 text-amber-800"
+      }`}
+    >
+      {label}
+    </span>
+  );
+}
+
 function buildMailtoHref(subject: string, body: string) {
   if (!subject.trim() && !body.trim()) {
     return null;
@@ -1962,6 +2235,46 @@ function formatDateOnly(value: string | null) {
     month: "short",
     day: "numeric",
   }).format(date);
+}
+
+function matchesRelationshipQuery(item: CRMLeadFollowUp, query: string): boolean {
+  const normalized = query.trim().toLowerCase();
+  if (!normalized) {
+    return true;
+  }
+  const haystack = [
+    item.lead_name,
+    item.company_name,
+    item.owner_name,
+    item.notes,
+    item.next_step,
+    item.stage,
+    item.contact_channel,
+  ]
+    .join(" ")
+    .toLowerCase();
+  return haystack.includes(normalized);
+}
+
+function matchesRelationshipFilter(item: CRMLeadFollowUp, filter: RelationshipFilter): boolean {
+  if (filter === "all") {
+    return true;
+  }
+  if (filter === "due") {
+    return isDueNow(item.next_follow_up_at);
+  }
+  if (filter === "stale") {
+    return item.dormant;
+  }
+  return item.relationship_health_label === "at_risk";
+}
+
+function isDueNow(value: string): boolean {
+  const dueAt = new Date(value).getTime();
+  if (Number.isNaN(dueAt)) {
+    return false;
+  }
+  return dueAt <= Date.now() + 1000 * 60 * 60 * 24;
 }
 
 function formatDateTimeInputValue(value: string | null) {

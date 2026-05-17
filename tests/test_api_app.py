@@ -823,6 +823,43 @@ def test_crm_intake_channel_reports_missing_configuration() -> None:
     assert payload["magic_link_url"] is None
 
 
+def test_crm_inbox_thread_ingest_updates_overview(monkeypatch) -> None:
+    client = make_client(
+        user=make_user(),
+        lead_follow_up_repository=InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 17, 12, 30, tzinfo=UTC)),
+    )
+
+    response = client.post(
+        "/api/crm/inbox/threads",
+        headers={"Authorization": "Bearer session-token"},
+        json={
+            "source": "gmail",
+            "thread_id": "thread-priya-followup",
+            "messages": [
+                {
+                    "message_id": "msg-1",
+                    "sent_at": "2024-05-17T12:30:00+00:00",
+                    "direction": "inbound",
+                    "from_email": "priya@latticelane.com",
+                    "from_name": "Priya Nair",
+                    "to_emails": ["ada@example.com"],
+                    "subject": "Re: spreadsheet workflow question",
+                    "body_text": "Still using Sheets first. Happy to look at examples next week.",
+                    "snippet": "Still using Sheets first. Happy to look at examples next week.",
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["inbox_summary"]["needs_reply_count"] >= 1
+    lead = next(item for item in payload["items"] if item["email_address"] == "priya@latticelane.com")
+    assert lead["priority"] == "high"
+    assert lead["recent_email_threads"][0]["needs_reply"] is True
+    assert any(entry["id"] == "email-msg-1" for entry in lead["timeline"])
+
+
 def test_crm_intake_upload_imports_rows(monkeypatch) -> None:
     user = make_user()
     repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))

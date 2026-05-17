@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import replace
+import hashlib
+import re
+from dataclasses import dataclass, replace
 from datetime import UTC, date, datetime, time, timedelta
 from typing import Callable
 
@@ -8,14 +10,17 @@ from src.application.account import UserDashboardSettings
 from src.application.ports import LeadFollowUpRepositoryPort
 from src.domain.auth import User
 from src.domain.crm import (
+    LeadEmailThreadSummary,
     LeadFollowUp,
     LeadFollowUpActionResult,
     LeadFollowUpEmailDraft,
+    LeadInboxSummary,
     LeadFollowUpOverview,
     LeadPipelineStageSummary,
     LeadPipelineSummary,
     LeadRelationshipReminder,
     LeadRelationshipSummary,
+    LeadTimelineEntry,
     LeadWarmIntroConnection,
 )
 
@@ -44,6 +49,7 @@ class GetLeadFollowUpOverviewUseCase:
             items=[_clone_follow_up(item) for item in ordered_items],
             relationship_summary=_build_relationship_summary(ordered_items),
             pipeline_summary=_build_pipeline_summary(ordered_items, current_time),
+            inbox_summary=_build_inbox_summary(ordered_items, current_time),
         )
 
 
@@ -227,6 +233,7 @@ def _build_relationship_summary(items: list[LeadFollowUp]) -> LeadRelationshipSu
 
 
 PIPELINE_STAGE_ORDER = {
+    "inbox": 5,
     "lead": 10,
     "inbound": 20,
     "qualification": 30,
@@ -261,6 +268,20 @@ def _build_pipeline_summary(items: list[LeadFollowUp], current_time: datetime) -
         for stage in ordered_stages
     ]
     return LeadPipelineSummary(stage_summaries=stage_summaries)
+
+
+def _build_inbox_summary(items: list[LeadFollowUp], current_time: datetime) -> LeadInboxSummary:
+    threads = [thread for item in items for thread in item.recent_email_threads]
+    return LeadInboxSummary(
+        connected_contact_count=sum(1 for item in items if item.email_address.strip()),
+        active_thread_count=len(threads),
+        needs_reply_count=sum(1 for thread in threads if thread.needs_reply),
+        waiting_on_contact_count=sum(1 for thread in threads if thread.waiting_on_contact),
+        stale_thread_count=sum(
+            1 for thread in threads if thread.last_message_at <= current_time - timedelta(days=5)
+        ),
+        auto_created_contact_count=sum(1 for item in items if item.stage.strip().lower() == "inbox"),
+    )
 
 
 class CompleteLeadFollowUpUseCase:
@@ -323,6 +344,69 @@ class AddLeadFollowUpNoteUseCase:
         )
 
 
+@dataclass(frozen=True)
+class EmailThreadMessageInput:
+    message_id: str
+    sent_at: datetime
+    direction: str
+    from_email: str
+    from_name: str
+    to_emails: tuple[str, ...]
+    subject: str
+    body_text: str
+    snippet: str
+
+
+class IngestLeadEmailThreadUseCase:
+    def __init__(
+        self,
+        repository: LeadFollowUpRepositoryPort,
+        now: Callable[[], datetime],
+    ) -> None:
+        self.repository = repository
+        self.now = now
+
+    def execute(
+        self,
+        user: User,
+        *,
+        source: str,
+        thread_id: str,
+        messages: list[EmailThreadMessageInput],
+    ) -> LeadFollowUpOverview:
+        normalized_source = source.strip().lower() or "api"
+        normalized_thread_id = thread_id.strip()
+        if not normalized_thread_id:
+            raise ValueError("thread_id is required.")
+        if not messages:
+            raise ValueError("At least one email message is required.")
+
+        normalized_messages = sorted((_normalize_email_message(message) for message in messages), key=lambda item: item.sent_at)
+        counterpart_email, counterpart_name = _resolve_thread_counterpart(user, normalized_messages)
+        if not counterpart_email:
+            raise ValueError("Brivoly could not identify the external contact for this thread.")
+
+        items = self.repository.list_lead_follow_ups(user)
+        lead = _find_follow_up_by_email(items, counterpart_email) or _build_auto_created_follow_up(
+            counterpart_email=counterpart_email,
+            counterpart_name=counterpart_name,
+            owner_name=_resolve_owner_name(user),
+            current_time=self.now(),
+        )
+        updated_lead = _merge_email_thread_into_follow_up(
+            lead,
+            user=user,
+            source=normalized_source,
+            thread_id=normalized_thread_id,
+            counterpart_email=counterpart_email,
+            counterpart_name=counterpart_name,
+            messages=normalized_messages,
+            current_time=self.now(),
+        )
+        self.repository.import_lead_follow_ups(user, [updated_lead])
+        return GetLeadFollowUpOverviewUseCase(repository=self.repository, now=self.now).execute(user)
+
+
 class DesignLeadFollowUpEmailUseCase:
     def __init__(
         self,
@@ -366,6 +450,7 @@ def _require_follow_up(items: list[LeadFollowUp], follow_up_id: str) -> LeadFoll
 EMAIL_OBJECTIVES = {"follow_up", "recap", "revive", "close_loop"}
 EMAIL_TONES = {"warm", "direct", "confident"}
 EMAIL_LENGTHS = {"short", "medium"}
+EMAIL_DIRECTIONS = {"inbound", "outbound"}
 
 
 def _normalize_email_objective(value: str) -> str:
@@ -387,6 +472,218 @@ def _normalize_email_length(value: str) -> str:
     if normalized not in EMAIL_LENGTHS:
         raise ValueError("Unsupported email length.")
     return normalized
+
+
+def _normalize_email_message(message: EmailThreadMessageInput) -> EmailThreadMessageInput:
+    message_id = message.message_id.strip()
+    if not message_id:
+        raise ValueError("Each email message needs a message_id.")
+    direction = message.direction.strip().lower()
+    if direction not in EMAIL_DIRECTIONS:
+        raise ValueError("Each email message needs direction 'inbound' or 'outbound'.")
+    from_email = message.from_email.strip().lower()
+    if not from_email:
+        raise ValueError("Each email message needs a from_email value.")
+    to_emails = tuple(item.strip().lower() for item in message.to_emails if item.strip())
+    if not to_emails:
+        raise ValueError("Each email message needs at least one recipient email.")
+    return EmailThreadMessageInput(
+        message_id=message_id,
+        sent_at=message.sent_at,
+        direction=direction,
+        from_email=from_email,
+        from_name=message.from_name.strip(),
+        to_emails=to_emails,
+        subject=message.subject.strip() or "(no subject)",
+        body_text=message.body_text.strip(),
+        snippet=(message.snippet.strip() or message.body_text.strip())[:280],
+    )
+
+
+def _resolve_thread_counterpart(user: User, messages: list[EmailThreadMessageInput]) -> tuple[str, str]:
+    user_email = (user.email or "").strip().lower()
+    latest_message = messages[-1]
+    if latest_message.direction == "inbound":
+        return latest_message.from_email, latest_message.from_name or _derive_name_from_email(latest_message.from_email)
+    for email in latest_message.to_emails:
+        if email != user_email:
+            return email, latest_message.from_name or _derive_name_from_email(email)
+    return "", ""
+
+
+def _find_follow_up_by_email(items: list[LeadFollowUp], email_address: str) -> LeadFollowUp | None:
+    for item in items:
+        if item.email_address.strip().lower() == email_address:
+            return item
+    return None
+
+
+def _resolve_owner_name(user: User) -> str:
+    return user.display_name or user.given_name or user.email or "Brivoly"
+
+
+def _build_auto_created_follow_up(
+    *,
+    counterpart_email: str,
+    counterpart_name: str,
+    owner_name: str,
+    current_time: datetime,
+) -> LeadFollowUp:
+    lead_name = counterpart_name or _derive_name_from_email(counterpart_email)
+    return LeadFollowUp(
+        id=f"lead-email-{hashlib.sha1(counterpart_email.encode('utf-8')).hexdigest()[:10]}",
+        lead_name=lead_name,
+        company_name=_derive_company_from_email(counterpart_email),
+        owner_name=owner_name,
+        email_address=counterpart_email,
+        stage="Inbox",
+        priority="medium",
+        contact_channel="email",
+        last_contacted_at=None,
+        next_follow_up_at=current_time,
+        next_step=f"Review the latest email thread with {lead_name}.",
+        notes="Auto-created from inbox activity so Brivoly can keep the relationship in memory.",
+        timeline=(),
+    )
+
+
+def _merge_email_thread_into_follow_up(
+    lead: LeadFollowUp,
+    *,
+    user: User,
+    source: str,
+    thread_id: str,
+    counterpart_email: str,
+    counterpart_name: str,
+    messages: list[EmailThreadMessageInput],
+    current_time: datetime,
+) -> LeadFollowUp:
+    existing_timeline_ids = {entry.id for entry in lead.timeline}
+    new_entries = []
+    for message in messages:
+        entry_id = f"email-{message.message_id}"
+        if entry_id in existing_timeline_ids:
+            continue
+        new_entries.append(
+            LeadTimelineEntry(
+                id=entry_id,
+                occurred_at=message.sent_at,
+                kind="email",
+                channel=source,
+                summary=_build_email_timeline_summary(message),
+            )
+        )
+
+    all_entries = tuple(sorted((*lead.timeline, *new_entries), key=lambda entry: entry.occurred_at, reverse=True))
+    latest_message = messages[-1]
+    thread_history = _upsert_thread_summary(
+        lead.recent_email_threads,
+        thread_id=thread_id,
+        counterpart_email=counterpart_email,
+        counterpart_name=counterpart_name,
+        messages=messages,
+        new_message_count=len(new_entries),
+    )
+    next_follow_up_at, next_step, priority = _resolve_follow_up_from_latest_email(
+        lead=lead,
+        counterpart_name=counterpart_name or lead.lead_name,
+        latest_message=latest_message,
+        current_time=current_time,
+    )
+    latest_snippet = latest_message.snippet or latest_message.body_text or lead.notes
+    latest_contacted_at = latest_message.sent_at
+    normalized_email_address = lead.email_address.strip() or counterpart_email
+    if not normalized_email_address:
+        normalized_email_address = counterpart_email
+    return replace(
+        lead,
+        lead_name=lead.lead_name or counterpart_name or _derive_name_from_email(counterpart_email),
+        company_name=lead.company_name or _derive_company_from_email(counterpart_email),
+        email_address=normalized_email_address,
+        stage=lead.stage if lead.stage.strip() and lead.stage.strip().lower() != "lead" else "Inbox",
+        contact_channel="email",
+        last_contacted_at=latest_contacted_at,
+        next_follow_up_at=next_follow_up_at,
+        next_step=next_step,
+        notes=latest_snippet[:240],
+        priority=priority,
+        timeline=all_entries,
+        recent_email_threads=thread_history,
+    )
+
+
+def _build_email_timeline_summary(message: EmailThreadMessageInput) -> str:
+    prefix = "Inbound email" if message.direction == "inbound" else "Outbound email"
+    snippet = message.snippet or message.subject
+    return f"{prefix}: {message.subject}. {snippet}".strip()
+
+
+def _upsert_thread_summary(
+    existing_threads: tuple[LeadEmailThreadSummary, ...],
+    *,
+    thread_id: str,
+    counterpart_email: str,
+    counterpart_name: str,
+    messages: list[EmailThreadMessageInput],
+    new_message_count: int,
+) -> tuple[LeadEmailThreadSummary, ...]:
+    latest_message = messages[-1]
+    existing_by_id = {item.thread_id: item for item in existing_threads}
+    existing = existing_by_id.get(thread_id)
+    thread = LeadEmailThreadSummary(
+        thread_id=thread_id,
+        subject=latest_message.subject,
+        counterpart_name=counterpart_name or _derive_name_from_email(counterpart_email),
+        counterpart_email=counterpart_email,
+        last_message_at=latest_message.sent_at,
+        last_message_direction=latest_message.direction,
+        message_count=(existing.message_count if existing else 0) + new_message_count if existing else len(messages),
+        snippet=latest_message.snippet or latest_message.subject,
+        needs_reply=latest_message.direction == "inbound",
+        waiting_on_contact=latest_message.direction == "outbound",
+    )
+    existing_by_id[thread_id] = thread
+    return tuple(sorted(existing_by_id.values(), key=lambda item: item.last_message_at, reverse=True)[:5])
+
+
+def _resolve_follow_up_from_latest_email(
+    *,
+    lead: LeadFollowUp,
+    counterpart_name: str,
+    latest_message: EmailThreadMessageInput,
+    current_time: datetime,
+) -> tuple[datetime, str, str]:
+    if latest_message.direction == "inbound":
+        return (
+            current_time,
+            f"Reply to {counterpart_name}'s latest email.",
+            "high",
+        )
+    existing_priority = lead.priority if lead.priority in {"high", "medium", "low"} else "medium"
+    due_at = max(latest_message.sent_at + timedelta(days=3), current_time)
+    return (
+        due_at,
+        f"Follow up if {counterpart_name} does not reply to the latest thread.",
+        existing_priority,
+    )
+
+
+def _derive_name_from_email(email_address: str) -> str:
+    local_part = email_address.split("@", 1)[0]
+    cleaned = re.sub(r"[._-]+", " ", local_part).strip()
+    if not cleaned:
+        return email_address
+    return " ".join(token.capitalize() for token in cleaned.split())
+
+
+def _derive_company_from_email(email_address: str) -> str:
+    if "@" not in email_address:
+        return "Inbox contact"
+    domain = email_address.split("@", 1)[1].split(".", 1)[0]
+    cleaned = re.sub(r"[^a-zA-Z0-9]+", " ", domain).strip()
+    if not cleaned:
+        return "Inbox contact"
+    return " ".join(token.capitalize() for token in cleaned.split())
 
 
 def _build_email_draft(

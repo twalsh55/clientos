@@ -61,7 +61,14 @@ from src.application.billing import (
 from src.application.autonomous_build import decide_autonomous_build_brief, format_autonomous_build_brief
 from src.application.founder_code import ListFounderCodeRequestsUseCase, QueueFounderCodeRequestUseCase
 from src.application.crm import GetLeadFollowUpOverviewUseCase
-from src.application.crm import AddLeadFollowUpNoteUseCase, CompleteLeadFollowUpUseCase, DesignLeadFollowUpEmailUseCase, SnoozeLeadFollowUpUseCase
+from src.application.crm import (
+    AddLeadFollowUpNoteUseCase,
+    CompleteLeadFollowUpUseCase,
+    DesignLeadFollowUpEmailUseCase,
+    EmailThreadMessageInput,
+    IngestLeadEmailThreadUseCase,
+    SnoozeLeadFollowUpUseCase,
+)
 from src.application.crm_import import (
     CommitLeadImportUseCase,
     GenerateLeadImportFromImageUseCase,
@@ -156,6 +163,24 @@ class LeadFollowUpEmailDraftPayload(BaseModel):
     objective: str = Field(default="follow_up", pattern="^(follow_up|recap|revive|close_loop)$")
     tone: str = Field(default="warm", pattern="^(warm|direct|confident)$")
     length: str = Field(default="short", pattern="^(short|medium)$")
+
+
+class CRMInboxThreadMessagePayload(BaseModel):
+    message_id: str = Field(min_length=1, max_length=255)
+    sent_at: datetime
+    direction: str = Field(pattern="^(inbound|outbound)$")
+    from_email: str = Field(min_length=3, max_length=255)
+    from_name: str = Field(default="", max_length=160)
+    to_emails: list[str] = Field(min_length=1, max_length=25)
+    subject: str = Field(default="", max_length=255)
+    body_text: str = Field(default="", max_length=5000)
+    snippet: str = Field(default="", max_length=500)
+
+
+class CRMInboxThreadPayload(BaseModel):
+    source: str = Field(default="api", max_length=80)
+    thread_id: str = Field(min_length=1, max_length=255)
+    messages: list[CRMInboxThreadMessagePayload] = Field(min_length=1, max_length=50)
 
 
 class FounderCodeRequestDTO(BaseModel):
@@ -389,6 +414,38 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="CRM follow-up not found.") from exc
         return dto_to_dict(build_lead_follow_up_email_draft_dto(draft))
+
+    @app.post("/api/crm/inbox/threads")
+    def crm_inbox_thread_ingest(
+        payload: CRMInboxThreadPayload,
+        authorization: str | None = Header(default=None),
+        session_cookie: str | None = Cookie(default=None, alias=CLERK_SESSION_COOKIE),
+    ) -> dict[str, object]:
+        user = _require_authenticated_user(deps, authorization, session_cookie)
+        repository = deps.lead_follow_up_repository_factory()
+        try:
+            overview = IngestLeadEmailThreadUseCase(repository=repository, now=deps.now).execute(
+                user,
+                source=payload.source,
+                thread_id=payload.thread_id,
+                messages=[
+                    EmailThreadMessageInput(
+                        message_id=item.message_id,
+                        sent_at=item.sent_at,
+                        direction=item.direction,
+                        from_email=item.from_email,
+                        from_name=item.from_name,
+                        to_emails=tuple(item.to_emails),
+                        subject=item.subject,
+                        body_text=item.body_text,
+                        snippet=item.snippet,
+                    )
+                    for item in payload.messages
+                ],
+            )
+        except ValueError as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return dto_to_dict(build_lead_follow_up_overview_dto(overview))
 
     @app.post("/api/crm/import/preview")
     def crm_import_preview(

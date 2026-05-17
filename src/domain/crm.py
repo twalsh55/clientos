@@ -31,6 +31,20 @@ class LeadWarmIntroConnection:
 
 
 @dataclass(frozen=True)
+class LeadEmailThreadSummary:
+    thread_id: str
+    subject: str
+    counterpart_name: str
+    counterpart_email: str
+    last_message_at: datetime
+    last_message_direction: str
+    message_count: int
+    snippet: str
+    needs_reply: bool
+    waiting_on_contact: bool
+
+
+@dataclass(frozen=True)
 class LeadRelationshipSummary:
     healthy_count: int
     watch_count: int
@@ -57,6 +71,16 @@ class LeadPipelineSummary:
 
 
 @dataclass(frozen=True)
+class LeadInboxSummary:
+    connected_contact_count: int
+    active_thread_count: int
+    needs_reply_count: int
+    waiting_on_contact_count: int
+    stale_thread_count: int
+    auto_created_contact_count: int
+
+
+@dataclass(frozen=True)
 class LeadFollowUp:
     id: str
     lead_name: str
@@ -70,6 +94,7 @@ class LeadFollowUp:
     next_step: str
     notes: str
     timeline: tuple[LeadTimelineEntry, ...]
+    email_address: str = ""
     referral_source_name: str = ""
     birthday: date | None = None
     company_milestone_name: str = ""
@@ -79,6 +104,7 @@ class LeadFollowUp:
     relationship_health_label: str = ""
     dormant: bool = False
     relationship_reminders: tuple[LeadRelationshipReminder, ...] = ()
+    recent_email_threads: tuple[LeadEmailThreadSummary, ...] = ()
 
 
 @dataclass(frozen=True)
@@ -98,6 +124,7 @@ class LeadFollowUpOverview:
     items: list[LeadFollowUp]
     relationship_summary: LeadRelationshipSummary | None = None
     pipeline_summary: LeadPipelineSummary | None = None
+    inbox_summary: LeadInboxSummary | None = None
 
 
 @dataclass(frozen=True)

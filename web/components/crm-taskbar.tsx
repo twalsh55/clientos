@@ -7,11 +7,12 @@ import { useState } from "react";
 import { BrandMark } from "@/components/brand-mark";
 
 const items = [
-  { href: "/crm", label: "Overview", body: "High-level CRM status" },
-  { href: "/crm/follow-ups", label: "Follow-Ups", body: "Queue, memory, and email" },
-  { href: "/crm/pipeline", label: "Pipeline", body: "Stage board and flow" },
-  { href: "/crm/import", label: "Import", body: "Spreadsheet and preview tools" },
-  { href: "/crm/intake", label: "Intake", body: "AI profile and remote capture" },
+  { href: "/crm", label: "Today", body: "Relationship priorities at a glance" },
+  { href: "/crm/follow-ups", label: "Relationships", body: "Memory, notes, and next actions" },
+  { href: "/crm/inbox", label: "Inbox", body: "Auto-log threads and keep contacts up to date" },
+  { href: "/crm/pipeline", label: "Health", body: "Stale, at-risk, and overdue relationships" },
+  { href: "/crm/import", label: "Quick Intake", body: "Low-admin spreadsheet and note intake" },
+  { href: "/crm/intake", label: "Dropzones", body: "Client upload links and routing" },
 ];
 
 export function CRMTaskbar() {
@@ -32,7 +33,7 @@ export function CRMTaskbar() {
           imageClassName="opacity-90"
         />
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">CRM Taskbar</p>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Client OS</p>
           <p className="mt-1 text-xs text-slate-400">Brivoly</p>
         </div>
       </div>

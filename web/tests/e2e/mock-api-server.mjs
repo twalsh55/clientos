@@ -84,6 +84,7 @@ function makeState() {
         lead_name: "Amber Flores",
         company_name: "Northstar Studio",
         owner_name: "Ada Lovelace",
+        email_address: "amber@northstarstudio.com",
         stage: "Discovery",
         priority: "high",
         contact_channel: "email",
@@ -91,6 +92,29 @@ function makeState() {
         next_follow_up_at: "2024-05-06T08:30:00+00:00",
         next_step: "Send a concise recap and propose two call slots.",
         notes: "Interested, but waiting on a clearer summary of timeline and scope.",
+        recent_email_threads: [
+          {
+            thread_id: "thread-amber-recap",
+            subject: "Re: discovery recap",
+            counterpart_name: "Amber Flores",
+            counterpart_email: "amber@northstarstudio.com",
+            last_message_at: "2024-05-06T08:30:00+00:00",
+            last_message_direction: "inbound",
+            message_count: 4,
+            snippet: "Could you tighten the recap and send two possible times for next week?",
+            needs_reply: true,
+            waiting_on_contact: false,
+          },
+        ],
+        referral_source_name: "",
+        birthday: null,
+        company_milestone_name: "",
+        company_milestone_date: null,
+        last_meaningful_interaction_at: "2024-05-01T12:30:00+00:00",
+        relationship_health_score: 64,
+        relationship_health_label: "watch",
+        dormant: false,
+        relationship_reminders: [],
         timeline: [
           {
             id: "amber-call",
@@ -190,6 +214,14 @@ function buildCrmOverview() {
         high_priority_count: stageItems.filter((item) => item.priority === "high").length,
         dormant_count: stageItems.filter((item) => item.dormant).length,
       })),
+    },
+    inbox_summary: {
+      connected_contact_count: items.filter((item) => item.email_address).length,
+      active_thread_count: items.reduce((total, item) => total + (item.recent_email_threads?.length || 0), 0),
+      needs_reply_count: items.reduce((total, item) => total + (item.recent_email_threads || []).filter((thread) => thread.needs_reply).length, 0),
+      waiting_on_contact_count: items.reduce((total, item) => total + (item.recent_email_threads || []).filter((thread) => thread.waiting_on_contact).length, 0),
+      stale_thread_count: 0,
+      auto_created_contact_count: items.filter((item) => item.stage === "Inbox").length,
     },
   };
 }
@@ -310,6 +342,63 @@ const server = http.createServer(async (request, response) => {
   }
 
   if (url.pathname === "/api/crm/followups" && request.method === "GET") {
+    json(response, 200, buildCrmOverview());
+    return;
+  }
+
+  if (url.pathname === "/api/crm/inbox/threads" && request.method === "POST") {
+    const payload = (await readRequestBody(request)) || {};
+    const message = payload.messages?.[0];
+    if (!payload.thread_id || !message?.from_email) {
+      json(response, 422, { detail: "thread_id and at least one message are required." });
+      return;
+    }
+    state.crmFollowUps.unshift({
+      id: `lead-${Date.now()}`,
+      lead_name: message.from_name || "Inbox Contact",
+      company_name: "Inbox Contact",
+      owner_name: "Ada Lovelace",
+      email_address: message.from_email,
+      stage: "Inbox",
+      priority: message.direction === "inbound" ? "high" : "medium",
+      contact_channel: "email",
+      last_contacted_at: message.sent_at,
+      next_follow_up_at: message.sent_at,
+      next_step: message.direction === "inbound" ? `Reply to ${message.from_name || message.from_email}'s latest email.` : "Follow up if they do not reply.",
+      notes: message.snippet || message.body_text || "",
+      recent_email_threads: [
+        {
+          thread_id: payload.thread_id,
+          subject: message.subject || "(no subject)",
+          counterpart_name: message.from_name || "Inbox Contact",
+          counterpart_email: message.from_email,
+          last_message_at: message.sent_at,
+          last_message_direction: message.direction,
+          message_count: 1,
+          snippet: message.snippet || message.body_text || "",
+          needs_reply: message.direction === "inbound",
+          waiting_on_contact: message.direction === "outbound",
+        },
+      ],
+      referral_source_name: "",
+      birthday: null,
+      company_milestone_name: "",
+      company_milestone_date: null,
+      last_meaningful_interaction_at: message.sent_at,
+      relationship_health_score: 70,
+      relationship_health_label: "watch",
+      dormant: false,
+      relationship_reminders: [],
+      timeline: [
+        {
+          id: `email-${message.message_id}`,
+          occurred_at: message.sent_at,
+          kind: "email",
+          channel: payload.source || "api",
+          summary: `${message.direction === "inbound" ? "Inbound" : "Outbound"} email: ${message.subject || "(no subject)"}. ${message.snippet || message.body_text || ""}`.trim(),
+        },
+      ],
+    });
     json(response, 200, buildCrmOverview());
     return;
   }

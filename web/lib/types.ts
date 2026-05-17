@@ -83,6 +83,7 @@ export type CRMLeadFollowUp = {
   lead_name: string;
   company_name: string;
   owner_name: string;
+  email_address: string;
   stage: string;
   priority: string;
   contact_channel: string;
@@ -100,6 +101,7 @@ export type CRMLeadFollowUp = {
   relationship_health_label: "healthy" | "watch" | "at_risk" | string;
   dormant: boolean;
   relationship_reminders: CRMRelationshipReminder[];
+  recent_email_threads: CRMEmailThreadSummary[];
 };
 
 export type CRMLeadTimelineEntry = {
@@ -119,6 +121,20 @@ export type CRMFollowUpOverview = {
   items: CRMLeadFollowUp[];
   relationship_summary: CRMRelationshipSummary | null;
   pipeline_summary: CRMPipelineSummary | null;
+  inbox_summary: CRMInboxSummary | null;
+};
+
+export type CRMEmailThreadSummary = {
+  thread_id: string;
+  subject: string;
+  counterpart_name: string;
+  counterpart_email: string;
+  last_message_at: string;
+  last_message_direction: "inbound" | "outbound" | string;
+  message_count: number;
+  snippet: string;
+  needs_reply: boolean;
+  waiting_on_contact: boolean;
 };
 
 export type CRMRelationshipReminder = {
@@ -157,6 +173,15 @@ export type CRMPipelineStageSummary = {
 
 export type CRMPipelineSummary = {
   stage_summaries: CRMPipelineStageSummary[];
+};
+
+export type CRMInboxSummary = {
+  connected_contact_count: number;
+  active_thread_count: number;
+  needs_reply_count: number;
+  waiting_on_contact_count: number;
+  stale_thread_count: number;
+  auto_created_contact_count: number;
 };
 
 export type CRMEmailDraft = {

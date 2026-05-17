@@ -207,6 +207,34 @@ export async function generateCrmFollowUpEmailDraft(
   );
 }
 
+export async function ingestCrmInboxThread(
+  payload: {
+    source?: string;
+    thread_id: string;
+    messages: Array<{
+      message_id: string;
+      sent_at: string;
+      direction: "inbound" | "outbound";
+      from_email: string;
+      from_name?: string;
+      to_emails: string[];
+      subject?: string;
+      body_text?: string;
+      snippet?: string;
+    }>;
+  },
+  options: ApiRequestOptions = {},
+): Promise<CRMFollowUpOverview> {
+  return apiRequest<CRMFollowUpOverview>(
+    "/api/crm/inbox/threads",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    options,
+  );
+}
+
 export async function previewCrmImport(
   payload: {
     source_type: "csv" | "excel" | "image" | "google_sheets";

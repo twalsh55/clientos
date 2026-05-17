@@ -54,6 +54,9 @@ function resolveCRMView(pathname: string): CRMWorkspaceView {
   if (pathname === "/crm/follow-ups") {
     return "followups";
   }
+  if (pathname === "/crm/inbox") {
+    return "inbox";
+  }
   if (pathname === "/crm/pipeline") {
     return "pipeline";
   }

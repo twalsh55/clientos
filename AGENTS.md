@@ -93,6 +93,8 @@ cd web && npm run e2e
 - Current CRM capabilities:
   - left taskbar with dedicated CRM pages
   - follow-up queue
+  - inbox-native CRM page for auto-logging email threads
+  - email-thread ingestion that can auto-create/update contacts from inbox activity
   - pipeline board view by stage
   - complete and snooze actions
   - contact timeline + internal notes
