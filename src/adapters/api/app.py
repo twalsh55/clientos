@@ -147,6 +147,7 @@ class LeadImportPayload(BaseModel):
     file_content_base64: str | None = None
     field_mapping: dict[str, str | None] | None = None
     clarification_answers: dict[str, str] | None = None
+    row_overrides: dict[str, dict[str, str]] | None = None
 
 
 class FounderCodeRequestDTO(BaseModel):
@@ -366,6 +367,7 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
                 source_label=source_label,
                 field_mapping=payload.field_mapping,
                 clarification_answers=payload.clarification_answers,
+                row_overrides=payload.row_overrides,
                 settings=settings,
                 deps=deps,
             )
@@ -396,6 +398,7 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
                 source_label=source_label,
                 field_mapping=payload.field_mapping,
                 clarification_answers=payload.clarification_answers,
+                row_overrides=payload.row_overrides,
                 settings=settings,
                 deps=deps,
             )
@@ -407,6 +410,7 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
                 source_type,
                 source_label,
                 payload.field_mapping,
+                payload.row_overrides,
             )
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
@@ -1065,6 +1069,7 @@ def _preview_crm_import_with_optional_ai_assistance(
     source_label: str,
     field_mapping: dict[str, str | None] | None,
     clarification_answers: dict[str, str] | None,
+    row_overrides: dict[str, dict[str, str]] | None,
     settings: UserDashboardSettings,
     deps: ApiDependencies,
 ):
@@ -1075,6 +1080,7 @@ def _preview_crm_import_with_optional_ai_assistance(
             source_type,
             source_label,
             field_mapping,
+            row_overrides,
         )
     except ValueError as exc:
         if str(exc) != "No recognizable CRM headers were found in the spreadsheet.":
@@ -1102,6 +1108,7 @@ def _preview_crm_import_with_optional_ai_assistance(
         preferred_formats=settings.crm_preferred_import_formats,
         field_mapping_overrides=field_mapping,
         clarification_answers=clarification_answers,
+        row_overrides=row_overrides,
     )
 
 

@@ -42,6 +42,7 @@ export function CRMFollowUpWorkspace({
   const [importPreview, setImportPreview] = useState<CRMImportPreview | null>(null);
   const [importFieldMapping, setImportFieldMapping] = useState<Record<string, string>>({});
   const [clarificationAnswers, setClarificationAnswers] = useState<Record<string, string>>({});
+  const [rowOverrides, setRowOverrides] = useState<Record<string, Record<string, string>>>({});
   const [isImportMappingDirty, setIsImportMappingDirty] = useState(false);
   const [importError, setImportError] = useState<string | null>(null);
   const [importStatus, setImportStatus] = useState<string | null>(null);
@@ -109,6 +110,7 @@ export function CRMFollowUpWorkspace({
   function buildImportFormData(
     answersOverride?: Record<string, string>,
     mappingOverride?: Record<string, string>,
+    rowOverridesOverride?: Record<string, Record<string, string>>,
   ) {
     const formData = new FormData();
     formData.set("source_type", sourceType);
@@ -119,6 +121,10 @@ export function CRMFollowUpWorkspace({
     const effectiveClarificationAnswers = answersOverride ?? clarificationAnswers;
     if (Object.keys(effectiveClarificationAnswers).length) {
       formData.set("clarification_answers", JSON.stringify(effectiveClarificationAnswers));
+    }
+    const effectiveRowOverrides = rowOverridesOverride ?? rowOverrides;
+    if (Object.keys(effectiveRowOverrides).length) {
+      formData.set("row_overrides", JSON.stringify(effectiveRowOverrides));
     }
     if (sourceType === "file_upload") {
       if (!selectedFile) {
@@ -140,12 +146,15 @@ export function CRMFollowUpWorkspace({
   function requestImportPreview(
     answersOverride?: Record<string, string>,
     mappingOverride?: Record<string, string>,
+    rowOverridesOverride?: Record<string, Record<string, string>>,
   ) {
     setImportError(null);
     setImportStatus(null);
     startImportTransition(async () => {
       try {
-        const data = await requestImportPreviewWithBestEffort(() => buildImportFormData(answersOverride, mappingOverride));
+        const data = await requestImportPreviewWithBestEffort(() =>
+          buildImportFormData(answersOverride, mappingOverride, rowOverridesOverride),
+        );
         setImportPreview(data);
         setImportFieldMapping(
           Object.fromEntries(
@@ -164,6 +173,13 @@ export function CRMFollowUpWorkspace({
             Object.entries(nextAnswers).filter(([key]) => activeQuestionIds.has(key)),
           );
         });
+        setRowOverrides((current) =>
+          Object.fromEntries(
+            Object.entries(rowOverridesOverride ?? current).filter(([rowNumber, fields]) =>
+              data.rows.some((row) => String(row.row_number) === rowNumber) && Object.keys(fields).length > 0,
+            ),
+          ),
+        );
         setIsImportMappingDirty(false);
         setImportStatus(
           data.clarification?.required
@@ -202,6 +218,7 @@ export function CRMFollowUpWorkspace({
         setImportPreview(null);
         setImportFieldMapping({});
         setClarificationAnswers({});
+        setRowOverrides({});
         setIsImportMappingDirty(false);
         setImportStatus(
           `Imported ${data.imported_count} row${data.imported_count === 1 ? "" : "s"}, skipped ${data.skipped_duplicates} duplicates, and skipped ${data.skipped_invalid} invalid row${data.skipped_invalid === 1 ? "" : "s"}.`,
@@ -239,6 +256,34 @@ export function CRMFollowUpWorkspace({
     // leave the manual-mapping dirty warning visible while that re-check is running.
     setIsImportMappingDirty(false);
     requestImportPreview(nextAnswers);
+  }
+
+  function updateRowOverride(rowNumber: number, fieldName: string, value: string) {
+    setRowOverrides((current) => ({
+      ...current,
+      [String(rowNumber)]: {
+        ...(current[String(rowNumber)] ?? {}),
+        [fieldName]: value,
+      },
+    }));
+    setImportStatus(null);
+    setImportError(null);
+  }
+
+  function applyRowFix(rowNumber: number) {
+    const nextOverrides = {
+      ...rowOverrides,
+      [String(rowNumber)]: {
+        ...(rowOverrides[String(rowNumber)] ?? {}),
+      },
+    };
+    if (!nextOverrides[String(rowNumber)]?.next_follow_up_at?.trim()) {
+      setImportError("Enter a next follow-up date before asking Brivoly to re-check that row.");
+      return;
+    }
+    setImportStatus("Re-checking the preview with your in-app row fix...");
+    setIsImportMappingDirty(false);
+    requestImportPreview(undefined, undefined, nextOverrides);
   }
 
   async function requestImportPreviewWithBestEffort(buildFormData: () => FormData) {
@@ -330,6 +375,7 @@ export function CRMFollowUpWorkspace({
                   setImportPreview(null);
                   setImportFieldMapping({});
                   setClarificationAnswers({});
+                  setRowOverrides({});
                   setIsImportMappingDirty(false);
                   setImportStatus(null);
                   setImportError(null);
@@ -344,6 +390,7 @@ export function CRMFollowUpWorkspace({
                   setImportPreview(null);
                   setImportFieldMapping({});
                   setClarificationAnswers({});
+                  setRowOverrides({});
                   setIsImportMappingDirty(false);
                   setImportStatus(null);
                   setImportError(null);
@@ -367,6 +414,7 @@ export function CRMFollowUpWorkspace({
                     setImportPreview(null);
                     setImportFieldMapping({});
                     setClarificationAnswers({});
+                    setRowOverrides({});
                     setIsImportMappingDirty(false);
                     setImportStatus(null);
                     setImportError(null);
@@ -392,6 +440,7 @@ export function CRMFollowUpWorkspace({
                     setImportPreview(null);
                     setImportFieldMapping({});
                     setClarificationAnswers({});
+                    setRowOverrides({});
                     setIsImportMappingDirty(false);
                     setImportStatus(null);
                     setImportError(null);
@@ -431,14 +480,17 @@ export function CRMFollowUpWorkspace({
             ) : null}
           </section>
 
-          <ImportPreviewPanel
-            preview={importPreview}
-            importFieldMapping={importFieldMapping}
-            clarificationAnswers={clarificationAnswers}
-            isImportMappingDirty={isImportMappingDirty}
-            onFieldMappingChange={updateImportFieldMapping}
-            onClarificationAnswer={answerClarificationQuestion}
-          />
+        <ImportPreviewPanel
+          preview={importPreview}
+          importFieldMapping={importFieldMapping}
+          clarificationAnswers={clarificationAnswers}
+          rowOverrides={rowOverrides}
+          isImportMappingDirty={isImportMappingDirty}
+          onFieldMappingChange={updateImportFieldMapping}
+          onClarificationAnswer={answerClarificationQuestion}
+          onRowOverrideChange={updateRowOverride}
+          onApplyRowFix={applyRowFix}
+        />
         </div>
       </section>
 
@@ -682,16 +734,22 @@ function ImportPreviewPanel({
   preview,
   importFieldMapping,
   clarificationAnswers,
+  rowOverrides,
   isImportMappingDirty,
   onFieldMappingChange,
   onClarificationAnswer,
+  onRowOverrideChange,
+  onApplyRowFix,
 }: {
   preview: CRMImportPreview | null;
   importFieldMapping: Record<string, string>;
   clarificationAnswers: Record<string, string>;
+  rowOverrides: Record<string, Record<string, string>>;
   isImportMappingDirty: boolean;
   onFieldMappingChange: (header: string, field: string) => void;
   onClarificationAnswer: (questionId: string, value: string) => void;
+  onRowOverrideChange: (rowNumber: number, fieldName: string, value: string) => void;
+  onApplyRowFix: (rowNumber: number) => void;
 }) {
   if (!preview) {
     return (
@@ -790,7 +848,13 @@ function ImportPreviewPanel({
       </p>
       <div className="mt-5 space-y-3">
         {preview.rows.slice(0, 5).map((row) => (
-          <ImportPreviewRowCard key={row.row_number} row={row} />
+          <ImportPreviewRowCard
+            key={row.row_number}
+            row={row}
+            rowOverride={rowOverrides[String(row.row_number)]}
+            onRowOverrideChange={onRowOverrideChange}
+            onApplyRowFix={onApplyRowFix}
+          />
         ))}
       </div>
       {preview.rows.length > 5 ? <p className="mt-3 text-xs text-slate-400">Showing the first 5 preview rows.</p> : null}
@@ -872,8 +936,19 @@ function ClarificationQuestionCard({
   );
 }
 
-function ImportPreviewRowCard({ row }: { row: CRMImportPreviewRow }) {
+function ImportPreviewRowCard({
+  row,
+  rowOverride,
+  onRowOverrideChange,
+  onApplyRowFix,
+}: {
+  row: CRMImportPreviewRow;
+  rowOverride?: Record<string, string>;
+  onRowOverrideChange: (rowNumber: number, fieldName: string, value: string) => void;
+  onApplyRowFix: (rowNumber: number) => void;
+}) {
   const hasError = row.issues.some((issue) => issue.severity === "error");
+  const needsFollowUpFix = row.issues.some((issue) => issue.field === "next_follow_up_at" && issue.severity === "error");
   return (
     <article className={`rounded-[1.2rem] border px-4 py-4 ${hasError ? "border-rose-300 bg-rose-950/40" : row.duplicate ? "border-amber-300 bg-amber-950/30" : "border-white/10 bg-white/5"}`}>
       <div className="flex flex-col gap-2 md:flex-row md:items-start md:justify-between">
@@ -901,6 +976,25 @@ function ImportPreviewRowCard({ row }: { row: CRMImportPreviewRow }) {
               {issue.message}
             </p>
           ))}
+        </div>
+      ) : null}
+      {needsFollowUpFix ? (
+        <div className="mt-4 rounded-xl border border-cyan-300/30 bg-cyan-400/10 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Fix missing data in Brivoly</p>
+          <div className="mt-3 flex flex-col gap-3 md:flex-row md:items-end">
+            <label className="block flex-1">
+              <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-300">Next follow-up date</span>
+              <input
+                type="datetime-local"
+                value={rowOverride?.next_follow_up_at ?? formatDateTimeInputValue(row.next_follow_up_at)}
+                onChange={(event) => onRowOverrideChange(row.row_number, "next_follow_up_at", event.target.value)}
+                className="mt-2 w-full rounded-xl border border-slate-700 bg-slate-950 px-3 py-3 text-sm text-white outline-none transition focus:border-slate-400"
+              />
+            </label>
+            <Button variant="outline" onClick={() => onApplyRowFix(row.row_number)}>
+              Re-check row
+            </Button>
+          </div>
         </div>
       ) : null}
     </article>
@@ -1045,6 +1139,22 @@ function formatDateTime(value: string | null) {
     dateStyle: "medium",
     timeStyle: "short",
   }).format(date);
+}
+
+function formatDateTimeInputValue(value: string | null) {
+  if (!value) {
+    return "";
+  }
+  const date = new Date(value);
+  if (Number.isNaN(date.getTime())) {
+    return "";
+  }
+  const year = date.getFullYear();
+  const month = String(date.getMonth() + 1).padStart(2, "0");
+  const day = String(date.getDate()).padStart(2, "0");
+  const hours = String(date.getHours()).padStart(2, "0");
+  const minutes = String(date.getMinutes()).padStart(2, "0");
+  return `${year}-${month}-${day}T${hours}:${minutes}`;
 }
 
 function formatImportFieldLabel(value: string) {

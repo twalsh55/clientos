@@ -28,6 +28,7 @@ async function buildImportPayload(request: NextRequest) {
   const sourceType = formData.get("source_type");
   const fieldMapping = parseFieldMapping(formData.get("field_mapping"));
   const clarificationAnswers = parseClarificationAnswers(formData.get("clarification_answers"));
+  const rowOverrides = parseRowOverrides(formData.get("row_overrides"));
   if (sourceType !== "file_upload" && sourceType !== "google_sheets") {
     throw new Error("Choose a spreadsheet file or Google Sheets before importing.");
   }
@@ -45,6 +46,7 @@ async function buildImportPayload(request: NextRequest) {
         file_content_base64: toBase64(await file.arrayBuffer()),
         field_mapping: fieldMapping,
         clarification_answers: clarificationAnswers,
+        row_overrides: rowOverrides,
       };
     }
     if (fileName.toLowerCase().endsWith(".csv")) {
@@ -53,6 +55,7 @@ async function buildImportPayload(request: NextRequest) {
         csv_content: await file.text(),
         field_mapping: fieldMapping,
         clarification_answers: clarificationAnswers,
+        row_overrides: rowOverrides,
       };
     }
     if (!fileName.toLowerCase().endsWith(".xlsx") && !fileName.toLowerCase().endsWith(".xls")) {
@@ -64,6 +67,7 @@ async function buildImportPayload(request: NextRequest) {
       file_content_base64: toBase64(await file.arrayBuffer()),
       field_mapping: fieldMapping,
       clarification_answers: clarificationAnswers,
+      row_overrides: rowOverrides,
     };
   }
 
@@ -76,6 +80,7 @@ async function buildImportPayload(request: NextRequest) {
     sheet_url: sheetUrl,
     field_mapping: fieldMapping,
     clarification_answers: clarificationAnswers,
+    row_overrides: rowOverrides,
   };
 }
 
@@ -121,6 +126,36 @@ function parseClarificationAnswers(value: FormDataEntryValue | null): Record<str
       typeof field === "string" && field.trim() ? [[key, field.trim()]] : [],
     ),
   );
+}
+
+function parseRowOverrides(value: FormDataEntryValue | null): Record<string, Record<string, string>> | undefined {
+  const raw = String(value || "").trim();
+  if (!raw) {
+    return undefined;
+  }
+  let parsed: unknown;
+  try {
+    parsed = JSON.parse(raw);
+  } catch {
+    throw new Error("Row fixes are invalid.");
+  }
+  if (!parsed || typeof parsed !== "object" || Array.isArray(parsed)) {
+    throw new Error("Row fixes are invalid.");
+  }
+  const normalized = Object.fromEntries(
+    Object.entries(parsed as Record<string, unknown>).flatMap(([rowNumber, fields]) => {
+      if (!fields || typeof fields !== "object" || Array.isArray(fields)) {
+        return [];
+      }
+      const normalizedFields = Object.fromEntries(
+        Object.entries(fields as Record<string, unknown>).flatMap(([fieldName, fieldValue]) =>
+          typeof fieldValue === "string" && fieldValue.trim() ? [[fieldName, fieldValue.trim()]] : [],
+        ),
+      );
+      return Object.keys(normalizedFields).length ? [[rowNumber, normalizedFields]] : [];
+    }),
+  );
+  return Object.keys(normalized).length ? normalized : undefined;
 }
 
 function toBase64(buffer: ArrayBuffer): string {

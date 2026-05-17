@@ -121,6 +121,8 @@ CANONICAL_IMPORT_FIELDS = (
     "next_step",
 )
 
+ROW_OVERRIDEABLE_FIELDS = frozenset(CANONICAL_IMPORT_FIELDS)
+
 
 class PreviewLeadImportUseCase:
     def __init__(self, repository: LeadFollowUpRepositoryPort, now: Callable[[], datetime]) -> None:
@@ -134,9 +136,10 @@ class PreviewLeadImportUseCase:
         source_type: str,
         source_label: str,
         field_mapping_overrides: dict[str, str | None] | None = None,
+        row_overrides: dict[str, dict[str, str]] | None = None,
     ) -> LeadImportPreview:
         existing_items = self.repository.list_lead_follow_ups(user)
-        return _build_preview(csv_content, source_type, source_label, existing_items, field_mapping_overrides)
+        return _build_preview(csv_content, source_type, source_label, existing_items, field_mapping_overrides, row_overrides)
 
 
 class PreviewLeadImportWithAssistanceUseCase:
@@ -160,10 +163,18 @@ class PreviewLeadImportWithAssistanceUseCase:
         preferred_formats: list[str],
         field_mapping_overrides: dict[str, str | None] | None = None,
         clarification_answers: dict[str, str] | None = None,
+        row_overrides: dict[str, dict[str, str]] | None = None,
     ) -> LeadImportPreview:
         existing_items = self.repository.list_lead_follow_ups(user)
         try:
-            preview = _build_preview(csv_content, source_type, source_label, existing_items, field_mapping_overrides)
+            preview = _build_preview(
+                csv_content,
+                source_type,
+                source_label,
+                existing_items,
+                field_mapping_overrides,
+                row_overrides,
+            )
         except ValueError as exc:
             if str(exc) != "No recognizable CRM headers were found in the spreadsheet.":
                 raise
@@ -183,7 +194,7 @@ class PreviewLeadImportWithAssistanceUseCase:
         merged_overrides = dict(suggested_mapping)
         if field_mapping_overrides:
             merged_overrides.update(field_mapping_overrides)
-        preview = _build_preview(csv_content, source_type, source_label, existing_items, merged_overrides)
+        preview = _build_preview(csv_content, source_type, source_label, existing_items, merged_overrides, row_overrides)
         if clarification:
             return replace(preview, clarification=clarification)
         return preview
@@ -201,10 +212,11 @@ class CommitLeadImportUseCase:
         source_type: str,
         source_label: str,
         field_mapping_overrides: dict[str, str | None] | None = None,
+        row_overrides: dict[str, dict[str, str]] | None = None,
     ) -> LeadImportCommitResult:
         current_time = self.now()
         existing_items = self.repository.list_lead_follow_ups(user)
-        preview = _build_preview(csv_content, source_type, source_label, existing_items, field_mapping_overrides)
+        preview = _build_preview(csv_content, source_type, source_label, existing_items, field_mapping_overrides, row_overrides)
         imported_items = [
             _build_imported_follow_up(row, preview.source_label, current_time)
             for row in preview.rows
@@ -247,6 +259,7 @@ def _build_preview(
     source_label: str,
     existing_items: list[LeadFollowUp],
     field_mapping_overrides: dict[str, str | None] | None = None,
+    row_overrides: dict[str, dict[str, str]] | None = None,
 ) -> LeadImportPreview:
     normalized_content = csv_content.strip()
     if not normalized_content:
@@ -276,12 +289,19 @@ def _build_preview(
     ]
 
     existing_keys = {_build_duplicate_key(item.lead_name, item.company_name) for item in existing_items}
+    normalized_row_overrides = _normalize_row_overrides(row_overrides)
     rows: list[LeadImportPreviewRow] = []
     issues: list[LeadImportIssue] = []
 
     try:
         for row_number, row in enumerate(reader, start=2):
-            preview_row = _build_preview_row(row_number, row, field_map, existing_keys)
+            preview_row = _build_preview_row(
+                row_number,
+                row,
+                field_map,
+                existing_keys,
+                normalized_row_overrides.get(row_number),
+            )
             rows.append(preview_row)
             issues.extend(preview_row.issues)
     except csv.Error as exc:
@@ -349,17 +369,20 @@ def _build_preview_row(
     raw_row: dict[str, str | None],
     field_map: dict[str, str],
     existing_keys: set[str],
+    row_override: dict[str, str] | None = None,
 ) -> LeadImportPreviewRow:
-    lead_name = _value_for(raw_row, field_map, "lead_name")
-    company_name = _value_for(raw_row, field_map, "company_name")
-    owner_name = _value_for(raw_row, field_map, "owner_name") or "Unassigned"
-    stage = _normalize_stage(_value_for(raw_row, field_map, "stage"))
-    priority = _normalize_priority(_value_for(raw_row, field_map, "priority"))
-    contact_channel = _normalize_contact_channel(_value_for(raw_row, field_map, "contact_channel"))
-    notes = _value_for(raw_row, field_map, "notes")
-    next_follow_up_raw = _value_for(raw_row, field_map, "next_follow_up_at")
+    lead_name = _override_value(row_override, "lead_name", _value_for(raw_row, field_map, "lead_name"))
+    company_name = _override_value(row_override, "company_name", _value_for(raw_row, field_map, "company_name"))
+    owner_name = _override_value(row_override, "owner_name", _value_for(raw_row, field_map, "owner_name")) or "Unassigned"
+    stage = _normalize_stage(_override_value(row_override, "stage", _value_for(raw_row, field_map, "stage")))
+    priority = _normalize_priority(_override_value(row_override, "priority", _value_for(raw_row, field_map, "priority")))
+    contact_channel = _normalize_contact_channel(
+        _override_value(row_override, "contact_channel", _value_for(raw_row, field_map, "contact_channel"))
+    )
+    notes = _override_value(row_override, "notes", _value_for(raw_row, field_map, "notes"))
+    next_follow_up_raw = _override_value(row_override, "next_follow_up_at", _value_for(raw_row, field_map, "next_follow_up_at"))
     next_follow_up_at = _parse_datetime(next_follow_up_raw)
-    next_step = _value_for(raw_row, field_map, "next_step")
+    next_step = _override_value(row_override, "next_step", _value_for(raw_row, field_map, "next_step"))
     row_issues: list[LeadImportIssue] = []
 
     if not lead_name and not company_name:
@@ -548,6 +571,38 @@ def _normalize_field_mapping_overrides(
             raise ValueError(f"Unsupported field mapping '{candidate}' for header '{raw_header}'.")
         normalized[raw_header] = candidate
     return normalized
+
+
+def _normalize_row_overrides(
+    overrides: dict[str, dict[str, str]] | None,
+) -> dict[int, dict[str, str]]:
+    if not overrides:
+        return {}
+    normalized: dict[int, dict[str, str]] = {}
+    for raw_row_number, raw_fields in overrides.items():
+        try:
+            row_number = int(str(raw_row_number).strip())
+        except ValueError as exc:
+            raise ValueError(f"Invalid row override id '{raw_row_number}'.") from exc
+        if row_number <= 0:
+            raise ValueError("Row override ids must be positive integers.")
+        if not isinstance(raw_fields, dict):
+            raise ValueError(f"Row override for row {row_number} must be an object.")
+        normalized_fields: dict[str, str] = {}
+        for raw_field_name, raw_value in raw_fields.items():
+            field_name = str(raw_field_name or "").strip()
+            if field_name not in ROW_OVERRIDEABLE_FIELDS:
+                raise ValueError(f"Unsupported row override field '{field_name}' for row {row_number}.")
+            normalized_fields[field_name] = str(raw_value or "").strip()
+        if normalized_fields:
+            normalized[row_number] = normalized_fields
+    return normalized
+
+
+def _override_value(row_override: dict[str, str] | None, field_name: str, current_value: str) -> str:
+    if row_override is None or field_name not in row_override:
+        return current_value
+    return row_override[field_name]
 
 
 def _value_for(raw_row: dict[str, str | None], field_map: dict[str, str], canonical_field: str) -> str:

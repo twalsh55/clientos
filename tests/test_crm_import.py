@@ -496,6 +496,36 @@ def test_preview_lead_import_surfaces_missing_fields_invalid_dates_and_note_warn
     assert preview.rows[1].issues[0].message == "Add a next follow-up date so the row can enter the queue."
 
 
+def test_preview_and_commit_lead_import_accept_row_overrides_for_missing_follow_up_date() -> None:
+    now = datetime(2024, 5, 6, 12, 30, tzinfo=UTC)
+    repository = InMemoryLeadFollowUpRepository(now=lambda: now)
+    csv_content = "contact,company,status,next follow-up,notes\nMary Jones,Northstar Studio,Discovery,,Needs a date\n"
+
+    preview = PreviewLeadImportUseCase(repository=repository, now=lambda: now).execute(
+        make_user(),
+        csv_content,
+        "csv",
+        "CSV upload",
+        row_overrides={"2": {"next_follow_up_at": "2024-05-10T09:30"}},
+    )
+
+    assert preview.importable_rows == 1
+    assert preview.invalid_rows == 0
+    assert preview.rows[0].next_follow_up_at == datetime(2024, 5, 10, 9, 30, tzinfo=UTC)
+
+    result = CommitLeadImportUseCase(repository=repository, now=lambda: now).execute(
+        make_user(),
+        csv_content,
+        "csv",
+        "CSV upload",
+        row_overrides={"2": {"next_follow_up_at": "2024-05-10T09:30"}},
+    )
+
+    assert result.imported_count == 1
+    imported = next(item for item in result.overview.items if item.lead_name == "Mary Jones")
+    assert imported.next_follow_up_at == datetime(2024, 5, 10, 9, 30, tzinfo=UTC)
+
+
 def test_import_helpers_cover_datetime_stage_priority_and_duplicate_edge_cases() -> None:
     assert _parse_datetime("") is None
     assert _parse_datetime("2024-05-09T11:30:00Z") == datetime(2024, 5, 9, 11, 30, tzinfo=UTC)

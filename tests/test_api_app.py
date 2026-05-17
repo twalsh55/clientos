@@ -1626,6 +1626,39 @@ def test_crm_import_preview_and_commit_endpoints_support_csv_and_google_sheets(m
     assert mapped_preview.json()["importable_rows"] == 1
     assert mapped_preview.json()["header_mappings"][0]["mapped_field"] == "lead_name"
 
+    fixed_preview = client.post(
+        "/api/crm/import/preview",
+        headers={"Authorization": "Bearer session-token"},
+        json={
+            "source_type": "csv",
+            "csv_content": "Contact,Company,Status,Next Follow-Up,Notes\nMary Jones,Northstar Studio,Discovery,,Needs a date\n",
+            "row_overrides": {
+                "2": {
+                    "next_follow_up_at": "2024-05-10T09:30",
+                }
+            },
+        },
+    )
+    assert fixed_preview.status_code == 200
+    assert fixed_preview.json()["importable_rows"] == 1
+    assert fixed_preview.json()["rows"][0]["next_follow_up_at"] == "2024-05-10T09:30:00+00:00"
+
+    fixed_commit = client.post(
+        "/api/crm/import",
+        headers={"Authorization": "Bearer session-token"},
+        json={
+            "source_type": "csv",
+            "csv_content": "Contact,Company,Status,Next Follow-Up,Notes\nMary Jones,Northstar Studio,Discovery,,Needs a date\n",
+            "row_overrides": {
+                "2": {
+                    "next_follow_up_at": "2024-05-10T09:30",
+                }
+            },
+        },
+    )
+    assert fixed_commit.status_code == 200
+    assert fixed_commit.json()["imported_count"] == 1
+
     excel_buffer = BytesIO()
     pd.DataFrame(
         [
