@@ -7,12 +7,12 @@ import { useState } from "react";
 import { BrandMark } from "@/components/brand-mark";
 
 const items = [
-  { href: "/clientos", label: "Today", body: "Start with the relationships that need you first" },
-  { href: "/clientos/follow-ups", label: "Relationships", body: "Memory, warmth, and the next touch" },
-  { href: "/clientos/inbox", label: "Inbox", body: "Quietly keep context current from email" },
-  { href: "/clientos/pipeline", label: "Attention", body: "Quiet relationships and gentle re-entry moments" },
-  { href: "/clientos/import", label: "Saved context", body: "Bring older spreadsheets and notes back into view" },
-  { href: "/clientos/intake", label: "Dropzones", body: "Simple client update links and upload paths" },
+  { href: "/clientos", label: "Today", body: "Start where attention matters most" },
+  { href: "/clientos/follow-ups", label: "Relationships", body: "Pick back up with context intact" },
+  { href: "/clientos/inbox", label: "Inbox", body: "Hold onto what changed in email" },
+  { href: "/clientos/pipeline", label: "Attention", body: "See who may be starting to drift" },
+  { href: "/clientos/import", label: "Saved context", body: "Bring old notes and sheets back in" },
+  { href: "/clientos/intake", label: "Dropzones", body: "Simple ways for clients to send updates" },
 ];
 
 export function CRMTaskbar({ authenticated = false }: { authenticated?: boolean }) {
@@ -34,7 +34,7 @@ export function CRMTaskbar({ authenticated = false }: { authenticated?: boolean 
         />
         <div>
           <p className="ui-eyebrow-inverse text-cyan-300">Client OS</p>
-          <p className="mt-1 text-xs text-slate-400">Brivoly</p>
+          <p className="mt-1 text-xs text-slate-400">Brivoly relationship memory</p>
         </div>
       </div>
       <nav className="mt-6 space-y-3">
