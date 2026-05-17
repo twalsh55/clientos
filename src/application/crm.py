@@ -501,6 +501,9 @@ def _build_last_30_days_summary(item: LeadFollowUp, current_time: datetime) -> s
     upload_context = _build_upload_memory_snippet(item)
     if upload_context:
         parts.append(f"Client-shared context recently added: {upload_context}")
+        upload_follow_through_hint = _build_upload_follow_through_hint(item, current_time)
+        if upload_follow_through_hint:
+            parts.append(upload_follow_through_hint)
     latest_thread = sorted(item.recent_email_threads, key=lambda thread: thread.last_message_at, reverse=True)[:1]
     if latest_thread:
         thread = latest_thread[0]
@@ -519,6 +522,8 @@ def _build_meeting_prep_summary(item: LeadFollowUp, current_time: datetime) -> s
         upload_follow_through_hint = _build_upload_follow_through_hint(item, current_time)
         if upload_follow_through_hint:
             parts.append(f"Best use of it right now: {upload_follow_through_hint}")
+        if not item.next_step.strip():
+            parts.append("Walk in ready to reference the new client context first, then make the next step feel easy.")
     if latest_entries:
         parts.append(f"The last meaningful discussion centered on {_sentence_case(latest_entries[0].summary.rstrip('.'))}.")
     if item.next_step.strip():

@@ -822,6 +822,9 @@ def test_crm_helper_branches_cover_remaining_health_context_and_merge_paths() ->
     assert "Imported from magic link image" in _build_relationship_context_summary(upload_follow_up)
     assert "Latest client-sent context" in _build_meeting_prep_summary(upload_follow_up, now)
     assert "Best next touch from the new context" in _build_upload_follow_through_hint(upload_follow_up, now)
+    assert "Best use of it right now" in _build_meeting_prep_summary(upload_follow_up, now)
+    upload_follow_up_without_next_step = replace(upload_follow_up, next_step="   ")
+    assert "Walk in ready to reference the new client context first" in _build_meeting_prep_summary(upload_follow_up_without_next_step, now)
     duplicate_note_follow_up = build_follow_up(
         now=now,
         notes="Imported from phone-note.jpg",

@@ -2031,7 +2031,7 @@ function RemoteImageCapturePanel({
 
   return (
     <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client handoff</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client dropzone</p>
       <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Give clients an easy place to send updates.</h2>
       <p className="mt-3 text-sm leading-6 text-slate-600">
         Brivoly gives you a simple no-login handoff page for screenshots, whiteboard photos, and note images. Set the defaults once, then let clients send context from their phone whenever something changes.
@@ -2102,15 +2102,15 @@ function RemoteImageCapturePanel({
 
 function IntakeTaskNav({ activeTask }: { activeTask: CRMIntakeTask }) {
   const items: Array<{ href: string; title: string; body: string; task: CRMIntakeTask }> = [
-    { href: "/clientos/intake", title: "Overview", body: "See the handoff flow at a glance.", task: "hub" },
-    { href: "/clientos/intake/profile", title: "Typical formats", body: "Show what clients usually send.", task: "profile" },
-    { href: "/clientos/intake/routing", title: "Best paths", body: "Pick the easiest default handoff paths.", task: "routing" },
-    { href: "/clientos/intake/capture", title: "Share link", body: "Use the phone-friendly page clients can open anytime.", task: "capture" },
+    { href: "/clientos/intake", title: "Overview", body: "See the dropzone flow at a glance.", task: "hub" },
+    { href: "/clientos/intake/profile", title: "Usual formats", body: "Show what clients usually send.", task: "profile" },
+    { href: "/clientos/intake/routing", title: "Default path", body: "Pick the easiest path once.", task: "routing" },
+    { href: "/clientos/intake/capture", title: "Share link", body: "Reuse the phone-friendly page anytime.", task: "capture" },
   ];
 
   return (
     <section className="rounded-[1.75rem] border bg-white/90 p-5 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client handoff</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client dropzone</p>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
         {items.map((item) => {
           const active = item.task === activeTask;
@@ -2148,20 +2148,20 @@ function IntakeTaskHub({
       <TaskSummaryCard
         href="/clientos/intake/profile"
         eyebrow="Step 1"
-        title="Show the kinds of context you usually get"
-        body={advancedAiUnlocked ? "Your AI memory defaults are ready. Keep the prompt and common formats close to how clients actually send context." : "Unlock the paid AI layer before relying on note images and messy files to carry context back in."}
+        title="Show the kinds of updates you usually get"
+        body={advancedAiUnlocked ? "Your AI memory defaults are ready. Keep them close to how clients actually send updates." : "Unlock the paid AI layer before relying on note images and messy files to carry client context back in."}
       />
       <TaskSummaryCard
         href="/clientos/intake/routing"
         eyebrow="Step 2"
-        title="Choose the easiest handoff path"
-        body={normalizedChannels.length ? `Default paths are set: ${normalizedChannels.join(", ")}.` : "Set the paths and one short note that make sending updates feel obvious."}
+        title="Choose the easiest default path"
+        body={normalizedChannels.length ? `Default paths are set: ${normalizedChannels.join(", ")}.` : "Set the path and one short note that make sending updates feel obvious."}
       />
       <TaskSummaryCard
         href="/clientos/intake/capture"
         eyebrow="Step 3"
-        title="Send the update link"
-        body={hasMagicLink ? "A signed no-login page is live and ready to send to clients." : "Turn this on once so clients can send updates from their phone without friction."}
+        title="Share the update link"
+        body={hasMagicLink ? "A signed no-login page is live and ready to reuse with clients." : "Turn this on once so clients can send updates from their phone without friction."}
       />
     </section>
   );
@@ -2208,7 +2208,7 @@ function IntakeRoutingPanel({
 }) {
   return (
     <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm">
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Where updates land</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Default handoff path</p>
       <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Set the easiest path once.</h2>
       <p className="mt-3 text-sm leading-6 text-slate-600">
         Keep this simple: choose the default handoff channels for this account and leave one short note so the next update arrives in the right place.
@@ -2315,7 +2315,7 @@ function AIIntakePanel({
     <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm">
       <div className="flex items-start justify-between gap-4">
         <div>
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Typical formats</p>
+      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Usual client formats</p>
           <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Show Brivoly what clients usually send.</h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">
             Keep a short memory prompt and your common source formats here so future spreadsheet, file, and image interpretation stays close to how you actually work.
@@ -2848,12 +2848,18 @@ function LeadMemoryPanel({
         <div className="mt-4 rounded-[1.2rem] border bg-white px-4 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Latest saved context</p>
           <p className="mt-2 text-sm leading-6 text-slate-700">{lead.notes}</p>
+          {lead.relationship_recent_upload_summary ? (
+            <div className="mt-4 rounded-[1rem] border bg-slate-50/80 px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Recent upload context</p>
+              <p className="mt-2 text-sm leading-6 text-slate-700">{lead.relationship_recent_upload_summary}</p>
+              {lead.relationship_upload_follow_through_hint ? <p className="mt-3 text-sm leading-6 text-slate-700">{lead.relationship_upload_follow_through_hint}</p> : null}
+            </div>
+          ) : null}
         </div>
-        {lead.relationship_recent_upload_summary ? (
+        {lead.relationship_recent_upload_summary && memoryView !== "meeting_prep" ? (
           <div className="mt-4 rounded-[1.2rem] border bg-white px-4 py-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Recent upload context</p>
-            <p className="mt-2 text-sm leading-6 text-slate-700">{lead.relationship_recent_upload_summary}</p>
-            {lead.relationship_upload_follow_through_hint ? <p className="mt-3 text-sm leading-6 text-slate-700">{lead.relationship_upload_follow_through_hint}</p> : null}
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Meeting prep from fresh context</p>
+            <p className="mt-2 text-sm leading-6 text-slate-700">{lead.relationship_meeting_prep_summary}</p>
           </div>
         ) : null}
       </section>
