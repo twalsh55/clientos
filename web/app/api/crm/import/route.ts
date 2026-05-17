@@ -1,13 +1,10 @@
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 import { ApiError, commitCrmImport } from "@/lib/api";
-import { BRIVOLY_SESSION_COOKIE, LEGACY_TRADE_SESSION_COOKIE } from "@/lib/auth";
+import { getServerApiAuthOptions } from "@/lib/server-auth";
 
 export async function POST(request: NextRequest) {
-  const cookieStore = await cookies();
-  const sessionToken =
-    cookieStore.get(BRIVOLY_SESSION_COOKIE)?.value ?? cookieStore.get(LEGACY_TRADE_SESSION_COOKIE)?.value ?? null;
+  const { sessionToken, cookieHeader } = await getServerApiAuthOptions();
 
   if (!sessionToken) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
@@ -15,7 +12,7 @@ export async function POST(request: NextRequest) {
 
   try {
     const payload = await buildImportPayload(request);
-    const result = await commitCrmImport(payload, { sessionToken });
+    const result = await commitCrmImport(payload, { sessionToken, cookieHeader });
     return NextResponse.json(result);
   } catch (error) {
     if (error instanceof ApiError) {

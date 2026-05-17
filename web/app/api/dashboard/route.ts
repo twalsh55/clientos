@@ -1,13 +1,10 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { getDashboard } from "@/lib/api";
-import { BRIVOLY_SESSION_COOKIE, LEGACY_TRADE_SESSION_COOKIE } from "@/lib/auth";
+import { getServerApiAuthOptions } from "@/lib/server-auth";
 
 export async function GET(request: Request) {
-  const cookieStore = await cookies();
-  const sessionToken =
-    cookieStore.get(BRIVOLY_SESSION_COOKIE)?.value ?? cookieStore.get(LEGACY_TRADE_SESSION_COOKIE)?.value ?? null;
+  const { sessionToken, cookieHeader } = await getServerApiAuthOptions();
   if (!sessionToken) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
@@ -24,6 +21,7 @@ export async function GET(request: Request) {
   try {
     const dashboard = await getDashboard({
       sessionToken,
+      cookieHeader,
       filters: {
         universe: universe.length ? universe : undefined,
         benchmark,

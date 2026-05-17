@@ -1,23 +1,17 @@
-import { cookies } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { getAccountSettings, updateAccountSettings } from "@/lib/api";
-import { BRIVOLY_SESSION_COOKIE, LEGACY_TRADE_SESSION_COOKIE } from "@/lib/auth";
+import { getServerApiAuthOptions } from "@/lib/server-auth";
 import type { AccountSettings } from "@/lib/types";
 
-async function getSessionToken() {
-  const cookieStore = await cookies();
-  return cookieStore.get(BRIVOLY_SESSION_COOKIE)?.value ?? cookieStore.get(LEGACY_TRADE_SESSION_COOKIE)?.value ?? null;
-}
-
 export async function GET() {
-  const sessionToken = await getSessionToken();
+  const { sessionToken, cookieHeader } = await getServerApiAuthOptions();
   if (!sessionToken) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
   try {
-    const settings = await getAccountSettings({ sessionToken });
+    const settings = await getAccountSettings({ sessionToken, cookieHeader });
     return NextResponse.json(settings);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to load account settings.";
@@ -26,7 +20,7 @@ export async function GET() {
 }
 
 export async function PUT(request: Request) {
-  const sessionToken = await getSessionToken();
+  const { sessionToken, cookieHeader } = await getServerApiAuthOptions();
   if (!sessionToken) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
@@ -37,7 +31,7 @@ export async function PUT(request: Request) {
   }
 
   try {
-    const settings = await updateAccountSettings(payload, { sessionToken });
+    const settings = await updateAccountSettings(payload, { sessionToken, cookieHeader });
     return NextResponse.json(settings);
   } catch (error) {
     const message = error instanceof Error ? error.message : "Unable to update account settings.";

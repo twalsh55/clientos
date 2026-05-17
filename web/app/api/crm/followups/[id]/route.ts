@@ -1,8 +1,7 @@
-import { cookies } from "next/headers";
 import { NextRequest, NextResponse } from "next/server";
 
 import { ApiError, updateCrmFollowUp } from "@/lib/api";
-import { BRIVOLY_SESSION_COOKIE, LEGACY_TRADE_SESSION_COOKIE } from "@/lib/auth";
+import { getServerApiAuthOptions } from "@/lib/server-auth";
 
 type Context = {
   params: Promise<{ id: string }>;
@@ -10,9 +9,7 @@ type Context = {
 
 export async function PATCH(request: NextRequest, context: Context) {
   const { id } = await context.params;
-  const cookieStore = await cookies();
-  const sessionToken =
-    cookieStore.get(BRIVOLY_SESSION_COOKIE)?.value ?? cookieStore.get(LEGACY_TRADE_SESSION_COOKIE)?.value ?? null;
+  const { sessionToken, cookieHeader } = await getServerApiAuthOptions();
 
   if (!sessionToken) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
@@ -34,7 +31,7 @@ export async function PATCH(request: NextRequest, context: Context) {
       : { action: "snooze" as const, snooze_hours: payload.snooze_hours };
 
   try {
-    const overview = await updateCrmFollowUp(id, normalizedPayload, { sessionToken });
+    const overview = await updateCrmFollowUp(id, normalizedPayload, { sessionToken, cookieHeader });
     return NextResponse.json(overview);
   } catch (error) {
     if (error instanceof ApiError) {
