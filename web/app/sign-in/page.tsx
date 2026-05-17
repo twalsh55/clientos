@@ -27,8 +27,8 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           </div>
           <h1 className="mt-5 text-4xl font-semibold tracking-tight">Your Brivoly workspace is one sign-in away.</h1>
           <p className="mt-4 text-sm leading-7 text-slate-300">
-            Sign in once to open the CRM workspace or the crash monitor with your saved account access. The goal here
-            is simple: make it obvious where you are, get you authenticated cleanly, and send you back into the app.
+            Sign in once to open the CRM workspace with your saved account access. The goal here is simple: make it
+            obvious where you are, get you authenticated cleanly, and send you back into the app.
           </p>
           <div className="mt-8 grid gap-3 text-sm text-slate-300">
             <div className="rounded-[1.4rem] border border-cyan-300/20 bg-cyan-300/10 px-4 py-4">
@@ -42,7 +42,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             <div className="rounded-[1.4rem] border border-white/10 bg-white/5 px-4 py-4">
               <p className="text-xs font-semibold uppercase tracking-[0.22em] text-cyan-200">Where you’ll land</p>
               <p className="mt-2 leading-6">
-                {redirectTo === "/crm" ? "CRM follow-up workspace" : redirectTo === "/crash-monitor" ? "Crash monitor dashboard" : "Brivoly workspace hub"}
+                {redirectTo === "/crm" ? "CRM follow-up workspace" : "Brivoly CRM workspace"}
               </p>
             </div>
             <div className="rounded-[1.4rem] border border-white/10 bg-white/5 px-4 py-4">

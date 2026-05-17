@@ -48,9 +48,8 @@ export default async function CRMPortalPage() {
               </div>
             </div>
             <p className="mt-6 max-w-2xl text-base leading-7 text-slate-600">
-              This portal gives the CRM product its own destination now, even before the full workflow surface lands.
-              It is the place to grow deal tracking, notes, customer follow-up, and operator context without cluttering
-              the crash-monitor experience.
+              This is now the main Brivoly web app. It is where deal tracking, notes, follow-up rhythm, and operator
+              context should live without making people choose between products on the way in.
             </p>
             <div className={`mt-6 rounded-[1.5rem] border px-5 py-4 ${user ? "border-emerald-200 bg-emerald-50 text-emerald-900" : "border-amber-200 bg-amber-50 text-amber-900"}`}>
               <p className="text-xs font-semibold uppercase tracking-[0.22em]">{user ? "Signed in to CRM" : "Guest mode in CRM"}</p>
@@ -66,12 +65,6 @@ export default async function CRMPortalPage() {
               </p>
             </div>
             <div className="mt-8 flex flex-wrap gap-3">
-              <Button asChild size="lg">
-                <Link href="/">Back to portal hub</Link>
-              </Button>
-              <Button asChild size="lg" variant="outline">
-                <Link href="/crash-monitor">Open crash monitor</Link>
-              </Button>
               {!user && bootstrap?.clerk_sign_in_url ? (
                 <Button asChild size="lg" variant="outline">
                   <Link href="/sign-in?redirectTo=%2Fcrm">Sign in</Link>

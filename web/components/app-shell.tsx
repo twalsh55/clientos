@@ -39,10 +39,10 @@ export function AppShell({ data }: AppShellProps) {
             Monitor market stress, participation, and crash-risk cues while Python remains the calculation engine.
           </p>
           <Link
-            href="/"
+            href="/crm"
             className="inline-flex items-center rounded-full border border-white/10 bg-white/5 px-4 py-2 text-xs font-semibold uppercase tracking-[0.2em] text-slate-200 transition hover:border-cyan-300/40 hover:bg-white/10"
           >
-            Back to portal hub
+            Open CRM app
           </Link>
         </div>
         <nav className="mt-8 space-y-2">

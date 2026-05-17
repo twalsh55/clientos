@@ -149,8 +149,8 @@ export function ClerkAuthBridge({ publishableKey, host, redirectTo }: ClerkAuthB
       </div>
       <h2 className="mt-4 text-3xl font-semibold tracking-tight text-slate-950">Sign in to continue to Brivoly</h2>
       <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
-        Use your account to open the CRM workspace or crash monitor. Once you sign in, Brivoly will take you straight
-        back to where you were headed.
+        Use your account to open the CRM workspace. Once you sign in, Brivoly will take you straight back to where you
+        were headed.
       </p>
       <div className="mt-5 grid gap-3 sm:grid-cols-3">
         <AuthStep label="Step 1" value="Sign in" />
@@ -172,7 +172,7 @@ export function ClerkAuthBridge({ publishableKey, host, redirectTo }: ClerkAuthB
       <p className="mt-4 text-sm text-slate-500">
         New here?{" "}
         <Link className="font-medium text-slate-900 underline underline-offset-4" href="/?from=sign-in">
-          Start from the workspace hub
+          Start from the CRM app
         </Link>
         .
       </p>
