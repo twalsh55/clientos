@@ -47,10 +47,10 @@ export function CRMShell({ data }: { data: CRMPageData }) {
         </div>
       </section>
       <section className="mt-6 grid gap-6 lg:grid-cols-4">
-        <FeatureCard title="Today" body="See who needs your attention first." />
+        <FeatureCard title="Today" body="Start with the relationships that need you first." />
         <FeatureCard title="Relationships" body="Keep notes, continuity, and the next touch in one place." />
         <FeatureCard title="Attention" body="Spot quiet or slipping relationships before they cool off." />
-        <FeatureCard title="Context" body="Bring in spreadsheets, uploads, and new client information." />
+        <FeatureCard title="Context" body="Bring older spreadsheets, uploads, and new client context back into memory." />
       </section>
     </>
   );

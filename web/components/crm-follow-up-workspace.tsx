@@ -1184,9 +1184,9 @@ function TodayPrioritiesPanel({
           href: "/clientos/intake",
           eyebrow: "Client upload",
           title: `Review new files from ${recentUploadLead.lead_name}`,
-          body: recentUploadLead.relationship_recent_upload_summary,
+          body: `${recentUploadLead.relationship_recent_upload_summary}${recentUploadLead.next_step.trim() ? ` Next touch: ${recentUploadLead.next_step}` : ""}`,
           meta: `${recentUploadLead.company_name} · ${formatDateTime(getLatestUploadContextEntry(recentUploadLead)?.occurred_at ?? null)}`,
-          actionLabel: "Review context",
+          actionLabel: "Open relationship",
           onAction: () => onRunAction(recentUploadLead.id, "/clientos/follow-ups"),
         }
       : null,
@@ -1229,6 +1229,7 @@ function TodayPrioritiesPanel({
       <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
         Brivoly pulls together reply pressure, reconnect risk, proposal momentum, and fresh context so you can pick up the right relationships without re-reading everything first.
       </p>
+      <p className="mt-3 text-sm font-medium text-slate-700">Start with one relationship. Brivoly will hold the rest.</p>
       <div className="mt-5 grid gap-3 md:grid-cols-2">
         <TodaySignal
           label="Reply pressure"
@@ -1246,7 +1247,7 @@ function TodayPrioritiesPanel({
           detail={proposalCount ? `proposal${proposalCount === 1 ? "" : "s"} need follow-through` : "No proposals need a push today"}
         />
         <TodaySignal
-          label="Fresh context"
+          label="Client context"
           value={recentUploadCount ? String(recentUploadCount) : freshContextCount ? String(freshContextCount) : "Quiet"}
           detail={
             recentUploadCount
@@ -1265,6 +1266,7 @@ function TodayPrioritiesPanel({
               <p className="mt-2 text-2xl font-semibold tracking-tight">{primaryPriority.title}</p>
               <p className="mt-3 text-sm leading-6 text-slate-200">{primaryPriority.body}</p>
               <p className="mt-4 text-xs text-slate-300">{primaryPriority.meta}</p>
+              <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-400">{primaryPriority.eyebrow}</p>
             </div>
             <div className="flex flex-wrap gap-2 lg:justify-end">
               <Button
@@ -1876,6 +1878,23 @@ function InboxNextMovePanel({
         <div className="mt-4 rounded-[1.2rem] border bg-slate-50/80 px-4 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Fresh client context</p>
           <p className="mt-2 text-sm leading-6 text-slate-600">{lead.relationship_recent_upload_summary}</p>
+          <div className="mt-4 flex flex-wrap gap-3">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isDrafting}
+              onClick={() =>
+                onDraftAction({
+                  objective: "follow_up",
+                  tone: "warm",
+                  length: "short",
+                  status: "Drafting a reply from fresh client context...",
+                })
+              }
+            >
+              Use this in a draft
+            </Button>
+          </div>
         </div>
       ) : null}
       {shouldReconnect ? (
@@ -2624,12 +2643,21 @@ function LeadMemoryPanel({
 }) {
   const launchHref = buildMailtoHref(emailSubjectDraft, emailBodyDraft);
   const suggestedResponses = buildSuggestedResponsePresets(lead);
-  const [memoryView, setMemoryView] = useState<"overview" | "last_30_days" | "meeting_prep" | "recent_changes">("overview");
+  const [memoryView, setMemoryView] = useState<"overview" | "last_30_days" | "meeting_prep" | "recent_changes" | "recent_upload">("overview");
   const memoryPanels = [
     { value: "overview" as const, label: "What matters", body: lead.relationship_context_summary || lead.notes || "No summary yet." },
     { value: "last_30_days" as const, label: "Last 30 days", body: lead.relationship_last_30_days_summary || "No 30-day summary yet." },
     { value: "meeting_prep" as const, label: "Meeting prep", body: lead.relationship_meeting_prep_summary || "No meeting prep summary yet." },
     { value: "recent_changes" as const, label: "What changed", body: lead.relationship_recent_changes_summary || "No recent changes were captured yet." },
+    ...(lead.relationship_recent_upload_summary
+      ? [
+          {
+            value: "recent_upload" as const,
+            label: "Client-shared context",
+            body: lead.relationship_recent_upload_summary,
+          },
+        ]
+      : []),
   ];
   const activeMemoryPanel = memoryPanels.find((item) => item.value === memoryView) ?? memoryPanels[0];
   return (

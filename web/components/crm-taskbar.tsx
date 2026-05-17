@@ -7,12 +7,12 @@ import { useState } from "react";
 import { BrandMark } from "@/components/brand-mark";
 
 const items = [
-  { href: "/clientos", label: "Today", body: "Relationship priorities at a glance" },
+  { href: "/clientos", label: "Today", body: "Start with the relationships that need you first" },
   { href: "/clientos/follow-ups", label: "Relationships", body: "Memory, warmth, and the next touch" },
   { href: "/clientos/inbox", label: "Inbox", body: "Quietly keep context current from email" },
-  { href: "/clientos/pipeline", label: "Attention", body: "See who is slipping before they go cold" },
-  { href: "/clientos/import", label: "Context", body: "Bring client context in without extra cleanup" },
-  { href: "/clientos/intake", label: "Dropzones", body: "Client upload links and routing" },
+  { href: "/clientos/pipeline", label: "Attention", body: "Quiet relationships and gentle re-entry moments" },
+  { href: "/clientos/import", label: "Context", body: "Bring older spreadsheets and notes into memory" },
+  { href: "/clientos/intake", label: "Dropzones", body: "Client update links and upload paths" },
 ];
 
 export function CRMTaskbar({ authenticated = false }: { authenticated?: boolean }) {
