@@ -159,6 +159,21 @@ class PostgresLeadFollowUpRepository:
             database_connection.commit()
         return connection
 
+    def delete_mailbox_connection(self, user: User, connection_id: str) -> None:
+        with connect(self.database_url) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    DELETE FROM crm_mailbox_connection
+                    WHERE user_id = %(user_id)s AND connection_id = %(connection_id)s
+                    """,
+                    {"user_id": user.id, "connection_id": connection_id},
+                )
+                deleted_count = max(0, int(getattr(cursor, "rowcount", 0) or 0))
+            connection.commit()
+        if deleted_count == 0:
+            raise KeyError(connection_id)
+
     def list_mailbox_connection_user_ids(self) -> list[UUID]:
         with connect(self.database_url) as connection:
             with connection.cursor() as cursor:
@@ -353,6 +368,7 @@ def _payload_to_mailbox_connection(payload: dict[str, Any]) -> MailboxConnection
         last_sync_error=str(payload.get("last_sync_error", "")),
         last_synced_thread_count=int(payload.get("last_synced_thread_count", 0) or 0),
         sent_message_count=int(payload.get("sent_message_count", 0) or 0),
+        background_sync_enabled=bool(payload.get("background_sync_enabled", True)),
     )
 
 

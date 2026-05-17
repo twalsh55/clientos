@@ -356,6 +356,10 @@ def test_account_settings_and_alert_history_dtos_serialize_values() -> None:
         crm_preferred_import_formats=["csv", "spreadsheet_screenshot"],
         crm_image_intake_channels=["upload", "whatsapp", "magic_link"],
         crm_image_intake_notes="WhatsApp is the fallback when the founder is away from a laptop.",
+        preferred_language="en",
+        preferred_locale="en-US",
+        data_retention_days=365,
+        allow_ai_processing=True,
     )
     alert = AlertHistoryEntry(
         occurred_at=datetime(2024, 5, 6, 12, 30, tzinfo=UTC),
@@ -375,6 +379,10 @@ def test_account_settings_and_alert_history_dtos_serialize_values() -> None:
     assert settings_payload["profile_alias"] == "ada"
     assert settings_payload["crm_preferred_import_formats"] == ["csv", "spreadsheet_screenshot"]
     assert settings_payload["crm_image_intake_channels"] == ["upload", "whatsapp", "magic_link"]
+    assert settings_payload["preferred_language"] == "en"
+    assert settings_payload["preferred_locale"] == "en-US"
+    assert settings_payload["data_retention_days"] == 365
+    assert settings_payload["allow_ai_processing"] is True
     assert alert_payload["title"] == "Updated"
     assert alert_payload["occurred_at"] == "2024-05-06T12:30:00+00:00"
 
@@ -1022,10 +1030,40 @@ def test_crm_mailbox_connect_and_list_endpoints_persist_connections() -> None:
     assert payload["provider"] == "gmail"
     assert payload["email_address"] == "ada@northstar.example"
     assert payload["status"] == "connected"
+    assert payload["background_sync_enabled"] is True
 
     list_response = client.get("/api/crm/inbox/mailboxes", headers={"Authorization": "Bearer session-token"})
     assert list_response.status_code == 200
     assert list_response.json()["items"][0]["email_address"] == "ada@northstar.example"
+
+
+def test_crm_mailbox_update_and_delete_endpoints_manage_connection_state() -> None:
+    repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 17, 12, 30, tzinfo=UTC))
+    client = make_client(user=make_user(), lead_follow_up_repository=repository)
+
+    connection = client.post(
+        "/api/crm/inbox/mailboxes/connect",
+        headers={"Authorization": "Bearer session-token"},
+        json={"provider": "gmail", "email_address": "ada@northstar.example", "display_name": "Ada from Northstar"},
+    ).json()
+
+    update_response = client.patch(
+        f"/api/crm/inbox/mailboxes/{connection['id']}",
+        headers={"Authorization": "Bearer session-token"},
+        json={"background_sync_enabled": False},
+    )
+
+    assert update_response.status_code == 200
+    assert update_response.json()["background_sync_enabled"] is False
+
+    delete_response = client.delete(
+        f"/api/crm/inbox/mailboxes/{connection['id']}",
+        headers={"Authorization": "Bearer session-token"},
+    )
+
+    assert delete_response.status_code == 200
+    assert delete_response.json()["deleted"] is True
+    assert repository.list_mailbox_connections(make_user()) == []
 
 
 def test_crm_mailbox_oauth_start_and_complete_endpoints_return_provider_connection() -> None:
@@ -1074,6 +1112,29 @@ def test_crm_mailbox_sync_endpoint_updates_relationship_memory() -> None:
     assert payload["synced_threads"] >= 1
     assert payload["connection"]["last_sync_status"] == "ok"
     assert payload["overview"]["inbox_summary"]["active_thread_count"] >= 1
+
+
+def test_account_privacy_export_returns_settings_mailboxes_and_relationship_memory() -> None:
+    user = make_user()
+    repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 17, 12, 30, tzinfo=UTC))
+    personalization = InMemoryPersonalizationRepository()
+    personalization.save_dashboard_settings(build_default_dashboard_settings(user.id, telegram_enabled=False))
+    client = make_client(user=user, lead_follow_up_repository=repository, personalization_repository=personalization)
+
+    client.post(
+        "/api/crm/inbox/mailboxes/connect",
+        headers={"Authorization": "Bearer session-token"},
+        json={"provider": "gmail", "email_address": "ada@northstar.example", "display_name": "Ada from Northstar"},
+    )
+
+    response = client.get("/api/account/privacy/export", headers={"Authorization": "Bearer session-token"})
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert payload["user"]["id"] == str(user.id)
+    assert payload["settings"]["preferred_locale"] == "en-US"
+    assert payload["mailboxes"][0]["email_address"] == "ada@northstar.example"
+    assert payload["relationship_memory"]["items"]
 
 
 def test_crm_send_followup_email_endpoint_logs_outbound_thread_and_updates_connection() -> None:
@@ -1672,6 +1733,10 @@ def test_account_use_cases_and_in_memory_repository_round_trip_settings_and_aler
         crm_preferred_import_formats=["csv"],
         crm_image_intake_channels=["upload"],
         crm_image_intake_notes="Default to uploads.",
+        preferred_language="en",
+        preferred_locale="en-US",
+        data_retention_days=365,
+        allow_ai_processing=True,
     )
     get_use_case = GetUserDashboardSettingsUseCase(repository=repository, default_factory=lambda user_id: defaults)
     update_use_case = UpdateUserDashboardSettingsUseCase(repository=repository)
@@ -1701,6 +1766,10 @@ def test_account_use_cases_and_in_memory_repository_round_trip_settings_and_aler
             crm_preferred_import_formats=["pdf_export", "csv"],
             crm_image_intake_channels=["whatsapp", "email"],
             crm_image_intake_notes="Use WhatsApp for handwritten notes and email for scanned PDFs.",
+            preferred_language="en",
+            preferred_locale="en-US",
+            data_retention_days=365,
+            allow_ai_processing=True,
         ),
     )
 
@@ -1755,6 +1824,10 @@ def test_dashboard_settings_helpers_normalize_defaults_and_build_config() -> Non
             crm_preferred_import_formats=[" CSV ", "csv", "Spreadsheet Screenshot"],
             crm_image_intake_channels=[" Upload ", "telegram", "WhatsApp"],
             crm_image_intake_notes="  Founder sends scans by WhatsApp.  ",
+            preferred_language=" EN ",
+            preferred_locale=" en_us ",
+            data_retention_days=7,
+            allow_ai_processing=True,
         )
     )
     assert normalized.universe == ["SPY", "QQQ"]
@@ -1763,6 +1836,9 @@ def test_dashboard_settings_helpers_normalize_defaults_and_build_config() -> Non
     assert normalized.business_name == "Northstar Studio"
     assert normalized.business_website == "https://northstar.example"
     assert normalized.profile_alias == "ada"
+    assert normalized.preferred_language == "en"
+    assert normalized.preferred_locale == "en-US"
+    assert normalized.data_retention_days == 30
     assert normalized.outbound_sender_name == "Ada from Northstar"
     assert normalized.business_logo_data_url == "data:image/png;base64,ZmFrZQ=="
     assert normalized.onboarding_profile_deferred is False
@@ -2176,6 +2252,10 @@ def test_crm_followup_email_draft_endpoint_returns_designed_draft() -> None:
             crm_preferred_import_formats=[],
             crm_image_intake_channels=[],
             crm_image_intake_notes="",
+            preferred_language="en",
+            preferred_locale="en-US",
+            data_retention_days=365,
+            allow_ai_processing=True,
         )
     )
     client = make_client(user=user, lead_follow_up_repository=repository, personalization_repository=personalization)

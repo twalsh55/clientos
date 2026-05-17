@@ -24,7 +24,7 @@ def run_scheduled_mailbox_sync_job() -> tuple[int, int]:
             continue
         connections = repository.list_mailbox_connections(user)
         for connection in connections:
-            if connection.connection_mode != "oauth" or connection.status != "connected":
+            if connection.connection_mode != "oauth" or connection.status != "connected" or not connection.background_sync_enabled:
                 continue
             result = SyncMailboxConnectionUseCase(
                 repository=repository,

@@ -45,6 +45,10 @@ export function SettingsEditor({
       crm_image_intake_channels: ["upload", "magic_link"],
       crm_image_intake_notes:
         "Default to uploads inside Brivoly, then use the signed magic link when phone capture is easier.",
+      preferred_language: "en",
+      preferred_locale: "en-US",
+      data_retention_days: 365,
+      allow_ai_processing: true,
     },
   );
 
@@ -93,6 +97,10 @@ export function SettingsEditor({
       crm_preferred_import_formats: form.crm_preferred_import_formats.map((item) => item.trim()).filter(Boolean),
       crm_image_intake_channels: form.crm_image_intake_channels.map((item) => item.trim()).filter(Boolean),
       crm_image_intake_notes: form.crm_image_intake_notes.trim(),
+      preferred_language: form.preferred_language.trim(),
+      preferred_locale: form.preferred_locale.trim(),
+      data_retention_days: Number(form.data_retention_days),
+      allow_ai_processing: form.allow_ai_processing,
     };
     const validationErrors = validateForm(payload);
     setErrors(validationErrors);
@@ -124,6 +132,25 @@ export function SettingsEditor({
     startTransition(() => {
       router.refresh();
     });
+  }
+
+  async function handlePrivacyExport() {
+    setStatus("Preparing your account data export...");
+    const response = await fetch("/api/account/privacy/export");
+    const body = (await response.json().catch(() => null)) as Record<string, unknown> | null;
+    if (!response.ok || !body) {
+      setStatus((body && typeof body.error === "string" && body.error) || "Unable to export account data.");
+      return;
+    }
+
+    const blob = new Blob([JSON.stringify(body, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const anchor = document.createElement("a");
+    anchor.href = url;
+    anchor.download = `brivoly-account-export-${new Date().toISOString().slice(0, 10)}.json`;
+    anchor.click();
+    URL.revokeObjectURL(url);
+    setStatus("Account export downloaded.");
   }
 
   return (
@@ -332,6 +359,60 @@ export function SettingsEditor({
         {errors.crm_image_intake_notes ? <FieldError message={errors.crm_image_intake_notes} /> : null}
       </Field>
 
+      <section className="rounded-[1.5rem] border bg-slate-50/80 p-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Language and privacy</p>
+        <p className="mt-2 text-sm leading-6 text-slate-600">
+          Set a default language and locale for Brivoly’s copy and formatting, then keep retention and AI handling clear for GDPR-oriented account controls.
+        </p>
+        <div className="mt-4 grid gap-4 xl:grid-cols-2">
+          <Field label="Preferred language">
+            <input
+              className={inputClassName(Boolean(errors.preferred_language))}
+              value={form.preferred_language}
+              onChange={(event) => updateField("preferred_language", event.target.value)}
+              placeholder="en"
+            />
+            {errors.preferred_language ? <FieldError message={errors.preferred_language} /> : null}
+          </Field>
+          <Field label="Preferred locale">
+            <input
+              className={inputClassName(Boolean(errors.preferred_locale))}
+              value={form.preferred_locale}
+              onChange={(event) => updateField("preferred_locale", event.target.value)}
+              placeholder="en-US"
+            />
+            {errors.preferred_locale ? <FieldError message={errors.preferred_locale} /> : null}
+          </Field>
+          <Field label="Retention window (days)">
+            <input
+              type="number"
+              min={30}
+              max={3650}
+              className={inputClassName(Boolean(errors.data_retention_days))}
+              value={form.data_retention_days}
+              onChange={(event) => updateField("data_retention_days", Number(event.target.value))}
+            />
+            {errors.data_retention_days ? <FieldError message={errors.data_retention_days} /> : null}
+          </Field>
+          <Field label="AI memory handling">
+            <label className="flex h-[50px] items-center gap-3 rounded-2xl border bg-white px-4 py-3 text-sm text-slate-700">
+              <input
+                type="checkbox"
+                checked={form.allow_ai_processing}
+                onChange={(event) => updateField("allow_ai_processing", event.target.checked)}
+              />
+              Let Brivoly use AI to summarize relationship memory and draft notes.
+            </label>
+          </Field>
+        </div>
+        <div className="mt-4 flex flex-wrap items-center gap-3">
+          <Button type="button" variant="outline" onClick={handlePrivacyExport}>
+            Download account export
+          </Button>
+          <p className="text-sm text-slate-500">Includes settings, connected mailboxes, and saved relationship memory.</p>
+        </div>
+      </section>
+
       <div className="flex flex-wrap items-center gap-3">
         <Button type="submit" disabled={isPending} data-testid="settings-save-button">
           {isPending ? "Saving..." : "Save settings"}
@@ -414,6 +495,15 @@ function validateForm(form: AccountSettings) {
   }
   if (form.profile_alias.length > 80) {
     nextErrors.profile_alias = "Alias must be 80 characters or fewer.";
+  }
+  if (!form.preferred_language || form.preferred_language.length > 16) {
+    nextErrors.preferred_language = "Preferred language must be between 1 and 16 characters.";
+  }
+  if (!form.preferred_locale || form.preferred_locale.length > 24) {
+    nextErrors.preferred_locale = "Preferred locale must be between 1 and 24 characters.";
+  }
+  if (form.data_retention_days < 30 || form.data_retention_days > 3650) {
+    nextErrors.data_retention_days = "Retention window must be between 30 and 3650 days.";
   }
   return nextErrors;
 }

@@ -254,6 +254,12 @@ class InMemoryLeadFollowUpRepository:
         self._mailbox_connections[connection.id] = replace(connection)
         return replace(connection)
 
+    def delete_mailbox_connection(self, user: User, connection_id: str) -> None:
+        del user
+        if connection_id not in self._mailbox_connections:
+            raise KeyError(connection_id)
+        self._mailbox_connections.pop(connection_id, None)
+
     def list_mailbox_connection_user_ids(self) -> list[UUID]:
         return []
 

@@ -121,6 +121,10 @@ class UserDashboardSettingsDTO:
     crm_preferred_import_formats: list[str]
     crm_image_intake_channels: list[str]
     crm_image_intake_notes: str
+    preferred_language: str
+    preferred_locale: str
+    data_retention_days: int
+    allow_ai_processing: bool
 
 
 @dataclass(frozen=True)
@@ -287,6 +291,7 @@ class MailboxConnectionDTO:
     last_sync_error: str
     last_synced_thread_count: int
     sent_message_count: int
+    background_sync_enabled: bool
 
 
 @dataclass(frozen=True)
@@ -510,6 +515,10 @@ def build_user_dashboard_settings_dto(settings: UserDashboardSettings) -> UserDa
         crm_preferred_import_formats=list(settings.crm_preferred_import_formats),
         crm_image_intake_channels=list(settings.crm_image_intake_channels),
         crm_image_intake_notes=settings.crm_image_intake_notes,
+        preferred_language=settings.preferred_language,
+        preferred_locale=settings.preferred_locale,
+        data_retention_days=settings.data_retention_days,
+        allow_ai_processing=settings.allow_ai_processing,
     )
 
 
@@ -722,6 +731,7 @@ def build_mailbox_connection_dto(connection: MailboxConnection) -> MailboxConnec
         last_sync_error=connection.last_sync_error,
         last_synced_thread_count=connection.last_synced_thread_count,
         sent_message_count=connection.sent_message_count,
+        background_sync_enabled=connection.background_sync_enabled,
     )
 
 

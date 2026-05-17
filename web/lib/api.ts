@@ -1,5 +1,6 @@
 import type {
   AccountSettings,
+  AccountPrivacyExport,
   AlertHistoryResponse,
   BillingOverview,
   CRMEmailDraft,
@@ -162,6 +163,10 @@ export async function updateAccountSettings(
   );
 }
 
+export async function exportAccountPrivacyData(options: ApiRequestOptions = {}): Promise<AccountPrivacyExport> {
+  return apiRequest<AccountPrivacyExport>("/api/account/privacy/export", {}, options);
+}
+
 export async function getAlertHistory(options: ApiRequestOptions = {}): Promise<AlertHistoryResponse> {
   return apiRequest<AlertHistoryResponse>("/api/alerts/history", {}, options);
 }
@@ -302,6 +307,31 @@ export async function syncCrmMailbox(connectionId: string, options: ApiRequestOp
     `/api/crm/inbox/mailboxes/${connectionId}/sync`,
     {
       method: "POST",
+    },
+    options,
+  );
+}
+
+export async function updateCrmMailboxConnection(
+  connectionId: string,
+  payload: { background_sync_enabled: boolean },
+  options: ApiRequestOptions = {},
+): Promise<CRMMailboxConnection> {
+  return apiRequest<CRMMailboxConnection>(
+    `/api/crm/inbox/mailboxes/${connectionId}`,
+    {
+      method: "PATCH",
+      body: JSON.stringify(payload),
+    },
+    options,
+  );
+}
+
+export async function deleteCrmMailboxConnection(connectionId: string, options: ApiRequestOptions = {}): Promise<{ deleted: boolean; connection_id: string }> {
+  return apiRequest<{ deleted: boolean; connection_id: string }>(
+    `/api/crm/inbox/mailboxes/${connectionId}`,
+    {
+      method: "DELETE",
     },
     options,
   );

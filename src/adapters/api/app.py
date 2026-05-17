@@ -71,6 +71,7 @@ from src.application.crm import (
     CompleteLeadFollowUpUseCase,
     CompleteMailboxOAuthUseCase,
     ConnectMailboxUseCase,
+    DisconnectMailboxConnectionUseCase,
     DesignLeadFollowUpEmailUseCase,
     EmailThreadMessageInput,
     IngestLeadEmailThreadUseCase,
@@ -78,6 +79,7 @@ from src.application.crm import (
     SendLeadFollowUpEmailUseCase,
     SnoozeLeadFollowUpUseCase,
     SyncMailboxConnectionUseCase,
+    UpdateMailboxConnectionSyncUseCase,
 )
 from src.application.crm_import import (
     CommitLeadImportUseCase,
@@ -152,6 +154,10 @@ class UserDashboardSettingsPayload(BaseModel):
     crm_preferred_import_formats: list[str] = Field(default_factory=list, max_length=12)
     crm_image_intake_channels: list[str] = Field(default_factory=list, max_length=12)
     crm_image_intake_notes: str = Field(default="", max_length=1000)
+    preferred_language: str = Field(default="en", max_length=16)
+    preferred_locale: str = Field(default="en-US", max_length=24)
+    data_retention_days: int = Field(default=365, ge=30, le=3650)
+    allow_ai_processing: bool = True
 
 
 class BillingSessionPayload(BaseModel):
@@ -213,6 +219,10 @@ class MailboxOAuthCompletePayload(BaseModel):
     provider: str = Field(pattern="^(gmail|outlook)$")
     code: str = Field(min_length=1, max_length=4000)
     state: str = Field(min_length=1, max_length=4000)
+
+
+class MailboxConnectionUpdatePayload(BaseModel):
+    background_sync_enabled: bool
 
 
 class MailboxSendPayload(BaseModel):
@@ -393,6 +403,10 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
                 crm_preferred_import_formats=payload.crm_preferred_import_formats,
                 crm_image_intake_channels=payload.crm_image_intake_channels,
                 crm_image_intake_notes=payload.crm_image_intake_notes,
+                preferred_language=payload.preferred_language,
+                preferred_locale=payload.preferred_locale,
+                data_retention_days=payload.data_retention_days,
+                allow_ai_processing=payload.allow_ai_processing,
                 )
             ),
         )
@@ -407,6 +421,28 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
             ),
         )
         return dto_to_dict(build_user_dashboard_settings_dto(settings))
+
+    @app.get("/api/account/privacy/export")
+    def account_privacy_export(
+        authorization: str | None = Header(default=None),
+        session_cookie: str | None = Cookie(default=None, alias=CLERK_SESSION_COOKIE),
+    ) -> dict[str, object]:
+        user = _require_crm_user(deps, authorization, session_cookie)
+        settings_repository = deps.personalization_repository_factory()
+        crm_repository = deps.lead_follow_up_repository_factory()
+        settings = GetUserDashboardSettingsUseCase(
+            repository=settings_repository,
+            default_factory=_build_default_dashboard_settings,
+        ).execute(user)
+        overview = GetLeadFollowUpOverviewUseCase(repository=crm_repository, now=deps.now).execute(user)
+        connections = ListMailboxConnectionsUseCase(repository=crm_repository).execute(user)
+        return {
+            "generated_at": deps.now().isoformat(),
+            "user": dto_to_dict(build_authenticated_user_dto(user)),
+            "settings": dto_to_dict(build_user_dashboard_settings_dto(settings)),
+            "mailboxes": [dto_to_dict(build_mailbox_connection_dto(item)) for item in connections],
+            "relationship_memory": dto_to_dict(build_lead_follow_up_overview_dto(overview)),
+        }
 
     @app.get("/api/alerts/history")
     def alerts_history(
@@ -601,6 +637,37 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
         except ValueError as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         return dto_to_dict(build_mailbox_connection_dto(connection))
+
+    @app.patch("/api/crm/inbox/mailboxes/{connection_id}")
+    def crm_update_mailbox(
+        connection_id: str,
+        payload: MailboxConnectionUpdatePayload,
+        authorization: str | None = Header(default=None),
+        session_cookie: str | None = Cookie(default=None, alias=CLERK_SESSION_COOKIE),
+    ) -> dict[str, object]:
+        user = _require_crm_user(deps, authorization, session_cookie)
+        try:
+            connection = UpdateMailboxConnectionSyncUseCase(repository=deps.lead_follow_up_repository_factory()).execute(
+                user,
+                connection_id,
+                background_sync_enabled=payload.background_sync_enabled,
+            )
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Mailbox connection not found.") from exc
+        return dto_to_dict(build_mailbox_connection_dto(connection))
+
+    @app.delete("/api/crm/inbox/mailboxes/{connection_id}")
+    def crm_delete_mailbox(
+        connection_id: str,
+        authorization: str | None = Header(default=None),
+        session_cookie: str | None = Cookie(default=None, alias=CLERK_SESSION_COOKIE),
+    ) -> dict[str, object]:
+        user = _require_crm_user(deps, authorization, session_cookie)
+        try:
+            DisconnectMailboxConnectionUseCase(repository=deps.lead_follow_up_repository_factory()).execute(user, connection_id)
+        except KeyError as exc:
+            raise HTTPException(status_code=404, detail="Mailbox connection not found.") from exc
+        return {"deleted": True, "connection_id": connection_id}
 
     @app.post("/api/crm/inbox/mailboxes/{connection_id}/sync")
     def crm_sync_mailbox(
@@ -874,6 +941,10 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
                 crm_preferred_import_formats=[],
                 crm_image_intake_channels=[],
                 crm_image_intake_notes="",
+                preferred_language="en",
+                preferred_locale="en-US",
+                data_retention_days=365,
+                allow_ai_processing=True,
             )
         )
         if universe is None:

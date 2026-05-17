@@ -51,6 +51,10 @@ export type AccountSettings = {
   crm_preferred_import_formats: string[];
   crm_image_intake_channels: string[];
   crm_image_intake_notes: string;
+  preferred_language: string;
+  preferred_locale: string;
+  data_retention_days: number;
+  allow_ai_processing: boolean;
 };
 
 export type AlertHistoryEntry = {
@@ -222,6 +226,15 @@ export type CRMMailboxConnection = {
   last_sync_error: string;
   last_synced_thread_count: number;
   sent_message_count: number;
+  background_sync_enabled: boolean;
+};
+
+export type AccountPrivacyExport = {
+  generated_at: string;
+  user: AuthenticatedUser;
+  settings: AccountSettings;
+  mailboxes: CRMMailboxConnection[];
+  relationship_memory: CRMFollowUpOverview;
 };
 
 export type CRMMailboxOAuthStart = {

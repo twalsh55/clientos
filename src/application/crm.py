@@ -1017,6 +1017,27 @@ class ListMailboxConnectionsUseCase:
         return list(self.repository.list_mailbox_connections(user))
 
 
+class UpdateMailboxConnectionSyncUseCase:
+    def __init__(self, repository: LeadFollowUpRepositoryPort) -> None:
+        self.repository = repository
+
+    def execute(self, user: User, connection_id: str, *, background_sync_enabled: bool) -> MailboxConnection:
+        connection = _require_mailbox_connection(self.repository.list_mailbox_connections(user), connection_id)
+        return self.repository.save_mailbox_connection(
+            user,
+            replace(connection, background_sync_enabled=bool(background_sync_enabled)),
+        )
+
+
+class DisconnectMailboxConnectionUseCase:
+    def __init__(self, repository: LeadFollowUpRepositoryPort) -> None:
+        self.repository = repository
+
+    def execute(self, user: User, connection_id: str) -> None:
+        _require_mailbox_connection(self.repository.list_mailbox_connections(user), connection_id)
+        self.repository.delete_mailbox_connection(user, connection_id)
+
+
 MAILBOX_PROVIDERS = {"gmail", "outlook"}
 
 
@@ -1062,7 +1083,10 @@ class CompleteMailboxOAuthUseCase:
             redirect_uri.strip(),
             existing_connection=existing,
         )
-        return self.repository.save_mailbox_connection(user, connection)
+        return self.repository.save_mailbox_connection(
+            user,
+            replace(connection, background_sync_enabled=existing.background_sync_enabled if existing else True),
+        )
 
 
 class ConnectMailboxUseCase:
@@ -1102,6 +1126,7 @@ class ConnectMailboxUseCase:
             last_sync_error=existing.last_sync_error if existing else "",
             last_synced_thread_count=existing.last_synced_thread_count if existing else 0,
             sent_message_count=existing.sent_message_count if existing else 0,
+            background_sync_enabled=existing.background_sync_enabled if existing else True,
         )
         return self.repository.save_mailbox_connection(user, connection)
 

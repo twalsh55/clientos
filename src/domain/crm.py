@@ -110,6 +110,7 @@ class MailboxConnection:
     last_sync_error: str = ""
     last_synced_thread_count: int = 0
     sent_message_count: int = 0
+    background_sync_enabled: bool = True
 
 
 @dataclass(frozen=True)

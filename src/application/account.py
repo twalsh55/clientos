@@ -30,6 +30,10 @@ class UserDashboardSettings:
     crm_preferred_import_formats: list[str]
     crm_image_intake_channels: list[str]
     crm_image_intake_notes: str
+    preferred_language: str
+    preferred_locale: str
+    data_retention_days: int
+    allow_ai_processing: bool
 
 
 @dataclass(frozen=True)

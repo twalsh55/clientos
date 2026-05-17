@@ -39,6 +39,10 @@ class PostgresPersonalizationRepository:
                         crm_preferred_import_formats TEXT[] NOT NULL DEFAULT '{}',
                         crm_image_intake_channels TEXT[] NOT NULL DEFAULT '{}',
                         crm_image_intake_notes TEXT NOT NULL DEFAULT '',
+                        preferred_language TEXT NOT NULL DEFAULT 'en',
+                        preferred_locale TEXT NOT NULL DEFAULT 'en-US',
+                        data_retention_days INTEGER NOT NULL DEFAULT 365,
+                        allow_ai_processing BOOLEAN NOT NULL DEFAULT TRUE,
                         created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
                         updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
                     )
@@ -106,6 +110,30 @@ class PostgresPersonalizationRepository:
                 )
                 cursor.execute(
                     """
+                    ALTER TABLE user_dashboard_settings
+                    ADD COLUMN IF NOT EXISTS preferred_language TEXT NOT NULL DEFAULT 'en'
+                    """
+                )
+                cursor.execute(
+                    """
+                    ALTER TABLE user_dashboard_settings
+                    ADD COLUMN IF NOT EXISTS preferred_locale TEXT NOT NULL DEFAULT 'en-US'
+                    """
+                )
+                cursor.execute(
+                    """
+                    ALTER TABLE user_dashboard_settings
+                    ADD COLUMN IF NOT EXISTS data_retention_days INTEGER NOT NULL DEFAULT 365
+                    """
+                )
+                cursor.execute(
+                    """
+                    ALTER TABLE user_dashboard_settings
+                    ADD COLUMN IF NOT EXISTS allow_ai_processing BOOLEAN NOT NULL DEFAULT TRUE
+                    """
+                )
+                cursor.execute(
+                    """
                     CREATE TABLE IF NOT EXISTS alert_history (
                         id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                         user_id UUID NOT NULL REFERENCES app_user(id) ON DELETE CASCADE,
@@ -149,7 +177,11 @@ class PostgresPersonalizationRepository:
                         crm_ai_prompt,
                         crm_preferred_import_formats,
                         crm_image_intake_channels,
-                        crm_image_intake_notes
+                        crm_image_intake_notes,
+                        preferred_language,
+                        preferred_locale,
+                        data_retention_days,
+                        allow_ai_processing
                     FROM user_dashboard_settings
                     WHERE user_id = %(user_id)s
                     """,
@@ -186,6 +218,10 @@ class PostgresPersonalizationRepository:
                         crm_preferred_import_formats,
                         crm_image_intake_channels,
                         crm_image_intake_notes,
+                        preferred_language,
+                        preferred_locale,
+                        data_retention_days,
+                        allow_ai_processing,
                         created_at,
                         updated_at
                     )
@@ -209,6 +245,10 @@ class PostgresPersonalizationRepository:
                         %(crm_preferred_import_formats)s,
                         %(crm_image_intake_channels)s,
                         %(crm_image_intake_notes)s,
+                        %(preferred_language)s,
+                        %(preferred_locale)s,
+                        %(data_retention_days)s,
+                        %(allow_ai_processing)s,
                         NOW(),
                         NOW()
                     )
@@ -232,6 +272,10 @@ class PostgresPersonalizationRepository:
                         crm_preferred_import_formats = EXCLUDED.crm_preferred_import_formats,
                         crm_image_intake_channels = EXCLUDED.crm_image_intake_channels,
                         crm_image_intake_notes = EXCLUDED.crm_image_intake_notes,
+                        preferred_language = EXCLUDED.preferred_language,
+                        preferred_locale = EXCLUDED.preferred_locale,
+                        data_retention_days = EXCLUDED.data_retention_days,
+                        allow_ai_processing = EXCLUDED.allow_ai_processing,
                         updated_at = NOW()
                     RETURNING
                         user_id,
@@ -252,7 +296,11 @@ class PostgresPersonalizationRepository:
                         crm_ai_prompt,
                         crm_preferred_import_formats,
                         crm_image_intake_channels,
-                        crm_image_intake_notes
+                        crm_image_intake_notes,
+                        preferred_language,
+                        preferred_locale,
+                        data_retention_days,
+                        allow_ai_processing
                     """,
                     {
                         "user_id": settings.user_id,
@@ -274,6 +322,10 @@ class PostgresPersonalizationRepository:
                         "crm_preferred_import_formats": list(settings.crm_preferred_import_formats),
                         "crm_image_intake_channels": list(settings.crm_image_intake_channels),
                         "crm_image_intake_notes": settings.crm_image_intake_notes,
+                        "preferred_language": settings.preferred_language,
+                        "preferred_locale": settings.preferred_locale,
+                        "data_retention_days": settings.data_retention_days,
+                        "allow_ai_processing": settings.allow_ai_processing,
                     },
                 )
                 row = cursor.fetchone()
@@ -367,6 +419,10 @@ def _row_to_dashboard_settings(row: dict[str, object]) -> UserDashboardSettings:
             str(item) for item in row.get("crm_image_intake_channels", [])
         ] if isinstance(row.get("crm_image_intake_channels"), list) else [],
         crm_image_intake_notes=str(row.get("crm_image_intake_notes") or ""),
+        preferred_language=str(row.get("preferred_language") or "en"),
+        preferred_locale=str(row.get("preferred_locale") or "en-US"),
+        data_retention_days=int(row.get("data_retention_days") or 365),
+        allow_ai_processing=bool(row.get("allow_ai_processing", True)),
     )
 
 

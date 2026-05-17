@@ -101,11 +101,14 @@ cd web && npm run e2e
   - follow-up queue
   - inbox-native relationship page for auto-logging email threads and reconnect-aware next moves
   - mailbox beta now includes real Gmail / Outlook OAuth-ready connection start/complete routes, provider-backed sync for OAuth-linked accounts, and provider-backed sending through Gmail API / Microsoft Graph when those accounts are connected
+  - connected mailbox cards now support disconnecting accounts and pausing or resuming scheduled background sync per mailbox without losing the saved relationship memory
   - manual mailbox connection still exists as a fallback beta path when provider credentials are not configured yet
   - inbox cards now surface backend-driven relationship pulse, open-loop memory, thread continuity cues, `what changed` hints, unresolved-thread cues, a clearer long-thread `through-line`, and a carry-forward cue for longer threads, grouped into `Needs you now` and `Still warm`
   - email-thread ingestion that can auto-create/update contacts from inbox activity
   - mailbox sync now feeds the same inbox-ingest path Brivoly already uses, so provider-synced email activity lands in relationship memory instead of a separate mailbox subsystem
   - sending a drafted note now writes the outbound message back into the same relationship timeline and thread history, including notes sent through the provider-backed mailbox path
+  - account settings now include locale defaults, retention-window defaults, and an AI-processing toggle as the first localization/GDPR groundwork layer
+  - `/api/account/privacy/export` and the settings export action can now download a JSON snapshot of account settings, connected mailboxes, and stored relationship memory for GDPR-oriented export groundwork
   - attention view with reconnect-first guidance and direct draft actions
   - complete and snooze actions
   - relationship history + internal notes
@@ -215,6 +218,10 @@ cd web && npm run e2e
   - deepen the provider-backed send path into fuller reply semantics and stronger sent-thread reconciliation, especially for Outlook where sendMail does not return a thread id directly
   - deepen the real-world client model beyond lightweight follow-ups, including projects, engagements, and richer account context
   - strengthen onboarding from real data sources beyond spreadsheets so Client OS can become the live source of relationship memory
+  - turn the new locale groundwork into real multi-language UI coverage across Client OS copy, auth flows, inbox, intake, and client-facing upload pages
+  - add language-aware formatting and translation infrastructure so relationship memory, reminders, and drafted notes adapt cleanly per user locale
+  - deepen GDPR from export groundwork into fuller consent flows, delete paths, processor disclosures, retention enforcement, and safer handling of connected mailbox data
+  - add stronger GDPR-oriented operational controls for auditability, data minimization, and user-level control over stored relationship memory and uploads
   - improve production trust and resilience with stronger empty states, safer session handling, and fewer smart-prototype moments
   - refine billing and packaging so plan boundaries and premium features feel clearer in production
   - add a fuller reminder layer outside the app so Brivoly can keep nudging through email, calendar, and inbox workflows

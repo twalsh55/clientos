@@ -719,6 +719,45 @@ export function CRMFollowUpWorkspace({
     });
   }
 
+  function toggleMailboxBackgroundSync(connection: CRMMailboxConnection) {
+    const nextEnabled = !connection.background_sync_enabled;
+    setMailboxStatus(nextEnabled ? "Turning background sync back on..." : "Pausing background sync for this mailbox...");
+    startMailboxTransition(async () => {
+      try {
+        const response = await fetch(`/api/crm/inbox/mailboxes/${connection.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ background_sync_enabled: nextEnabled }),
+        });
+        const body = (await response.json().catch(() => null)) as CRMMailboxConnection | { error?: string } | null;
+        if (!response.ok || !body || !("id" in body)) {
+          throw new Error((body && "error" in body && body.error) || "Unable to update mailbox sync right now.");
+        }
+        upsertMailboxConnection(body);
+        setMailboxStatus(nextEnabled ? "Background sync is back on for this mailbox." : "Background sync is paused for this mailbox.");
+      } catch (mailboxError) {
+        setMailboxStatus(mailboxError instanceof Error ? mailboxError.message : "Unable to update mailbox sync right now.");
+      }
+    });
+  }
+
+  function disconnectMailbox(connection: CRMMailboxConnection) {
+    setMailboxStatus(`Disconnecting ${connection.email_address}...`);
+    startMailboxTransition(async () => {
+      try {
+        const response = await fetch(`/api/crm/inbox/mailboxes/${connection.id}`, { method: "DELETE" });
+        const body = (await response.json().catch(() => null)) as { deleted?: boolean; error?: string } | null;
+        if (!response.ok || !body?.deleted) {
+          throw new Error((body && "error" in body && body.error) || "Unable to disconnect the mailbox right now.");
+        }
+        setMailboxConnections((current) => current.filter((item) => item.id !== connection.id));
+        setMailboxStatus(`${connection.email_address} was disconnected from Brivoly.`);
+      } catch (mailboxError) {
+        setMailboxStatus(mailboxError instanceof Error ? mailboxError.message : "Unable to disconnect the mailbox right now.");
+      }
+    });
+  }
+
   function sendCurrentDraftToMailbox() {
     if (!selectedLead || !emailSubjectDraft.trim() || !emailBodyDraft.trim()) {
       return;
@@ -1165,8 +1204,15 @@ export function CRMFollowUpWorkspace({
                         <div className="flex flex-wrap gap-2">
                           <MiniFlag label={`${connection.sent_message_count} sent`} tone="neutral" />
                           <MiniFlag label={`${connection.last_synced_thread_count} synced`} tone="warning" />
+                          <MiniFlag label={connection.background_sync_enabled ? "background sync on" : "background sync paused"} tone={connection.background_sync_enabled ? "neutral" : "warning"} />
+                          <Button type="button" variant="outline" disabled={isMailboxPending} onClick={() => toggleMailboxBackgroundSync(connection)}>
+                            {connection.background_sync_enabled ? "Pause sync" : "Resume sync"}
+                          </Button>
                           <Button type="button" variant="outline" disabled={isMailboxPending} onClick={() => syncMailboxConnection(connection.id)}>
                             {isMailboxPending ? "Syncing..." : "Sync now"}
+                          </Button>
+                          <Button type="button" variant="outline" disabled={isMailboxPending} onClick={() => disconnectMailbox(connection)}>
+                            Disconnect
                           </Button>
                         </div>
                       </div>

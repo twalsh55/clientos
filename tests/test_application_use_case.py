@@ -281,6 +281,10 @@ def test_design_lead_follow_up_email_uses_lead_context_and_business_profile() ->
         crm_preferred_import_formats=settings.crm_preferred_import_formats,
         crm_image_intake_channels=settings.crm_image_intake_channels,
         crm_image_intake_notes=settings.crm_image_intake_notes,
+        preferred_language=settings.preferred_language,
+        preferred_locale=settings.preferred_locale,
+        data_retention_days=settings.data_retention_days,
+        allow_ai_processing=settings.allow_ai_processing,
     )
 
     draft = DesignLeadFollowUpEmailUseCase(

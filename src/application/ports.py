@@ -90,6 +90,9 @@ class LeadFollowUpRepositoryPort(Protocol):
     def save_mailbox_connection(self, user: User, connection: MailboxConnection) -> MailboxConnection:
         """Persist one inbox connection and return the stored value."""
 
+    def delete_mailbox_connection(self, user: User, connection_id: str) -> None:
+        """Remove one inbox connection for the authenticated user."""
+
 
 class MailboxProviderPort(Protocol):
     def build_authorization_url(self, provider: str, redirect_uri: str, state: str) -> str:
