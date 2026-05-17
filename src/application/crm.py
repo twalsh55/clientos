@@ -61,29 +61,66 @@ MEANINGFUL_TIMELINE_KINDS = frozenset({"call", "inbound", "outreach", "proposal"
 
 
 def _enrich_follow_up(item: LeadFollowUp, current_time: datetime) -> LeadFollowUp:
+    enriched_threads = _build_enriched_threads(item, current_time)
+    item_with_threads = replace(item, recent_email_threads=tuple(enriched_threads))
     last_meaningful = _resolve_last_meaningful_interaction(item)
     health_score = _compute_relationship_health_score(item, last_meaningful, current_time)
     dormant = _is_dormant(item, last_meaningful, current_time)
-    reminders = _build_relationship_reminders(item, last_meaningful, current_time)
-    context_summary = _build_relationship_context_summary(item)
-    timing_nudge = _build_relationship_timing_nudge(item, current_time)
-    recent_changes_summary = _build_recent_changes_summary(item, current_time)
-    last_30_days_summary = _build_last_30_days_summary(item, current_time)
-    meeting_prep_summary = _build_meeting_prep_summary(item, current_time)
+    reminders = _build_relationship_reminders(item_with_threads, last_meaningful, current_time)
+    item_with_reminders = replace(item_with_threads, relationship_reminders=tuple(reminders))
+    context_summary = _build_relationship_context_summary(item_with_reminders)
+    timing_nudge = _build_relationship_timing_nudge(item_with_reminders, current_time)
+    recent_changes_summary = _build_recent_changes_summary(item_with_reminders, current_time)
+    last_30_days_summary = _build_last_30_days_summary(item_with_reminders, current_time)
+    meeting_prep_summary = _build_meeting_prep_summary(item_with_reminders, current_time)
     return replace(
-        item,
+        item_with_reminders,
         last_meaningful_interaction_at=last_meaningful,
         relationship_health_score=health_score,
         relationship_health_label=_health_label(health_score),
-        relationship_state=_relationship_state(health_score, dormant, item, current_time),
+        relationship_state=_relationship_state(health_score, dormant, item_with_reminders, current_time),
         relationship_timing_nudge=timing_nudge,
         relationship_context_summary=context_summary,
         relationship_recent_changes_summary=recent_changes_summary,
         relationship_last_30_days_summary=last_30_days_summary,
         relationship_meeting_prep_summary=meeting_prep_summary,
         dormant=dormant,
-        relationship_reminders=tuple(reminders),
     )
+
+
+def _build_enriched_threads(item: LeadFollowUp, current_time: datetime) -> list[LeadEmailThreadSummary]:
+    return [
+        replace(
+            thread,
+            memory_summary=_build_thread_memory_summary(item, thread),
+            next_touch_hint=_build_thread_next_touch_hint(item, thread, current_time),
+        )
+        for thread in item.recent_email_threads
+    ]
+
+
+def _build_thread_memory_summary(item: LeadFollowUp, thread: LeadEmailThreadSummary) -> str:
+    snippet = thread.snippet.strip().rstrip(".")
+    if snippet:
+        return _sentence_case(snippet) + "."
+    if item.next_step.strip():
+        return f"This thread is tied to {_sentence_case(item.next_step.strip().rstrip('.'))}."
+    if item.notes.strip():
+        return _sentence_case(item.notes.strip().rstrip(".")) + "."
+    return "Brivoly has not captured enough thread context yet."
+
+
+def _build_thread_next_touch_hint(item: LeadFollowUp, thread: LeadEmailThreadSummary, current_time: datetime) -> str:
+    counterpart = thread.counterpart_name or item.lead_name
+    if thread.needs_reply:
+        return f"Reply to {counterpart}. The latest message has been waiting since {_relative_days(thread.last_message_at, current_time).lower()}."
+    if thread.waiting_on_contact:
+        return f"Hold steady for now. You sent the latest note {_relative_days(thread.last_message_at, current_time).lower()}."
+    if thread.last_message_at <= current_time - timedelta(days=7):
+        return f"Reconnect with {counterpart}. This thread has gone quiet."
+    if item.next_step.strip():
+        return _sentence_case(item.next_step.strip().rstrip(".")) + "."
+    return "Keep this relationship warm with a light check-in."
 
 
 def _resolve_last_meaningful_interaction(item: LeadFollowUp) -> datetime | None:

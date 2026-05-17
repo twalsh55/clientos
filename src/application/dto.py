@@ -225,6 +225,8 @@ class LeadEmailThreadSummaryDTO:
     snippet: str
     needs_reply: bool
     waiting_on_contact: bool
+    memory_summary: str
+    next_touch_hint: str
 
 
 @dataclass(frozen=True)
@@ -619,6 +621,8 @@ def build_lead_email_thread_summary_dto(thread: LeadEmailThreadSummary) -> LeadE
         snippet=thread.snippet,
         needs_reply=thread.needs_reply,
         waiting_on_contact=thread.waiting_on_contact,
+        memory_summary=thread.memory_summary,
+        next_touch_hint=thread.next_touch_hint,
     )
 
 

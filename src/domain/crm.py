@@ -42,6 +42,8 @@ class LeadEmailThreadSummary:
     snippet: str
     needs_reply: bool
     waiting_on_contact: bool
+    memory_summary: str = ""
+    next_touch_hint: str = ""
 
 
 @dataclass(frozen=True)

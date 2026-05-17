@@ -1337,8 +1337,6 @@ function InboxActivityPanel({
         leadName: item.lead_name,
         companyName: item.company_name,
         stage: item.stage,
-        notes: item.notes,
-        nextStep: item.next_step,
         thread,
       })),
     )
@@ -1384,7 +1382,7 @@ function InboxActivityPanel({
         </p>
       </div>
       <div className="mt-6 space-y-4">
-        {filteredThreads.map(({ leadId, leadName, companyName, stage, thread, notes, nextStep }) => {
+        {filteredThreads.map(({ leadId, leadName, companyName, stage, thread }) => {
           const selected = leadId === selectedLeadId;
           return (
             <button
@@ -1404,7 +1402,7 @@ function InboxActivityPanel({
                   <p className="mt-1 text-sm text-slate-600">
                     {leadName} · {companyName}
                   </p>
-                  <p className="mt-3 text-sm leading-6 text-slate-600">{summarizeThreadPulse(thread, nextStep, notes)}</p>
+                  <p className="mt-3 text-sm leading-6 text-slate-600">{thread.memory_summary}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
                   {thread.needs_reply ? <MiniFlag tone="critical" label="Reply" /> : null}
@@ -1416,7 +1414,7 @@ function InboxActivityPanel({
                 </div>
               </div>
               <div className="mt-4 grid gap-3 md:grid-cols-3">
-                <TimelineTile label="Conversation pulse" value={describeThreadState(thread)} />
+                <TimelineTile label="Brivoly read" value={thread.next_touch_hint} />
                 <TimelineTile label="Counterpart" value={thread.counterpart_email} />
                 <TimelineTile label="Last message" value={formatDateTime(thread.last_message_at)} />
               </div>
@@ -1454,14 +1452,14 @@ function InboxNextMovePanel({
       <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">{lead.lead_name}</h3>
       <p className="mt-1 text-sm text-slate-600">{lead.company_name}</p>
       <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <TimelineTile label="Conversation pulse" value={latestThread ? describeThreadState(latestThread) : "No synced thread yet"} />
+        <TimelineTile label="Brivoly read" value={latestThread ? latestThread.next_touch_hint : "No synced thread yet"} />
         <TimelineTile label="Suggested next touch" value={lead.next_step} />
       </div>
       {latestThread ? (
         <div className="mt-4 rounded-[1.2rem] border bg-slate-50/80 px-4 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Latest thread</p>
           <p className="mt-2 text-sm font-medium text-slate-900">{latestThread.subject}</p>
-          <p className="mt-2 text-sm leading-6 text-slate-600">{summarizeThreadPulse(latestThread, lead.next_step, lead.notes)}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{latestThread.memory_summary}</p>
         </div>
       ) : null}
       <div className="mt-4 flex flex-wrap gap-3">
@@ -2605,13 +2603,13 @@ function matchesInboxThread(
   item: {
     leadName: string;
     companyName: string;
-    notes: string;
-    nextStep: string;
     thread: {
       subject: string;
       counterpart_email: string;
       counterpart_name: string;
       snippet: string;
+      memory_summary: string;
+      next_touch_hint: string;
       waiting_on_contact: boolean;
       needs_reply: boolean;
       last_message_at: string;
@@ -2626,12 +2624,12 @@ function matchesInboxThread(
     [
       item.leadName,
       item.companyName,
-      item.notes,
-      item.nextStep,
       item.thread.subject,
       item.thread.counterpart_email,
       item.thread.counterpart_name,
       item.thread.snippet,
+      item.thread.memory_summary,
+      item.thread.next_touch_hint,
     ]
       .join(" ")
       .toLowerCase()
@@ -2660,42 +2658,6 @@ function isQuietThread(thread: {
 }) {
   const ageMs = Date.now() - new Date(thread.last_message_at).getTime();
   return !thread.needs_reply && !thread.waiting_on_contact && ageMs >= 1000 * 60 * 60 * 24 * 7;
-}
-
-function describeThreadState(thread: {
-  needs_reply: boolean;
-  waiting_on_contact: boolean;
-  last_message_at: string;
-}) {
-  if (thread.needs_reply) {
-    return "Your reply would keep this moving";
-  }
-  if (thread.waiting_on_contact) {
-    return "You are waiting on them";
-  }
-  if (isQuietThread(thread)) {
-    return "This conversation has gone quiet";
-  }
-  return `Still warm as of ${formatDateTime(thread.last_message_at)}`;
-}
-
-function summarizeThreadPulse(
-  thread: {
-    snippet: string;
-    needs_reply: boolean;
-    waiting_on_contact: boolean;
-  },
-  nextStep: string,
-  notes: string,
-) {
-  const base = thread.snippet.trim() || nextStep.trim() || notes.trim();
-  if (thread.needs_reply) {
-    return base || "A reply here would keep the relationship moving.";
-  }
-  if (thread.waiting_on_contact) {
-    return base || "This thread is waiting on the other side.";
-  }
-  return base || "Brivoly is holding onto the last bit of context here.";
 }
 
 function formatStageLabel(stage: string) {

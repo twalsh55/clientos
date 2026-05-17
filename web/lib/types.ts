@@ -141,6 +141,8 @@ export type CRMEmailThreadSummary = {
   snippet: string;
   needs_reply: boolean;
   waiting_on_contact: boolean;
+  memory_summary: string;
+  next_touch_hint: string;
 };
 
 export type CRMRelationshipReminder = {

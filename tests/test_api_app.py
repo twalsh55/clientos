@@ -863,6 +863,8 @@ def test_crm_inbox_thread_ingest_updates_overview(monkeypatch) -> None:
     lead = next(item for item in payload["items"] if item["email_address"] == "priya@latticelane.com")
     assert lead["priority"] == "high"
     assert lead["recent_email_threads"][0]["needs_reply"] is True
+    assert lead["recent_email_threads"][0]["memory_summary"]
+    assert "Reply to Priya Nair" in lead["recent_email_threads"][0]["next_touch_hint"]
     assert any(entry["id"] == "email-msg-1" for entry in lead["timeline"])
 
 

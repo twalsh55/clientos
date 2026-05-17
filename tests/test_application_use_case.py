@@ -234,6 +234,8 @@ def test_follow_up_overview_enriches_relationship_intelligence() -> None:
     assert amber.relationship_recent_changes_summary
     assert amber.relationship_last_30_days_summary
     assert amber.relationship_meeting_prep_summary
+    assert amber.recent_email_threads[0].memory_summary
+    assert amber.recent_email_threads[0].next_touch_hint
     assert overview.relationship_summary is not None
     assert overview.relationship_summary.stale_count >= 1
     assert overview.relationship_summary.referral_reminder_count >= 1
@@ -274,6 +276,8 @@ def test_ingest_lead_email_thread_auto_updates_relationship_memory() -> None:
     assert lead.next_step == "Reply to Priya Nair's latest email."
     assert lead.recent_email_threads
     assert lead.recent_email_threads[0].needs_reply is True
+    assert "Sheets first" in lead.recent_email_threads[0].memory_summary
+    assert "Reply to Priya Nair" in lead.recent_email_threads[0].next_touch_hint
     assert any(entry.id == "email-msg-1" for entry in lead.timeline)
     assert overview.inbox_summary is not None
     assert overview.inbox_summary.needs_reply_count >= 1
