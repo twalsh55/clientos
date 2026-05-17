@@ -1247,15 +1247,19 @@ function PipelineBoardPanel({
     bucket.push(item);
     itemsByStage.set(item.stage, bucket);
   }
+  const needsCareFirst = [...items]
+    .filter((item) => relationshipStateUrgency(item.relationship_state) > 0 || item.recent_email_threads.some((thread) => thread.needs_reply))
+    .sort((left, right) => compareAttentionPriority(left, right))
+    .slice(0, 4);
 
   return (
-      <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm xl:col-span-2">
+    <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm xl:col-span-2">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
           <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Where attention is needed</p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">See where each relationship stands.</h2>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">See who is slipping before the relationship cools off.</h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            Review which relationships feel warm, which need a reconnect, and where momentum is slipping.
+            Brivoly keeps the stage context in view, but this page is mainly for spotting quiet relationships, overdue replies, and momentum that needs a warmer touch.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
@@ -1265,9 +1269,53 @@ function PipelineBoardPanel({
         </div>
       </div>
 
+      {needsCareFirst.length ? (
+        <div className="mt-6 rounded-[1.5rem] border bg-slate-50/80 p-4">
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Needs care first</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">Start here if you want the shortest path to protecting relationship continuity today.</p>
+            </div>
+            <p className="text-xs text-slate-500">Reply pressure and drifting relationships are surfaced ahead of raw stage progress.</p>
+          </div>
+          <div className="mt-4 grid gap-3 xl:grid-cols-2">
+            {needsCareFirst.map((item) => {
+              const selected = item.id === selectedLeadId;
+              return (
+                <button
+                  key={`${item.id}-needs-care`}
+                  type="button"
+                  onClick={() => onSelectLead(item.id)}
+                  className={`block w-full rounded-[1.2rem] border px-4 py-4 text-left transition ${
+                    selected ? "border-slate-900 bg-white shadow-sm" : "border-slate-200 bg-white/90 hover:border-slate-400"
+                  }`}
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">{item.lead_name}</p>
+                      <p className="mt-1 text-xs text-slate-500">{item.company_name}</p>
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                      {item.relationship_state === "stale" ? <MiniFlag tone="warning" label="Stale" /> : null}
+                      {item.relationship_state === "drifting" ? <MiniFlag tone="warning" label="Drifting" /> : null}
+                      {item.relationship_state === "at_risk" ? <MiniFlag tone="critical" label="At risk" /> : null}
+                      {item.recent_email_threads.some((thread) => thread.needs_reply) ? <MiniFlag tone="critical" label="Reply" /> : null}
+                    </div>
+                  </div>
+                  <p className="mt-3 text-sm leading-6 text-slate-700">{item.relationship_timing_nudge || item.next_step}</p>
+                  <p className="mt-3 text-xs text-slate-500">
+                    {formatDateTime(item.last_meaningful_interaction_at)} · {formatStageLabel(item.stage)}
+                  </p>
+                </button>
+              );
+            })}
+          </div>
+        </div>
+      ) : null}
+
       <div className="mt-6 flex gap-4 overflow-x-auto pb-2">
         {summary.map((stage) => {
-          const stageItems = itemsByStage.get(stage.stage) ?? [];
+          const stageItems = [...(itemsByStage.get(stage.stage) ?? [])].sort((left, right) => compareAttentionPriority(left, right));
           return (
             <section
               key={stage.stage}
@@ -1309,7 +1357,12 @@ function PipelineBoardPanel({
                           <p className="text-sm font-semibold text-slate-950">{item.lead_name}</p>
                           <p className="mt-1 text-xs text-slate-500">{item.company_name}</p>
                         </div>
-                        <PriorityBadge priority={item.priority} />
+                        <div className="flex flex-wrap gap-2">
+                          {item.relationship_state === "stale" ? <MiniFlag tone="warning" label="Stale" /> : null}
+                          {item.relationship_state === "drifting" ? <MiniFlag tone="warning" label="Drifting" /> : null}
+                          {item.relationship_state === "at_risk" ? <MiniFlag tone="critical" label="At risk" /> : null}
+                          <PriorityBadge priority={item.priority} />
+                        </div>
                       </div>
                       <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Next reminder</p>
                       <p className="mt-1 text-sm text-slate-700">{formatDateTime(item.next_follow_up_at)}</p>
@@ -2679,6 +2732,15 @@ function relationshipStateUrgency(state: string) {
     return 1;
   }
   return 0;
+}
+
+function compareAttentionPriority(left: CRMLeadFollowUp, right: CRMLeadFollowUp) {
+  return (
+    Number(right.recent_email_threads.some((thread) => thread.needs_reply)) - Number(left.recent_email_threads.some((thread) => thread.needs_reply)) ||
+    relationshipStateUrgency(right.relationship_state) - relationshipStateUrgency(left.relationship_state) ||
+    compareSoonestFollowUp(left, right) ||
+    getLastMeaningfulTimestamp(left) - getLastMeaningfulTimestamp(right)
+  );
 }
 
 function matchesInboxThread(
