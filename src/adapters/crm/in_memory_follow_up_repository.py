@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import replace
 from datetime import UTC, date, datetime, timedelta
+from uuid import UUID
 
 from src.domain.auth import User
 from src.domain.crm import LeadEmailThreadSummary, LeadFollowUp, LeadTimelineEntry, MailboxConnection
@@ -252,6 +253,9 @@ class InMemoryLeadFollowUpRepository:
     def save_mailbox_connection(self, user: User, connection: MailboxConnection) -> MailboxConnection:
         self._mailbox_connections[connection.id] = replace(connection)
         return replace(connection)
+
+    def list_mailbox_connection_user_ids(self) -> list[UUID]:
+        return []
 
     def _build_seed_data(self) -> dict[str, LeadFollowUp]:
         items = build_seed_follow_ups(self.now())

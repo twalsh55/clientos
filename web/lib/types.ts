@@ -212,11 +212,21 @@ export type CRMMailboxConnection = {
   display_name: string;
   status: string;
   connected_at: string;
+  connection_mode: "manual" | "oauth" | string;
+  external_account_id: string;
+  token_expires_at: string | null;
+  scope: string;
+  sync_cursor: string;
   last_sync_at: string | null;
   last_sync_status: string;
   last_sync_error: string;
   last_synced_thread_count: number;
   sent_message_count: number;
+};
+
+export type CRMMailboxOAuthStart = {
+  provider: "gmail" | "outlook" | string;
+  authorization_url: string;
 };
 
 export type CRMMailboxConnectionsResponse = {

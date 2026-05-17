@@ -7,7 +7,13 @@ from uuid import UUID
 import pandas as pd
 
 from src.domain.auth import ExternalIdentity, User
-from src.domain.crm import LeadFollowUp, LeadImportClarification, MailboxConnection
+from src.domain.crm import (
+    LeadFollowUp,
+    LeadImportClarification,
+    MailboxConnection,
+    MailboxSendReceipt,
+    MailboxThreadSnapshot,
+)
 from src.domain.prospecting import ProspectDraft, ProspectMatch, ProspectTokenUsage, SocialPost
 
 if TYPE_CHECKING:
@@ -83,6 +89,38 @@ class LeadFollowUpRepositoryPort(Protocol):
 
     def save_mailbox_connection(self, user: User, connection: MailboxConnection) -> MailboxConnection:
         """Persist one inbox connection and return the stored value."""
+
+
+class MailboxProviderPort(Protocol):
+    def build_authorization_url(self, provider: str, redirect_uri: str, state: str) -> str:
+        """Return the provider authorization URL for a mailbox OAuth flow."""
+
+    def exchange_authorization_code(
+        self,
+        provider: str,
+        code: str,
+        redirect_uri: str,
+        existing_connection: MailboxConnection | None = None,
+    ) -> MailboxConnection:
+        """Exchange a provider auth code and return a durable mailbox connection."""
+
+    def refresh_connection(self, connection: MailboxConnection) -> MailboxConnection:
+        """Refresh a connection token if needed and return the updated connection."""
+
+    def pull_thread_updates(self, connection: MailboxConnection, max_results: int = 10) -> list[MailboxThreadSnapshot]:
+        """Return recent mailbox thread snapshots for one connected account."""
+
+    def send_message(
+        self,
+        connection: MailboxConnection,
+        *,
+        to_email: str,
+        to_name: str,
+        subject: str,
+        body: str,
+        thread_id: str | None = None,
+    ) -> MailboxSendReceipt:
+        """Send one outbound note through the provider and return a receipt."""
 
 
 class CRMImageIntakePort(Protocol):

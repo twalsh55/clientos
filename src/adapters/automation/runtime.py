@@ -23,6 +23,7 @@ from src.adapters.founder_code.runtime import (
     stage_founder_code_requests_from_inbox,
     sync_founder_code_requests_from_api,
 )
+from src.adapters.crm.mailbox_runtime import run_scheduled_mailbox_sync_job
 from src.adapters.llm.openai_prospect_drafter import OpenAIProspectDrafterError
 from src.adapters.operator_briefing.runtime import run_daily_operator_briefing_job
 from src.adapters.prospecting.runtime import (
@@ -157,6 +158,14 @@ def build_jobs_from_env() -> tuple[AutomationJob, ...]:
                 ),
             )
         )
+    if os.getenv("AUTOMATION_ENABLE_MAILBOX_SYNC", "false").strip().lower() == "true":
+        jobs.append(
+            AutomationJob(
+                name="mailbox_sync",
+                interval=timedelta(minutes=parse_positive_int("AUTOMATION_MAILBOX_SYNC_INTERVAL_MINUTES", default=15)),
+                runner=lambda: _run_job_with_timeout("mailbox_sync", _run_mailbox_sync_job, timeout_seconds),
+            )
+        )
     if os.getenv("AUTOMATION_ENABLE_FOUNDER_CODE_EXECUTOR", "false").strip().lower() == "true":
         executor_interval = timedelta(seconds=parse_positive_int("AUTOMATION_FOUNDER_CODE_EXECUTOR_INTERVAL_SECONDS", default=30))
         jobs.append(
@@ -195,6 +204,7 @@ def collect_automation_config_errors() -> list[str]:
         "AUTOMATION_FOUNDER_CODE_SYNC_INTERVAL_SECONDS",
         "AUTOMATION_OPERATOR_BRIEFING_INTERVAL_HOURS",
         "AUTOMATION_SENTIMENT_INTERVAL_HOURS",
+        "AUTOMATION_MAILBOX_SYNC_INTERVAL_MINUTES",
         "AUTOMATION_JOB_TIMEOUT_SECONDS",
         "AUTOMATION_FOUNDER_CODE_EXECUTOR_INTERVAL_SECONDS",
     ):
@@ -338,6 +348,14 @@ def _run_sentiment_job(runner) -> AutomationJobResult:  # type: ignore[no-untype
     except (ValueError, EmailNotificationError, RuntimeError) as exc:
         return AutomationJobResult(status="failed", detail=str(exc))
     return AutomationJobResult(status="ok", detail="ETF sentiment job delivered")
+
+
+def _run_mailbox_sync_job() -> AutomationJobResult:
+    try:
+        synced_connections, synced_threads = run_scheduled_mailbox_sync_job()
+    except RuntimeError as exc:
+        return AutomationJobResult(status="failed", detail=str(exc))
+    return AutomationJobResult(status="ok", detail=f"connections={synced_connections} threads={synced_threads}")
 
 
 def _format_token_usage(usage) -> str:  # type: ignore[no-untyped-def]

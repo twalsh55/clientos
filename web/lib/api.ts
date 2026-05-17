@@ -8,6 +8,7 @@ import type {
   CRMImportResult,
   CRMMailboxConnection,
   CRMMailboxConnectionsResponse,
+  CRMMailboxOAuthStart,
   CRMMailboxSendResult,
   CRMMailboxSyncResult,
   CRMRemoteIntakeChannel,
@@ -254,6 +255,40 @@ export async function connectCrmMailbox(
 ): Promise<CRMMailboxConnection> {
   return apiRequest<CRMMailboxConnection>(
     "/api/crm/inbox/mailboxes/connect",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    options,
+  );
+}
+
+export async function startCrmMailboxOAuth(
+  payload: {
+    provider: "gmail" | "outlook";
+  },
+  options: ApiRequestOptions = {},
+): Promise<CRMMailboxOAuthStart> {
+  return apiRequest<CRMMailboxOAuthStart>(
+    "/api/crm/inbox/mailboxes/oauth/start",
+    {
+      method: "POST",
+      body: JSON.stringify(payload),
+    },
+    options,
+  );
+}
+
+export async function completeCrmMailboxOAuth(
+  payload: {
+    provider: "gmail" | "outlook";
+    code: string;
+    state: string;
+  },
+  options: ApiRequestOptions = {},
+): Promise<CRMMailboxConnection> {
+  return apiRequest<CRMMailboxConnection>(
+    "/api/crm/inbox/mailboxes/oauth/complete",
     {
       method: "POST",
       body: JSON.stringify(payload),

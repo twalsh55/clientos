@@ -6,6 +6,7 @@ from functools import lru_cache
 from psycopg import OperationalError
 
 from src.adapters.crm.in_memory_follow_up_repository import InMemoryLeadFollowUpRepository
+from src.adapters.crm.oauth_mailbox_provider import OAuthMailboxProviderAdapter
 from src.adapters.crm.postgres_follow_up_repository import PostgresLeadFollowUpRepository
 from src.adapters.llm.openai_crm_image_intake import OpenAICRMImageIntakeAgent
 from src.adapters.llm.openai_crm_spreadsheet_assist import OpenAICRMSpreadsheetAssistAgent
@@ -47,3 +48,8 @@ def build_crm_spreadsheet_assist_agent_from_env() -> OpenAICRMSpreadsheetAssistA
         api_key=api_key,
         model="gpt-4.1-mini",
     )
+
+
+@lru_cache(maxsize=1)
+def build_mailbox_provider_from_env() -> OAuthMailboxProviderAdapter:
+    return OAuthMailboxProviderAdapter()

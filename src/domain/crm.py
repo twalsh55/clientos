@@ -98,11 +98,45 @@ class MailboxConnection:
     display_name: str
     status: str
     connected_at: datetime
+    connection_mode: str = "manual"
+    external_account_id: str = ""
+    access_token: str = ""
+    refresh_token: str = ""
+    token_expires_at: datetime | None = None
+    scope: str = ""
+    sync_cursor: str = ""
     last_sync_at: datetime | None = None
     last_sync_status: str = ""
     last_sync_error: str = ""
     last_synced_thread_count: int = 0
     sent_message_count: int = 0
+
+
+@dataclass(frozen=True)
+class MailboxThreadMessage:
+    message_id: str
+    sent_at: datetime
+    direction: str
+    from_email: str
+    from_name: str
+    to_emails: tuple[str, ...]
+    subject: str
+    body_text: str
+    snippet: str
+
+
+@dataclass(frozen=True)
+class MailboxThreadSnapshot:
+    source: str
+    thread_id: str
+    messages: tuple[MailboxThreadMessage, ...]
+
+
+@dataclass(frozen=True)
+class MailboxSendReceipt:
+    connection: MailboxConnection
+    thread_id: str
+    message: MailboxThreadMessage
 
 
 @dataclass(frozen=True)

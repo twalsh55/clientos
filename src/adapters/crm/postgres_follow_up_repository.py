@@ -159,6 +159,19 @@ class PostgresLeadFollowUpRepository:
             database_connection.commit()
         return connection
 
+    def list_mailbox_connection_user_ids(self) -> list[UUID]:
+        with connect(self.database_url) as connection:
+            with connection.cursor() as cursor:
+                cursor.execute(
+                    """
+                    SELECT DISTINCT user_id
+                    FROM crm_mailbox_connection
+                    ORDER BY user_id ASC
+                    """
+                )
+                rows = cursor.fetchall()
+        return [UUID(str(row[0])) for row in rows]
+
     def _list_lead_follow_ups_for_user(self, user_id: UUID) -> list[LeadFollowUp]:
         with connect(self.database_url, row_factory=dict_row) as connection:
             with connection.cursor() as cursor:
@@ -328,6 +341,13 @@ def _payload_to_mailbox_connection(payload: dict[str, Any]) -> MailboxConnection
         display_name=str(payload.get("display_name", "")),
         status=str(payload.get("status", "")),
         connected_at=_require_datetime(payload["connected_at"]),
+        connection_mode=str(payload.get("connection_mode", "manual")),
+        external_account_id=str(payload.get("external_account_id", "")),
+        access_token=str(payload.get("access_token", "")),
+        refresh_token=str(payload.get("refresh_token", "")),
+        token_expires_at=_parse_datetime(payload.get("token_expires_at")),
+        scope=str(payload.get("scope", "")),
+        sync_cursor=str(payload.get("sync_cursor", "")),
         last_sync_at=_parse_datetime(payload.get("last_sync_at")),
         last_sync_status=str(payload.get("last_sync_status", "")),
         last_sync_error=str(payload.get("last_sync_error", "")),

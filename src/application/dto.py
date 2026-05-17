@@ -277,6 +277,11 @@ class MailboxConnectionDTO:
     display_name: str
     status: str
     connected_at: str
+    connection_mode: str
+    external_account_id: str
+    token_expires_at: str | None
+    scope: str
+    sync_cursor: str
     last_sync_at: str | None
     last_sync_status: str
     last_sync_error: str
@@ -707,6 +712,11 @@ def build_mailbox_connection_dto(connection: MailboxConnection) -> MailboxConnec
         display_name=connection.display_name,
         status=connection.status,
         connected_at=connection.connected_at.isoformat(),
+        connection_mode=connection.connection_mode,
+        external_account_id=connection.external_account_id,
+        token_expires_at=connection.token_expires_at.isoformat() if connection.token_expires_at else None,
+        scope=connection.scope,
+        sync_cursor=connection.sync_cursor,
         last_sync_at=connection.last_sync_at.isoformat() if connection.last_sync_at else None,
         last_sync_status=connection.last_sync_status,
         last_sync_error=connection.last_sync_error,

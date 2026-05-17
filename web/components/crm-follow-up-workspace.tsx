@@ -1,6 +1,6 @@
 "use client";
 import Link from "next/link";
-import { usePathname, useRouter } from "next/navigation";
+import { usePathname, useRouter, useSearchParams } from "next/navigation";
 import { useEffect, useRef, useState, useTransition } from "react";
 
 import { BusinessProfileOnboarding } from "@/components/settings/business-profile-onboarding";
@@ -58,6 +58,7 @@ export function CRMFollowUpWorkspace({
 }) {
   const router = useRouter();
   const pathname = usePathname();
+  const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
   const [overview, setOverview] = useState(initialOverview);
   const [settings, setSettings] = useState<AccountSettings | null>(initialSettings);
@@ -187,6 +188,13 @@ export function CRMFollowUpWorkspace({
       cancelled = true;
     };
   }, []);
+
+  useEffect(() => {
+    if (searchParams?.get("mailbox") === "connected") {
+      setMailboxStatus("Mailbox connected. Brivoly can now keep relationship memory fresh from that inbox.");
+      router.replace(view === "inbox" ? "/clientos/inbox" : pathname ?? "/clientos/inbox");
+    }
+  }, [pathname, router, searchParams, view]);
 
   function runAction(
     followUpId: string,
@@ -666,6 +674,26 @@ export function CRMFollowUpWorkspace({
     });
   }
 
+  function startMailboxOAuth(provider: "gmail" | "outlook") {
+    setMailboxStatus(`Opening ${provider === "gmail" ? "Gmail" : "Outlook"} so you can connect the real mailbox...`);
+    startMailboxTransition(async () => {
+      try {
+        const response = await fetch("/api/crm/inbox/mailboxes/oauth/start", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ provider }),
+        });
+        const body = (await response.json().catch(() => null)) as { authorization_url?: string; error?: string } | null;
+        if (!response.ok || !body?.authorization_url) {
+          throw new Error(body?.error || "Unable to begin the mailbox connection right now.");
+        }
+        window.location.assign(body.authorization_url);
+      } catch (mailboxError) {
+        setMailboxStatus(mailboxError instanceof Error ? mailboxError.message : "Unable to begin the mailbox connection right now.");
+      }
+    });
+  }
+
   function syncMailboxConnection(connectionId: string) {
     setMailboxStatus("Pulling recent mailbox activity into Brivoly...");
     startMailboxTransition(async () => {
@@ -1057,40 +1085,68 @@ export function CRMFollowUpWorkspace({
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Connect Gmail or Outlook once, then let Brivoly pull thread context back into relationship memory and send notes from the same account.
               </p>
-              <div className="mt-4 grid gap-3 xl:grid-cols-[0.8fr_1.2fr_1fr_auto]">
-                <label className="block">
-                  <span className="ui-eyebrow">Provider</span>
-                  <select
-                    value={mailboxProvider}
-                    onChange={(event) => setMailboxProvider(event.target.value as "gmail" | "outlook")}
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
-                  >
-                    <option value="gmail">Gmail</option>
-                    <option value="outlook">Outlook</option>
-                  </select>
-                </label>
-                <label className="block">
-                  <span className="ui-eyebrow">Mailbox email</span>
-                  <input
-                    value={mailboxEmail}
-                    onChange={(event) => setMailboxEmail(event.target.value)}
-                    placeholder="you@yourstudio.com"
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
-                  />
-                </label>
-                <label className="block">
-                  <span className="ui-eyebrow">Name on the mailbox</span>
-                  <input
-                    value={mailboxDisplayName}
-                    onChange={(event) => setMailboxDisplayName(event.target.value)}
-                    placeholder="Ada from Northstar"
-                    className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
-                  />
-                </label>
-                <div className="flex items-end">
-                  <Button disabled={isMailboxPending} onClick={connectMailbox}>
-                    {isMailboxPending ? "Connecting..." : "Connect"}
-                  </Button>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <button
+                  type="button"
+                  disabled={isMailboxPending}
+                  onClick={() => startMailboxOAuth("gmail")}
+                  className="rounded-[1.2rem] border bg-white px-4 py-4 text-left transition hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  <p className="ui-eyebrow">Gmail</p>
+                  <p className="mt-2 text-base font-semibold text-slate-950">Connect the real Gmail account</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">Use Google consent, keep the inbox in sync, and send notes through the same mailbox.</p>
+                </button>
+                <button
+                  type="button"
+                  disabled={isMailboxPending}
+                  onClick={() => startMailboxOAuth("outlook")}
+                  className="rounded-[1.2rem] border bg-white px-4 py-4 text-left transition hover:border-slate-400 disabled:cursor-not-allowed disabled:opacity-70"
+                >
+                  <p className="ui-eyebrow">Outlook</p>
+                  <p className="mt-2 text-base font-semibold text-slate-950">Connect the real Outlook account</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">Use Microsoft consent, keep the inbox in sync, and send notes through the same mailbox.</p>
+                </button>
+              </div>
+              <div className="mt-5 rounded-[1.2rem] border border-dashed bg-white px-4 py-4">
+                <p className="ui-eyebrow">Fallback path</p>
+                <p className="mt-2 text-sm leading-6 text-slate-600">
+                  If provider credentials are not configured yet, you can still add a manual mailbox connection below and keep using sync preview mode.
+                </p>
+                <div className="mt-4 grid gap-3 xl:grid-cols-[0.8fr_1.2fr_1fr_auto]">
+                  <label className="block">
+                    <span className="ui-eyebrow">Provider</span>
+                    <select
+                      value={mailboxProvider}
+                      onChange={(event) => setMailboxProvider(event.target.value as "gmail" | "outlook")}
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
+                    >
+                      <option value="gmail">Gmail</option>
+                      <option value="outlook">Outlook</option>
+                    </select>
+                  </label>
+                  <label className="block">
+                    <span className="ui-eyebrow">Mailbox email</span>
+                    <input
+                      value={mailboxEmail}
+                      onChange={(event) => setMailboxEmail(event.target.value)}
+                      placeholder="you@yourstudio.com"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
+                    />
+                  </label>
+                  <label className="block">
+                    <span className="ui-eyebrow">Name on the mailbox</span>
+                    <input
+                      value={mailboxDisplayName}
+                      onChange={(event) => setMailboxDisplayName(event.target.value)}
+                      placeholder="Ada from Northstar"
+                      className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
+                    />
+                  </label>
+                  <div className="flex items-end">
+                    <Button disabled={isMailboxPending} onClick={connectMailbox}>
+                      {isMailboxPending ? "Connecting..." : "Add manual connection"}
+                    </Button>
+                  </div>
                 </div>
               </div>
               <div className="mt-4 space-y-3">
@@ -1103,7 +1159,7 @@ export function CRMFollowUpWorkspace({
                             {connection.provider === "gmail" ? "Gmail" : "Outlook"} · {connection.email_address}
                           </p>
                           <p className="mt-1 text-sm text-slate-600">
-                            {connection.display_name || "Mailbox account"} · {connection.last_sync_at ? `last synced ${formatDateTime(connection.last_sync_at)}` : "not synced yet"}
+                            {connection.display_name || "Mailbox account"} · {connection.connection_mode === "oauth" ? "provider-linked" : "manual beta"} · {connection.last_sync_at ? `last synced ${formatDateTime(connection.last_sync_at)}` : "not synced yet"}
                           </p>
                         </div>
                         <div className="flex flex-wrap gap-2">

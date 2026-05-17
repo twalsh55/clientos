@@ -22,6 +22,7 @@ from src.adapters.automation.runtime import (
     _run_founder_code_report_job,
     _run_founder_code_sync_job,
     _run_job_with_timeout,
+    _run_mailbox_sync_job,
     _run_operator_briefing_job,
     _run_prospect_job,
     _run_prospect_with_template_fallback,
@@ -214,13 +215,19 @@ def test_build_jobs_worker_and_run_worker_from_env(monkeypatch, tmp_path) -> Non
     assert jobs[4].name == "sentiment_daily"
     assert jobs[4].interval == timedelta(hours=6)
 
+    monkeypatch.setenv("AUTOMATION_ENABLE_MAILBOX_SYNC", "true")
+    monkeypatch.setenv("AUTOMATION_MAILBOX_SYNC_INTERVAL_MINUTES", "20")
+    jobs = build_jobs_from_env()
+    assert jobs[5].name == "mailbox_sync"
+    assert jobs[5].interval == timedelta(minutes=20)
+
     monkeypatch.setenv("AUTOMATION_ENABLE_FOUNDER_CODE_EXECUTOR", "true")
     monkeypatch.setenv("AUTOMATION_FOUNDER_CODE_EXECUTOR_INTERVAL_SECONDS", "30")
     jobs = build_jobs_from_env()
-    assert jobs[5].name == "founder_code_execute"
-    assert jobs[5].interval == timedelta(seconds=30)
-    assert jobs[6].name == "founder_code_report"
+    assert jobs[6].name == "founder_code_execute"
     assert jobs[6].interval == timedelta(seconds=30)
+    assert jobs[7].name == "founder_code_report"
+    assert jobs[7].interval == timedelta(seconds=30)
 
     class FakeWorker:
         def run_forever(self, max_iterations=None):
@@ -450,6 +457,21 @@ def test_send_founder_code_progress_notification_tolerates_channel_errors(monkey
     )
     assert sent_messages
     assert sent_emails
+
+
+def test_mailbox_sync_job_reports_counts_and_failure(monkeypatch) -> None:
+    monkeypatch.setattr("src.adapters.automation.runtime.run_scheduled_mailbox_sync_job", lambda: (2, 5))
+    result = _run_mailbox_sync_job()
+    assert result.status == "ok"
+    assert result.detail == "connections=2 threads=5"
+
+    monkeypatch.setattr(
+        "src.adapters.automation.runtime.run_scheduled_mailbox_sync_job",
+        lambda: (_ for _ in ()).throw(RuntimeError("sync failed")),
+    )
+    result = _run_mailbox_sync_job()
+    assert result.status == "failed"
+    assert result.detail == "sync failed"
 
 
 def test_run_job_with_timeout_covers_success_and_timeout() -> None:

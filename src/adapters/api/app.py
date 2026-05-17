@@ -39,7 +39,11 @@ from src.adapters.notifications.smtp_email_notifier import EmailNotificationErro
 from src.adapters.notifications.telegram_notifier import TelegramNotificationError, TelegramNotifier
 from src.adapters.operator_briefing.runtime import collect_operator_briefing_config_errors, run_daily_operator_briefing_job
 from src.adapters.crm.google_sheets import fetch_google_sheets_csv
-from src.adapters.crm.runtime import build_crm_image_intake_agent_from_env, build_crm_spreadsheet_assist_agent_from_env
+from src.adapters.crm.runtime import (
+    build_crm_image_intake_agent_from_env,
+    build_crm_spreadsheet_assist_agent_from_env,
+    build_mailbox_provider_from_env,
+)
 from src.adapters.crm.spreadsheet_files import convert_excel_bytes_to_csv, decode_base64_file_content
 from src.adapters.crm.runtime import build_lead_follow_up_repository
 from src.adapters.persistence.runtime import build_personalization_repository, build_user_repository
@@ -63,7 +67,9 @@ from src.application.founder_code import ListFounderCodeRequestsUseCase, QueueFo
 from src.application.crm import GetLeadFollowUpOverviewUseCase
 from src.application.crm import (
     AddLeadFollowUpNoteUseCase,
+    BeginMailboxOAuthUseCase,
     CompleteLeadFollowUpUseCase,
+    CompleteMailboxOAuthUseCase,
     ConnectMailboxUseCase,
     DesignLeadFollowUpEmailUseCase,
     EmailThreadMessageInput,
@@ -112,6 +118,7 @@ from src.env_utils import get_first_configured_env, load_env_file
 
 api_logger = logging.getLogger("brivoly.api")
 ANONYMOUS_CRM_USER_ID = UUID("00000000-0000-0000-0000-00000000c0de")
+MAILBOX_OAUTH_STATE_TTL_SECONDS = 15 * 60
 
 
 @dataclass(frozen=True)
@@ -120,6 +127,7 @@ class ApiDependencies:
     market_data_factory: Callable[[], object]
     personalization_repository_factory: Callable[[], object]
     lead_follow_up_repository_factory: Callable[[], object]
+    mailbox_provider_factory: Callable[[], object]
     billing_port_factory: Callable[[], object | None]
     user_repository_factory: Callable[[], object | None]
     now: Callable[[], datetime]
@@ -197,6 +205,16 @@ class MailboxConnectionPayload(BaseModel):
     display_name: str = Field(default="", max_length=160)
 
 
+class MailboxOAuthStartPayload(BaseModel):
+    provider: str = Field(pattern="^(gmail|outlook)$")
+
+
+class MailboxOAuthCompletePayload(BaseModel):
+    provider: str = Field(pattern="^(gmail|outlook)$")
+    code: str = Field(min_length=1, max_length=4000)
+    state: str = Field(min_length=1, max_length=4000)
+
+
 class MailboxSendPayload(BaseModel):
     connection_id: str | None = Field(default=None, min_length=1, max_length=255)
     thread_id: str | None = Field(default=None, min_length=1, max_length=255)
@@ -226,6 +244,52 @@ class CRMRemoteIntakeUploadPayload(BaseModel):
     file_content_base64: str = Field(min_length=1)
 
 
+def _get_mailbox_oauth_callback_url(provider: str) -> str:
+    return f"{get_app_base_url().rstrip('/')}/clientos/inbox/connect/{provider.strip().lower()}"
+
+
+def _get_mailbox_oauth_state_secret() -> str:
+    return (
+        os.getenv("CRM_INTAKE_SECRET", "").strip()
+        or os.getenv("INTERNAL_CRON_SECRET", "").strip()
+        or os.getenv("TELEGRAM_WEBHOOK_SECRET", "").strip()
+        or os.getenv("CLERK_SECRET_KEY", "").strip()
+    )
+
+
+def _build_mailbox_oauth_state(user: User, provider: str, current_time: datetime) -> str:
+    secret = _get_mailbox_oauth_state_secret()
+    if not secret:
+        raise RuntimeError("Mailbox OAuth is unavailable until a state-signing secret is configured.")
+    timestamp = str(int(current_time.timestamp()))
+    payload = f"{user.id}:{provider.strip().lower()}:{timestamp}"
+    signature = hmac.new(secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()[:24]
+    return f"{payload}:{signature}"
+
+
+def _validate_mailbox_oauth_state(user: User, provider: str, state: str, current_time: datetime) -> None:
+    secret = _get_mailbox_oauth_state_secret()
+    if not secret:
+        raise ValueError("Mailbox OAuth is unavailable until a state-signing secret is configured.")
+    parts = state.strip().split(":")
+    if len(parts) != 4:
+        raise ValueError("Mailbox OAuth state is invalid.")
+    user_id_text, provider_text, timestamp_text, signature = parts
+    if user_id_text != str(user.id):
+        raise ValueError("Mailbox OAuth state does not match the current account.")
+    if provider_text != provider.strip().lower():
+        raise ValueError("Mailbox OAuth state does not match this provider.")
+    if not timestamp_text.isdigit():
+        raise ValueError("Mailbox OAuth state is invalid.")
+    payload = f"{user_id_text}:{provider_text}:{timestamp_text}"
+    expected_signature = hmac.new(secret.encode("utf-8"), payload.encode("utf-8"), hashlib.sha256).hexdigest()[:24]
+    if not hmac.compare_digest(signature, expected_signature):
+        raise ValueError("Mailbox OAuth state verification failed.")
+    issued_at = datetime.fromtimestamp(int(timestamp_text), tz=UTC)
+    if current_time - issued_at > timedelta(seconds=MAILBOX_OAUTH_STATE_TTL_SECONDS):
+        raise ValueError("Mailbox OAuth state expired. Please try connecting again.")
+
+
 def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
     load_env_file()
     logger = configure_api_logger()
@@ -234,6 +298,7 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
         market_data_factory=YFinanceMarketDataAdapter,
         personalization_repository_factory=build_personalization_repository,
         lead_follow_up_repository_factory=build_lead_follow_up_repository,
+        mailbox_provider_factory=build_mailbox_provider_from_env,
         billing_port_factory=build_billing_adapter,
         user_repository_factory=build_user_repository,
         now=lambda: datetime.now(tz=UTC),
@@ -477,6 +542,48 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
         connections = ListMailboxConnectionsUseCase(repository=deps.lead_follow_up_repository_factory()).execute(user)
         return {"items": [dto_to_dict(build_mailbox_connection_dto(item)) for item in connections]}
 
+    @app.post("/api/crm/inbox/mailboxes/oauth/start")
+    def crm_start_mailbox_oauth(
+        payload: MailboxOAuthStartPayload,
+        authorization: str | None = Header(default=None),
+        session_cookie: str | None = Cookie(default=None, alias=CLERK_SESSION_COOKIE),
+    ) -> dict[str, object]:
+        user = _require_crm_user(deps, authorization, session_cookie)
+        current_time = deps.now()
+        try:
+            state = _build_mailbox_oauth_state(user, payload.provider, current_time)
+            authorization_url = BeginMailboxOAuthUseCase(mailbox_provider=deps.mailbox_provider_factory()).execute(
+                provider=payload.provider,
+                redirect_uri=_get_mailbox_oauth_callback_url(payload.provider),
+                state=state,
+            )
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return {"provider": payload.provider, "authorization_url": authorization_url}
+
+    @app.post("/api/crm/inbox/mailboxes/oauth/complete")
+    def crm_complete_mailbox_oauth(
+        payload: MailboxOAuthCompletePayload,
+        authorization: str | None = Header(default=None),
+        session_cookie: str | None = Cookie(default=None, alias=CLERK_SESSION_COOKIE),
+    ) -> dict[str, object]:
+        user = _require_crm_user(deps, authorization, session_cookie)
+        current_time = deps.now()
+        try:
+            _validate_mailbox_oauth_state(user, payload.provider, payload.state, current_time)
+            connection = CompleteMailboxOAuthUseCase(
+                repository=deps.lead_follow_up_repository_factory(),
+                mailbox_provider=deps.mailbox_provider_factory(),
+            ).execute(
+                user,
+                provider=payload.provider,
+                code=payload.code,
+                redirect_uri=_get_mailbox_oauth_callback_url(payload.provider),
+            )
+        except (RuntimeError, ValueError) as exc:
+            raise HTTPException(status_code=422, detail=str(exc)) from exc
+        return dto_to_dict(build_mailbox_connection_dto(connection))
+
     @app.post("/api/crm/inbox/mailboxes/connect")
     def crm_connect_mailbox(
         payload: MailboxConnectionPayload,
@@ -504,8 +611,12 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
         user = _require_crm_user(deps, authorization, session_cookie)
         repository = deps.lead_follow_up_repository_factory()
         try:
-            result = SyncMailboxConnectionUseCase(repository=repository, now=deps.now).execute(user, connection_id)
-        except ValueError as exc:
+            result = SyncMailboxConnectionUseCase(
+                repository=repository,
+                now=deps.now,
+                mailbox_provider=deps.mailbox_provider_factory(),
+            ).execute(user, connection_id)
+        except (RuntimeError, ValueError) as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except KeyError as exc:
             raise HTTPException(status_code=404, detail="Mailbox connection not found.") from exc
@@ -521,7 +632,11 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
         user = _require_crm_user(deps, authorization, session_cookie)
         repository = deps.lead_follow_up_repository_factory()
         try:
-            result = SendLeadFollowUpEmailUseCase(repository=repository, now=deps.now).execute(
+            result = SendLeadFollowUpEmailUseCase(
+                repository=repository,
+                now=deps.now,
+                mailbox_provider=deps.mailbox_provider_factory(),
+            ).execute(
                 user,
                 follow_up_id,
                 connection_id=payload.connection_id,
@@ -529,7 +644,7 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
                 subject=payload.subject,
                 body=payload.body,
             )
-        except ValueError as exc:
+        except (RuntimeError, ValueError) as exc:
             raise HTTPException(status_code=422, detail=str(exc)) from exc
         except KeyError as exc:
             missing_id = str(exc).strip("'")

@@ -56,7 +56,7 @@ from src.application.dto import (
     dto_to_dict,
 )
 from src.domain.auth import User
-from src.domain.crm import LeadFollowUp, LeadTimelineEntry
+from src.domain.crm import LeadFollowUp, LeadTimelineEntry, MailboxConnection, MailboxSendReceipt, MailboxThreadMessage
 from src.domain.models import DashboardConfig, DashboardResult
 
 
@@ -208,6 +208,69 @@ class FakeUserRepository:
         return None
 
 
+class FakeMailboxProvider:
+    def build_authorization_url(self, provider: str, redirect_uri: str, state: str) -> str:
+        return f"https://example.test/oauth/{provider}?redirect_uri={redirect_uri}&state={state}"
+
+    def exchange_authorization_code(
+        self,
+        provider: str,
+        code: str,
+        redirect_uri: str,
+        existing_connection: MailboxConnection | None = None,
+    ) -> MailboxConnection:
+        now = datetime(2024, 5, 6, 12, 30, tzinfo=UTC)
+        del code, redirect_uri
+        return MailboxConnection(
+            id=existing_connection.id if existing_connection else f"mailbox-{provider}-oauth",
+            provider=provider,
+            email_address=f"{provider}@example.com",
+            display_name=f"{provider.capitalize()} User",
+            status="connected",
+            connected_at=existing_connection.connected_at if existing_connection else now,
+            connection_mode="oauth",
+            external_account_id=f"{provider}-acct",
+            access_token="access-token",
+            refresh_token="refresh-token",
+            token_expires_at=now,
+            scope="mail.read mail.send",
+        )
+
+    def refresh_connection(self, connection: MailboxConnection) -> MailboxConnection:
+        return connection
+
+    def pull_thread_updates(self, connection: MailboxConnection, max_results: int = 10):  # type: ignore[no-untyped-def]
+        del max_results
+        return []
+
+    def send_message(
+        self,
+        connection: MailboxConnection,
+        *,
+        to_email: str,
+        to_name: str,
+        subject: str,
+        body: str,
+        thread_id: str | None = None,
+    ) -> MailboxSendReceipt:
+        now = datetime(2024, 5, 6, 12, 30, tzinfo=UTC)
+        return MailboxSendReceipt(
+            connection=connection,
+            thread_id=thread_id or "provider-thread",
+            message=MailboxThreadMessage(
+                message_id="provider-message",
+                sent_at=now,
+                direction="outbound",
+                from_email=connection.email_address,
+                from_name=connection.display_name,
+                to_emails=(to_email,),
+                subject=subject,
+                body_text=body,
+                snippet=body[:280],
+            ),
+        )
+
+
 def make_client(
     *,
     user: User | None = None,
@@ -231,6 +294,7 @@ def make_client(
             market_data_factory=lambda: FakeMarketDataAdapter(result=result, captured_configs=[]),
             personalization_repository_factory=lambda: repository,
             lead_follow_up_repository_factory=lambda: crm_repository,
+            mailbox_provider_factory=lambda: FakeMailboxProvider(),
             billing_port_factory=lambda: billing_port,
             user_repository_factory=lambda: user_repo,
             now=lambda: now,
@@ -246,6 +310,7 @@ def make_deps(**overrides) -> ApiDependencies:  # type: ignore[no-untyped-def]
         "market_data_factory": lambda: FakeMarketDataAdapter(result=make_dashboard_result(), captured_configs=[]),
         "personalization_repository_factory": lambda: InMemoryPersonalizationRepository(),
         "lead_follow_up_repository_factory": lambda: InMemoryLeadFollowUpRepository(now=lambda: now),
+        "mailbox_provider_factory": lambda: FakeMailboxProvider(),
         "billing_port_factory": lambda: None,
         "user_repository_factory": lambda: None,
         "now": lambda: now,
@@ -963,6 +1028,32 @@ def test_crm_mailbox_connect_and_list_endpoints_persist_connections() -> None:
     assert list_response.json()["items"][0]["email_address"] == "ada@northstar.example"
 
 
+def test_crm_mailbox_oauth_start_and_complete_endpoints_return_provider_connection() -> None:
+    client = make_client(user=make_user())
+
+    start_response = client.post(
+        "/api/crm/inbox/mailboxes/oauth/start",
+        headers={"Authorization": "Bearer session-token"},
+        json={"provider": "gmail"},
+    )
+
+    assert start_response.status_code == 200
+    authorization_url = start_response.json()["authorization_url"]
+    assert "https://example.test/oauth/gmail" in authorization_url
+    state = authorization_url.split("state=", 1)[1]
+
+    complete_response = client.post(
+        "/api/crm/inbox/mailboxes/oauth/complete",
+        headers={"Authorization": "Bearer session-token"},
+        json={"provider": "gmail", "code": "auth-code", "state": state},
+    )
+
+    assert complete_response.status_code == 200
+    payload = complete_response.json()
+    assert payload["connection_mode"] == "oauth"
+    assert payload["email_address"] == "gmail@example.com"
+
+
 def test_crm_mailbox_sync_endpoint_updates_relationship_memory() -> None:
     repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 17, 12, 30, tzinfo=UTC))
     client = make_client(user=make_user(), lead_follow_up_repository=repository)
@@ -1109,6 +1200,7 @@ def test_run_telegram_crm_image_intake_imports_rows(monkeypatch) -> None:
         market_data_factory=lambda: FakeMarketDataAdapter(result=make_dashboard_result(), captured_configs=[]),
         personalization_repository_factory=lambda: personalization,
         lead_follow_up_repository_factory=lambda: repository,
+        mailbox_provider_factory=lambda: FakeMailboxProvider(),
         billing_port_factory=lambda: FakeBillingPort(),
         user_repository_factory=lambda: FakeUserRepository(user=user),
         now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC),
@@ -1175,6 +1267,7 @@ def test_run_telegram_crm_image_intake_reports_failure_branches(monkeypatch) -> 
         market_data_factory=lambda: FakeMarketDataAdapter(result=make_dashboard_result(), captured_configs=[]),
         personalization_repository_factory=lambda: InMemoryPersonalizationRepository(),
         lead_follow_up_repository_factory=lambda: InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC)),
+        mailbox_provider_factory=lambda: FakeMailboxProvider(),
         billing_port_factory=lambda: FakeBillingPort(overview=BillingOverview(enabled=False, customer_id=None, subscription_id=None, subscription_status=None, price_id=None, cancel_at_period_end=False, current_period_end=None, checkout_available=False, portal_available=False)),
         user_repository_factory=lambda: FakeUserRepository(user=user),
         now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC),
@@ -1220,6 +1313,7 @@ def test_run_telegram_crm_image_intake_reports_failure_branches(monkeypatch) -> 
         market_data_factory=deps.market_data_factory,
         personalization_repository_factory=deps.personalization_repository_factory,
         lead_follow_up_repository_factory=deps.lead_follow_up_repository_factory,
+        mailbox_provider_factory=deps.mailbox_provider_factory,
         billing_port_factory=deps.billing_port_factory,
         user_repository_factory=lambda: None,
         now=deps.now,
@@ -2589,6 +2683,7 @@ def test_dashboard_endpoint_maps_value_errors_to_422() -> None:
                 lead_follow_up_repository_factory=lambda: InMemoryLeadFollowUpRepository(
                     now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC)
                 ),
+                mailbox_provider_factory=lambda: FakeMailboxProvider(),
                 billing_port_factory=lambda: None,
                 user_repository_factory=lambda: FakeUserRepository(user=make_user()),
                 now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC),
