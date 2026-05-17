@@ -239,6 +239,21 @@ def make_client(
     return TestClient(app)
 
 
+def make_deps(**overrides) -> ApiDependencies:  # type: ignore[no-untyped-def]
+    now = datetime(2024, 5, 6, 12, 30, tzinfo=UTC)
+    values = {
+        "auth_use_case_factory": lambda: FakeAuthUseCase(user=None),
+        "market_data_factory": lambda: FakeMarketDataAdapter(result=make_dashboard_result(), captured_configs=[]),
+        "personalization_repository_factory": lambda: InMemoryPersonalizationRepository(),
+        "lead_follow_up_repository_factory": lambda: InMemoryLeadFollowUpRepository(now=lambda: now),
+        "billing_port_factory": lambda: None,
+        "user_repository_factory": lambda: None,
+        "now": lambda: now,
+    }
+    values.update(overrides)
+    return ApiDependencies(**values)
+
+
 def test_authenticated_user_dto_serializes_values() -> None:
     dto = build_authenticated_user_dto(make_user())
 
@@ -314,6 +329,14 @@ def test_billing_overview_route_returns_disabled_status_when_stripe_is_unconfigu
         "checkout_available": False,
         "portal_available": False,
     }
+
+
+def test_billing_overview_route_can_fall_back_to_anonymous_mode(monkeypatch) -> None:
+    monkeypatch.setenv("ALLOW_ANONYMOUS_CRM", "true")
+    response = make_client(user=None).get("/api/account/billing")
+
+    assert response.status_code == 200
+    assert response.json()["enabled"] is False
 
 
 def test_crm_follow_up_overview_dto_and_use_case_sort_and_count_values() -> None:
@@ -508,6 +531,9 @@ def test_run_prospecting_from_telegram_sends_success_and_failure_updates(monkeyp
     monkeypatch.setattr("src.adapters.api.app.run_prospecting_job", lambda: (_ for _ in ()).throw(ValueError("broken")))
     _run_prospecting_from_telegram(FailingNotifier())  # type: ignore[arg-type]
 
+    monkeypatch.setenv("PROSPECT_AGENT_ENABLED", "false")
+    _run_prospecting_from_telegram(FailingNotifier())  # type: ignore[arg-type]
+
 
 def test_run_etf_sentiment_from_telegram_sends_success_and_failure_updates(monkeypatch) -> None:
     sent: list[str] = []
@@ -576,6 +602,9 @@ def test_run_code_from_telegram_sends_decision_and_failure_updates(monkeypatch, 
             )
 
     monkeypatch.setattr("src.adapters.api.app.run_prospecting_job", lambda founder_guidance=None: (_ for _ in ()).throw(ValueError("broken")))
+    _run_code_from_telegram(FailingNotifier())  # type: ignore[arg-type]
+
+    monkeypatch.setenv("PROSPECT_AGENT_ENABLED", "false")
     _run_code_from_telegram(FailingNotifier())  # type: ignore[arg-type]
 
 
@@ -868,6 +897,47 @@ def test_crm_inbox_thread_ingest_updates_overview(monkeypatch) -> None:
     assert any(entry["id"] == "email-msg-1" for entry in lead["timeline"])
 
 
+def test_crm_inbox_thread_ingest_returns_validation_error_for_bad_payload() -> None:
+    response = make_client(user=make_user()).post(
+        "/api/crm/inbox/threads",
+        headers={"Authorization": "Bearer session-token"},
+        json={"source": "gmail", "thread_id": "   ", "messages": []},
+    )
+
+    assert response.status_code == 422
+
+
+def test_crm_inbox_thread_ingest_route_handles_use_case_value_error(monkeypatch) -> None:
+    def fake_execute(self, user, *, source, thread_id, messages):  # type: ignore[no-untyped-def]
+        raise ValueError("bad thread")
+
+    monkeypatch.setattr("src.application.crm.IngestLeadEmailThreadUseCase.execute", fake_execute)
+    response = make_client(user=make_user()).post(
+        "/api/crm/inbox/threads",
+        headers={"Authorization": "Bearer session-token"},
+        json={
+            "source": "gmail",
+            "thread_id": "thread-1",
+            "messages": [
+                {
+                    "message_id": "m1",
+                    "sent_at": "2024-05-17T12:30:00+00:00",
+                    "direction": "inbound",
+                    "from_email": "priya@latticelane.com",
+                    "from_name": "Priya Nair",
+                    "to_emails": ["ada@example.com"],
+                    "subject": "Hi",
+                    "body_text": "Hello",
+                    "snippet": "Hello",
+                }
+            ],
+        },
+    )
+
+    assert response.status_code == 422
+    assert response.json()["detail"] == "bad thread"
+
+
 def test_crm_intake_upload_imports_rows(monkeypatch) -> None:
     user = make_user()
     repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC))
@@ -909,6 +979,47 @@ def test_crm_intake_upload_imports_rows(monkeypatch) -> None:
     assert "imported your note image" in payload["message"].lower()
     overview = GetLeadFollowUpOverviewUseCase(repository=repository, now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC)).execute(user)
     assert any(item.notes == "Imported from magic link image" for item in overview.items)
+
+
+def test_crm_intake_upload_returns_validation_errors(monkeypatch) -> None:
+    client = make_client(user=make_user())
+
+    monkeypatch.setenv("CRM_INTAKE_SECRET", "")
+    monkeypatch.setenv("INTERNAL_CRON_SECRET", "")
+    monkeypatch.setenv("TELEGRAM_WEBHOOK_SECRET", "")
+    response = client.post(
+        "/api/crm/intake/upload",
+        json={
+            "intake_token": _build_crm_intake_token(make_user().id, "secret"),
+            "file_name": "note.jpg",
+            "file_content_base64": b64encode(b"img").decode("ascii"),
+        },
+    )
+    assert response.status_code == 422
+    assert response.json()["detail"] == "Remote CRM note capture is not configured yet."
+
+    monkeypatch.setenv("CRM_INTAKE_SECRET", "secret")
+    response = client.post(
+        "/api/crm/intake/upload",
+        json={"intake_token": "token", "file_name": "note.txt", "file_content_base64": b64encode(b"img").decode("ascii")},
+    )
+    assert response.status_code == 422
+    assert "supported image file" in response.json()["detail"]
+
+    response = client.post(
+        "/api/crm/intake/upload",
+        json={"intake_token": "token", "file_name": "note.jpg", "file_content_base64": b64encode(b"").decode("ascii")},
+    )
+    assert response.status_code == 422
+    assert isinstance(response.json()["detail"], list)
+
+    with pytest.raises(ValueError, match="Choose an image file before uploading."):
+        api_app_module._commit_crm_image_intake(  # type: ignore[attr-defined]
+            intake_token=_build_crm_intake_token(make_user().id, "secret"),
+            file_name="note.jpg",
+            file_bytes=b"",
+            deps=make_deps(),
+        )
 
 
 def test_run_telegram_crm_image_intake_imports_rows(monkeypatch) -> None:
@@ -1083,6 +1194,9 @@ def test_run_telegram_crm_image_intake_reports_failure_branches(monkeypatch) -> 
 
 def test_parse_crm_intake_token_and_download_telegram_file_validate_shapes(monkeypatch) -> None:
     with pytest.raises(ValueError, match="invalid"):
+        api_app_module._parse_crm_intake_token("short.badbadbadbad", "secret")  # type: ignore[attr-defined]
+
+    with pytest.raises(ValueError, match="invalid"):
         api_app_module._parse_crm_intake_token("not-base64", "secret")  # type: ignore[attr-defined]
 
     compact_token = api_app_module._build_crm_intake_token(  # type: ignore[attr-defined]
@@ -1110,6 +1224,31 @@ def test_parse_crm_intake_token_and_download_telegram_file_validate_shapes(monke
         b'{"user_id":"11111111-1111-1111-1111-111111111111","signature":"d37f04408fab63d654f9a4bd"}'
     ).decode("ascii").rstrip("=")
     assert api_app_module._parse_crm_intake_token(legacy_token, "secret") == UUID("11111111-1111-1111-1111-111111111111")  # type: ignore[attr-defined]
+
+
+def test_commit_crm_image_intake_validates_missing_repository_and_unknown_user(monkeypatch) -> None:
+    monkeypatch.setenv("CRM_INTAKE_SECRET", "secret")
+    token = _build_crm_intake_token(make_user().id, "secret")
+
+    with pytest.raises(ValueError, match="app database"):
+        api_app_module._commit_crm_image_intake(  # type: ignore[attr-defined]
+            intake_token=token,
+            file_name="note.jpg",
+            file_bytes=b"img",
+            deps=make_deps(user_repository_factory=lambda: None),
+        )
+
+    class EmptyUserRepository:
+        def get_user_by_id(self, user_id):  # type: ignore[no-untyped-def]
+            return None
+
+    with pytest.raises(ValueError, match="no longer points to an active"):
+        api_app_module._commit_crm_image_intake(  # type: ignore[attr-defined]
+            intake_token=token,
+            file_name="note.jpg",
+            file_bytes=b"img",
+            deps=make_deps(user_repository_factory=lambda: EmptyUserRepository()),
+        )
 
     class FakeResponse:
         def __init__(self, body: bytes) -> None:
@@ -1710,6 +1849,16 @@ def test_account_settings_can_run_in_anonymous_crm_mode() -> None:
         os.environ.pop("ALLOW_ANONYMOUS_CRM", None)
 
 
+def test_build_anonymous_crm_user_can_use_upserting_repository() -> None:
+    class UpsertingUserRepository:
+        def upsert_authenticated_user(self, identity):  # type: ignore[no-untyped-def]
+            assert identity.provider == "anonymous"
+            return make_user()
+
+    deps = make_deps(user_repository_factory=lambda: UpsertingUserRepository())
+    assert api_app_module._build_anonymous_crm_user(deps).id == make_user().id  # type: ignore[attr-defined]
+
+
 def test_crm_followups_endpoint_requires_auth_and_returns_queue() -> None:
     os.environ["ALLOW_ANONYMOUS_CRM"] = "false"
     try:
@@ -1874,6 +2023,35 @@ def test_crm_followup_email_draft_endpoint_returns_designed_draft() -> None:
     assert "Ada from Northstar" in payload["body"]
     assert "Follow up on proposal review" in payload["body"]
     assert payload["rationale"]
+
+
+def test_crm_followup_email_draft_endpoint_handles_invalid_payload_and_missing_follow_up() -> None:
+    client = make_client(user=make_user(), lead_follow_up_repository=InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 6, 12, 30, tzinfo=UTC)))
+
+    def fake_execute(self, user, follow_up_id, *, objective, tone, length):  # type: ignore[no-untyped-def]
+        raise ValueError("Unsupported email objective.")
+
+    monkeypatch = pytest.MonkeyPatch()
+    monkeypatch.setattr("src.application.crm.DesignLeadFollowUpEmailUseCase.execute", fake_execute)
+    try:
+        invalid = client.post(
+            "/api/crm/followups/lead-riverbridge/email-draft",
+            headers={"Authorization": "Bearer session-token"},
+            json={"objective": "follow_up", "tone": "warm", "length": "medium"},
+        )
+    finally:
+        monkeypatch.undo()
+
+    assert invalid.status_code == 422
+    assert invalid.json()["detail"] == "Unsupported email objective."
+
+    missing = client.post(
+        "/api/crm/followups/missing/email-draft",
+        headers={"Authorization": "Bearer session-token"},
+        json={"objective": "follow_up", "tone": "warm", "length": "medium"},
+    )
+    assert missing.status_code == 404
+    assert missing.json()["detail"] == "CRM follow-up not found."
 
 
 def test_crm_import_preview_and_commit_endpoints_support_csv_and_google_sheets(monkeypatch) -> None:

@@ -1,9 +1,10 @@
 from __future__ import annotations
 
-from datetime import UTC, date, datetime
+from datetime import UTC, date, datetime, timedelta
 from uuid import UUID
 
 import pandas as pd
+import pytest
 
 from src.application.account import UserDashboardSettings
 from src.application.crm import (
@@ -14,11 +15,44 @@ from src.application.crm import (
     GetLeadFollowUpOverviewUseCase,
     IngestLeadEmailThreadUseCase,
     SnoozeLeadFollowUpUseCase,
+    _build_email_ask_line,
+    _build_email_close_line,
+    _build_email_context_line,
+    _build_email_intro,
+    _build_email_proof_line,
+    _build_email_rationale,
+    _build_email_signoff,
+    _build_email_subject,
+    _build_relationship_context_summary,
+    _build_last_30_days_summary,
+    _build_meeting_prep_summary,
+    _build_recent_changes_summary,
+    _build_relationship_timing_nudge,
+    _build_thread_memory_summary,
+    _build_thread_next_touch_hint,
+    _compute_relationship_health_score,
+    _derive_company_from_email,
+    _derive_name_from_email,
+    _ensure_sentence,
+    _health_label,
+    _merge_email_thread_into_follow_up,
+    _next_occurrence,
+    _normalize_email_length,
+    _normalize_email_message,
+    _normalize_email_objective,
+    _normalize_email_tone,
+    _require_follow_up,
+    _relationship_state,
+    _resolve_follow_up_from_latest_email,
+    _resolve_thread_counterpart,
+    _sentence_case,
+    _truncate_sentence,
 )
 from src.application.dashboard import build_default_dashboard_settings
 from src.adapters.crm.in_memory_follow_up_repository import InMemoryLeadFollowUpRepository
 from src.application.use_cases import BuildCrashDashboardUseCase
 from src.domain.auth import User
+from src.domain.crm import LeadEmailThreadSummary, LeadFollowUp, LeadRelationshipReminder, LeadTimelineEntry
 from src.domain.models import DashboardConfig
 
 
@@ -71,6 +105,45 @@ def make_user() -> User:
         created_at=now,
         updated_at=now,
         last_login_at=now,
+    )
+
+
+def build_follow_up(
+    *,
+    now: datetime,
+    lead_name: str = "Test Lead",
+    company_name: str = "Example Co",
+    stage: str = "Discovery",
+    priority: str = "medium",
+    next_step: str = "Send a quick recap",
+    notes: str = "Shared spreadsheet-heavy workflow pain.",
+    email_address: str = "lead@example.com",
+    last_contacted_at: datetime | None = None,
+    next_follow_up_at: datetime | None = None,
+    timeline: tuple[LeadTimelineEntry, ...] = (),
+    reminders: tuple[LeadRelationshipReminder, ...] = (),
+    threads: tuple[LeadEmailThreadSummary, ...] = (),
+    relationship_state: str = "",
+    last_meaningful_interaction_at: datetime | None = None,
+) -> LeadFollowUp:
+    return LeadFollowUp(
+        id="lead-test",
+        lead_name=lead_name,
+        company_name=company_name,
+        owner_name="Ada Lovelace",
+        stage=stage,
+        priority=priority,
+        contact_channel="email",
+        last_contacted_at=last_contacted_at,
+        next_follow_up_at=next_follow_up_at or now,
+        next_step=next_step,
+        notes=notes,
+        timeline=timeline,
+        email_address=email_address,
+        relationship_reminders=reminders,
+        recent_email_threads=threads,
+        relationship_state=relationship_state,
+        last_meaningful_interaction_at=last_meaningful_interaction_at,
     )
 
 
@@ -313,3 +386,300 @@ def test_ingest_lead_email_thread_auto_creates_contact_when_unknown() -> None:
     assert lead.company_name == "Seabreezecreative"
     assert overview.inbox_summary is not None
     assert overview.inbox_summary.auto_created_contact_count >= 1
+
+
+def test_crm_helper_branches_cover_thread_memory_and_timing_paths() -> None:
+    now = datetime(2024, 5, 17, 12, 30, tzinfo=UTC)
+    reply_thread = LeadEmailThreadSummary(
+        thread_id="thread-1",
+        subject="Reply needed",
+        counterpart_name="Amber",
+        counterpart_email="amber@example.com",
+        last_message_at=now,
+        last_message_direction="inbound",
+        message_count=1,
+        snippet="",
+        needs_reply=True,
+        waiting_on_contact=False,
+    )
+    waiting_thread = LeadEmailThreadSummary(
+        thread_id="thread-2",
+        subject="Waiting",
+        counterpart_name="Marcus",
+        counterpart_email="marcus@example.com",
+        last_message_at=now,
+        last_message_direction="outbound",
+        message_count=1,
+        snippet="",
+        needs_reply=False,
+        waiting_on_contact=True,
+    )
+    quiet_thread = LeadEmailThreadSummary(
+        thread_id="thread-3",
+        subject="Quiet",
+        counterpart_name="Jordan",
+        counterpart_email="jordan@example.com",
+        last_message_at=now.replace(day=1),
+        last_message_direction="outbound",
+        message_count=1,
+        snippet="",
+        needs_reply=False,
+        waiting_on_contact=False,
+    )
+
+    next_step_lead = build_follow_up(now=now, next_step="check in next week", notes="", threads=(reply_thread,))
+    notes_lead = build_follow_up(now=now, next_step="   ", notes="notes only", threads=(waiting_thread,))
+    empty_lead = build_follow_up(now=now, next_step="   ", notes="   ", threads=(quiet_thread,))
+
+    assert _build_thread_memory_summary(next_step_lead, reply_thread) == "This thread is tied to Check in next week."
+    assert _build_thread_memory_summary(notes_lead, waiting_thread) == "Notes only."
+    assert _build_thread_memory_summary(empty_lead, quiet_thread) == "Brivoly has not captured enough thread context yet."
+
+    assert "Reply to Amber." in _build_thread_next_touch_hint(next_step_lead, reply_thread, now)
+    assert "Hold steady for now." in _build_thread_next_touch_hint(notes_lead, waiting_thread, now)
+    assert _build_thread_next_touch_hint(empty_lead, quiet_thread, now) == "Reconnect with Jordan. This thread has gone quiet."
+    assert _build_thread_next_touch_hint(build_follow_up(now=now, threads=(), next_step="send the recap"), quiet_thread, now.replace(day=3)) == "Send the recap."
+    assert _build_thread_next_touch_hint(build_follow_up(now=now, threads=(), next_step="   "), quiet_thread, now.replace(day=3)) == "Keep this relationship warm with a light check-in."
+
+
+def test_crm_helper_branches_cover_relationship_summaries() -> None:
+    now = datetime(2024, 5, 17, 12, 30, tzinfo=UTC)
+    timeline = (
+        LeadTimelineEntry(id="t1", occurred_at=now, kind="email", channel="email", summary="sent a recap"),
+        LeadTimelineEntry(id="t2", occurred_at=now.replace(day=16), kind="call", channel="phone", summary="discussed rollout"),
+    )
+    reminder = LeadRelationshipReminder(kind="birthday", title="Birthday", message="reach out before the birthday", due_at=now)
+    lead = build_follow_up(
+        now=now,
+        stage="proposal",
+        timeline=timeline,
+        reminders=(reminder,),
+        threads=(
+            LeadEmailThreadSummary(
+                thread_id="thread",
+                subject="Proposal",
+                counterpart_name="Taylor",
+                counterpart_email="taylor@example.com",
+                last_message_at=now.replace(day=15),
+                last_message_direction="outbound",
+                message_count=2,
+                snippet="pricing is the main question",
+                needs_reply=False,
+                waiting_on_contact=True,
+            ),
+        ),
+        relationship_state="drifting",
+        last_meaningful_interaction_at=now.replace(day=15),
+    )
+
+    assert "waiting on them" in _build_relationship_timing_nudge(lead, now)
+    assert "Brivoly logged an email update" in _build_recent_changes_summary(lead, now)
+    assert "Over the last 30 days" in _build_last_30_days_summary(lead, now)
+    assert "The last meaningful discussion centered on" in _build_meeting_prep_summary(lead, now)
+
+    negotiation = build_follow_up(now=now, stage="negotiation", relationship_state="warm")
+    proposal = build_follow_up(now=now, stage="proposal", relationship_state="warm", threads=(), last_meaningful_interaction_at=now.replace(day=14))
+    stale = build_follow_up(now=now, stage="discovery", relationship_state="stale")
+    at_risk = build_follow_up(now=now, stage="discovery", relationship_state="at_risk")
+    drifting = build_follow_up(now=now, stage="discovery", relationship_state="drifting")
+    reminded = build_follow_up(now=now, stage="discovery", relationship_state="warm", reminders=(reminder,))
+    active = build_follow_up(now=now, stage="discovery", relationship_state="warm", reminders=())
+
+    assert "active discussion" in _build_relationship_timing_nudge(negotiation, now)
+    assert "Proposal sent" in _build_relationship_timing_nudge(proposal, now)
+    assert "have not meaningfully reconnected" in _build_relationship_timing_nudge(stale, now)
+    assert _build_relationship_timing_nudge(at_risk, now) == "This relationship may be going cold."
+    assert _build_relationship_timing_nudge(drifting, now) == "A light follow-up soon would help keep momentum."
+    assert _build_relationship_timing_nudge(reminded, now) == "Reach out before the birthday."
+    assert _build_relationship_timing_nudge(active, now) == "Things are active here. Brivoly is keeping the context ready."
+
+    assert _build_recent_changes_summary(build_follow_up(now=now, next_step="ping again"), now) == "No major relationship changes were captured recently."
+    assert _build_last_30_days_summary(build_follow_up(now=now, timeline=(), threads=()), now) == "There has not been much relationship activity in the last 30 days."
+    assert _build_meeting_prep_summary(build_follow_up(now=now, timeline=(), threads=(), next_step="   ", notes="   "), now) == "Brivoly does not have enough context yet to prep this meeting."
+
+
+def test_crm_helper_branches_cover_email_ingest_validation_and_email_variants() -> None:
+    now = datetime(2024, 5, 17, 12, 30, tzinfo=UTC)
+    repository = InMemoryLeadFollowUpRepository(now=lambda: now)
+    use_case = IngestLeadEmailThreadUseCase(repository=repository, now=lambda: now)
+    user = make_user()
+
+    with pytest.raises(ValueError, match="thread_id is required."):
+        use_case.execute(user, source="gmail", thread_id="   ", messages=[EmailThreadMessageInput(message_id="1", sent_at=now, direction="inbound", from_email="a@example.com", from_name="", to_emails=("user@example.com",), subject="", body_text="", snippet="")])
+    with pytest.raises(ValueError, match="At least one email message is required."):
+        use_case.execute(user, source="gmail", thread_id="thread", messages=[])
+
+    with pytest.raises(ValueError, match="Unsupported email objective."):
+        _normalize_email_objective("bad")
+    with pytest.raises(ValueError, match="Unsupported email tone."):
+        _normalize_email_tone("bad")
+    with pytest.raises(ValueError, match="Unsupported email length."):
+        _normalize_email_length("long")
+    with pytest.raises(ValueError, match="Each email message needs a message_id."):
+        _normalize_email_message(EmailThreadMessageInput(message_id=" ", sent_at=now, direction="inbound", from_email="a@example.com", from_name="", to_emails=("x@example.com",), subject="", body_text="", snippet=""))
+    with pytest.raises(ValueError, match="direction 'inbound' or 'outbound'"):
+        _normalize_email_message(EmailThreadMessageInput(message_id="1", sent_at=now, direction="sideways", from_email="a@example.com", from_name="", to_emails=("x@example.com",), subject="", body_text="", snippet=""))
+    with pytest.raises(ValueError, match="from_email"):
+        _normalize_email_message(EmailThreadMessageInput(message_id="1", sent_at=now, direction="inbound", from_email=" ", from_name="", to_emails=("x@example.com",), subject="", body_text="", snippet=""))
+    with pytest.raises(ValueError, match="recipient email"):
+        _normalize_email_message(EmailThreadMessageInput(message_id="1", sent_at=now, direction="inbound", from_email="a@example.com", from_name="", to_emails=("",), subject="", body_text="", snippet=""))
+
+    outbound = _normalize_email_message(
+        EmailThreadMessageInput(message_id="1", sent_at=now, direction=" outbound ", from_email="ME@EXAMPLE.COM", from_name="Ada", to_emails=(" prospect@example.com ",), subject=" ", body_text="Body text", snippet="")
+    )
+    assert outbound.subject == "(no subject)"
+    assert outbound.from_email == "me@example.com"
+    assert outbound.snippet == "Body text"
+    assert _resolve_thread_counterpart(user, [outbound]) == ("prospect@example.com", "Ada")
+    assert _resolve_thread_counterpart(user, [EmailThreadMessageInput(message_id="1", sent_at=now, direction="outbound", from_email="me@example.com", from_name="", to_emails=("user@example.com",), subject="Subj", body_text="", snippet="")]) == ("", "")
+
+    lead = build_follow_up(now=now, stage="Proposal", notes="spreadsheet process")
+    due_at, next_step, priority = _resolve_follow_up_from_latest_email(lead=lead, counterpart_name="Taylor", latest_message=outbound, current_time=now)
+    assert due_at > now
+    assert "Follow up if Taylor does not reply" in next_step
+    assert priority == "medium"
+    due_now, reply_step, reply_priority = _resolve_follow_up_from_latest_email(
+        lead=lead,
+        counterpart_name="Taylor",
+        latest_message=EmailThreadMessageInput(message_id="2", sent_at=now, direction="inbound", from_email="taylor@example.com", from_name="Taylor", to_emails=("user@example.com",), subject="Subj", body_text="", snippet=""),
+        current_time=now,
+    )
+    assert due_now == now
+    assert reply_priority == "high"
+    assert "Reply to Taylor's latest email." == reply_step
+
+    assert _derive_name_from_email("") == ""
+    assert _derive_name_from_email("ada.lovelace@example.com") == "Ada Lovelace"
+    assert _derive_company_from_email("no-at-symbol") == "Inbox contact"
+    assert _derive_company_from_email("person@!!!.com") == "Inbox contact"
+
+    assert _build_email_subject(lead, objective="recap") == "Recap and next steps for Example Co"
+    assert _build_email_subject(lead, objective="revive") == "Test Lead, should we restart this?"
+    assert _build_email_subject(lead, objective="close_loop") == "Should I close the loop on Example Co?"
+    assert _build_email_subject(lead, objective="follow_up") == "Quick follow-up on the Example Co proposal"
+    assert "crisp recap" in _build_email_intro(lead, business_name="Brivoly", objective="recap", tone="warm")
+    assert "top of your inbox" in _build_email_intro(lead, business_name="Brivoly", objective="revive", tone="warm")
+    assert "one last time" in _build_email_intro(lead, business_name="Brivoly", objective="close_loop", tone="warm")
+    assert "where things stand" in _build_email_intro(lead, business_name="Brivoly", objective="follow_up", tone="direct")
+    assert "strong fit here" in _build_email_intro(lead, business_name="Brivoly", objective="follow_up", tone="confident")
+    assert "while the context is still fresh" in _build_email_intro(lead, business_name="Brivoly", objective="follow_up", tone="warm")
+
+    empty_context_lead = build_follow_up(now=now, next_step="reply tomorrow", notes="   ", timeline=())
+    assert "close the loop cleanly" in _build_email_context_line(lead, objective="close_loop", tone="warm")
+    assert "important next move" in _build_email_context_line(empty_context_lead, objective="recap", tone="warm")
+    assert "main thing still on my list" in _build_email_context_line(empty_context_lead, objective="follow_up", tone="warm")
+    assert "That still feels like the right place" in _build_email_context_line(lead, objective="follow_up", tone="confident")
+    assert _build_email_ask_line(lead, objective="recap", tone="warm").startswith("From here, I suggest we")
+    assert _build_email_ask_line(lead, objective="revive", tone="warm").startswith("If this is still relevant")
+    assert _build_email_ask_line(lead, objective="close_loop", tone="warm") == "If you want to keep it moving, just reply and I will take it from there."
+    assert _build_email_ask_line(lead, objective="follow_up", tone="direct").startswith("If you are still interested")
+    assert _build_email_ask_line(lead, objective="follow_up", tone="confident").startswith("The fastest way")
+    assert _build_email_ask_line(lead, objective="follow_up", tone="warm").startswith("If helpful")
+    assert "rollout light" in _build_email_proof_line(lead, business_name="Brivoly")
+    assert "spreadsheet-first process" in _build_email_proof_line(build_follow_up(now=now, stage="Discovery", notes="spreadsheet overload"), business_name="Brivoly")
+    assert "low-lift" in _build_email_proof_line(build_follow_up(now=now, stage="Discovery", notes="plain notes"), business_name="Brivoly")
+    assert _build_email_close_line(objective="close_loop", tone="warm") == "Either way, a quick yes, no, or later would be perfect."
+    assert _build_email_close_line(objective="follow_up", tone="direct") == "A quick reply is enough and I can handle the rest."
+    assert _build_email_close_line(objective="follow_up", tone="confident") == "If the timing works, I can keep this moving without much back-and-forth."
+    assert _build_email_close_line(objective="follow_up", tone="warm") == "Happy to keep it easy from here."
+    assert _build_email_signoff(sender_name="Ada", website="https://example.com") == "Best,\nAda\nhttps://example.com"
+    assert _build_email_signoff(sender_name="Ada", website="") == "Best,\nAda"
+    assert "Softened the ask" in " ".join(_build_email_rationale(lead, objective="close_loop", tone="warm", business_name="Brivoly"))
+    assert "restart" in " ".join(_build_email_rationale(lead, objective="revive", tone="confident", business_name="Brivoly"))
+    assert "human and low-pressure" in " ".join(_build_email_rationale(lead, objective="follow_up", tone="warm", business_name="Brivoly"))
+
+    with pytest.raises(KeyError):
+        _require_follow_up([], "missing")
+    assert _ensure_sentence("") == "reply with the easiest next step"
+    assert _ensure_sentence("Hello") == "Hello."
+    assert _ensure_sentence("Hello!") == "Hello!"
+    assert _truncate_sentence("short", 20) == "short."
+    assert _truncate_sentence("one two three four five six seven eight nine", 20).endswith("...")
+    assert _sentence_case("") == ""
+
+
+def test_crm_helper_branches_cover_remaining_health_context_and_merge_paths() -> None:
+    now = datetime(2024, 5, 17, 12, 30, tzinfo=UTC)
+    user = make_user()
+
+    assert _compute_relationship_health_score(build_follow_up(now=now, next_follow_up_at=now - timedelta(days=14), next_step=""), now - timedelta(days=10), now) >= 0
+    assert _compute_relationship_health_score(build_follow_up(now=now, next_follow_up_at=now - timedelta(days=7)), now - timedelta(days=15), now) >= 0
+    assert _compute_relationship_health_score(build_follow_up(now=now, next_follow_up_at=now - timedelta(days=1)), now - timedelta(days=22), now) >= 0
+    assert _health_label(49) == "at_risk"
+    assert _relationship_state(40, False, build_follow_up(now=now, next_follow_up_at=now), now) == "at_risk"
+    assert _relationship_state(72, False, build_follow_up(now=now, next_follow_up_at=now), now) == "warm"
+    assert _build_relationship_context_summary(build_follow_up(now=now, notes="   ", timeline=(), threads=())) == "Brivoly has not captured enough relationship context yet."
+    assert _next_occurrence(date(2024, 2, 29), date(2025, 1, 1)) is None
+    assert _next_occurrence(date(2024, 2, 29), date(2024, 3, 1)) is None
+
+    use_case = IngestLeadEmailThreadUseCase(repository=InMemoryLeadFollowUpRepository(now=lambda: now), now=lambda: now)
+    with pytest.raises(ValueError, match="could not identify the external contact"):
+        use_case.execute(
+            user,
+            source="gmail",
+            thread_id="thread-no-counterpart",
+            messages=[
+                EmailThreadMessageInput(
+                    message_id="m1",
+                    sent_at=now,
+                    direction="outbound",
+                    from_email="user@example.com",
+                    from_name="Ada",
+                    to_emails=("user@example.com",),
+                    subject="Subj",
+                    body_text="Body",
+                    snippet="Body",
+                )
+            ],
+        )
+
+    existing_entry = LeadTimelineEntry(id="email-m1", occurred_at=now, kind="email", channel="gmail", summary="Old")
+    merged = _merge_email_thread_into_follow_up(
+        build_follow_up(now=now, email_address="", timeline=(existing_entry,)),
+        user=user,
+        source="gmail",
+        thread_id="thread-dup",
+        counterpart_email="friend@example.com",
+        counterpart_name="Friend",
+        messages=[
+            EmailThreadMessageInput(
+                message_id="m1",
+                sent_at=now,
+                direction="outbound",
+                from_email="user@example.com",
+                from_name="Ada",
+                to_emails=("friend@example.com",),
+                subject="Checking in",
+                body_text="Body",
+                snippet="Body",
+            )
+        ],
+        current_time=now,
+    )
+    assert len(merged.timeline) == 1
+    assert merged.email_address == "friend@example.com"
+
+    merged_without_email = _merge_email_thread_into_follow_up(
+        build_follow_up(now=now, email_address="", timeline=()),
+        user=user,
+        source="gmail",
+        thread_id="thread-empty-email",
+        counterpart_email="",
+        counterpart_name="Friend",
+        messages=[
+            EmailThreadMessageInput(
+                message_id="m2",
+                sent_at=now,
+                direction="outbound",
+                from_email="user@example.com",
+                from_name="Ada",
+                to_emails=("friend@example.com",),
+                subject="Checking in",
+                body_text="Body",
+                snippet="Body",
+            )
+        ],
+        current_time=now,
+    )
+    assert merged_without_email.email_address == ""
+    assert _build_email_subject(build_follow_up(now=now, stage="Discovery"), objective="follow_up") == "Quick follow-up for Example Co"

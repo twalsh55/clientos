@@ -22,6 +22,7 @@ from src.application.crm_import import (
     _build_imported_follow_up,
     _extract_headers_and_sample_rows,
     _needs_ai_header_assistance,
+    _normalize_row_overrides,
     _normalize_stage,
     _parse_datetime,
 )
@@ -89,6 +90,17 @@ def test_commit_lead_import_adds_follow_ups_to_queue() -> None:
     assert imported.contact_channel == "linkedin"
     assert imported.next_step == "Send the recap and book the demo"
     assert imported.timeline[0].kind == "import"
+
+
+def test_normalize_row_overrides_validates_invalid_shapes() -> None:
+    with pytest.raises(ValueError, match="Invalid row override id 'abc'"):
+        _normalize_row_overrides({"abc": {"next_follow_up_at": "2024-05-09"}})
+    with pytest.raises(ValueError, match="positive integers"):
+        _normalize_row_overrides({"0": {"next_follow_up_at": "2024-05-09"}})
+    with pytest.raises(ValueError, match="must be an object"):
+        _normalize_row_overrides({"1": "bad"})  # type: ignore[arg-type]
+    with pytest.raises(ValueError, match="Unsupported row override field 'bad_field'"):
+        _normalize_row_overrides({"1": {"bad_field": "x"}})
 
 
 def test_preview_and_commit_lead_import_support_manual_field_mapping() -> None:
