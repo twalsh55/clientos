@@ -97,7 +97,7 @@ cd web && npm run e2e
   - follow-up queue
   - inbox-native relationship page for auto-logging email threads
   - email-thread ingestion that can auto-create/update contacts from inbox activity
-  - attention board view by relationship stage
+  - attention view with reconnect-first guidance and direct draft actions
   - complete and snooze actions
   - relationship history + internal notes
   - relationship memory summaries that blend email, notes, uploads, reconnect cues, and recent upload context

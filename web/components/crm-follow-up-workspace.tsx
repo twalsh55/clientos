@@ -750,6 +750,7 @@ export function CRMFollowUpWorkspace({
             items={overview.items}
             selectedLeadId={selectedLead?.id ?? null}
             onSelectLead={setSelectedLeadId}
+            onRunAction={runTodayPriorityAction}
           />
         </div>
       ) : null}
@@ -1354,11 +1355,13 @@ function PipelineBoardPanel({
   items,
   selectedLeadId,
   onSelectLead,
+  onRunAction,
 }: {
   summary: CRMPipelineStageSummary[];
   items: CRMLeadFollowUp[];
   selectedLeadId: string | null;
   onSelectLead: (leadId: string) => void;
+  onRunAction: (leadId: string, route: string, preset?: TodayDraftPreset) => void;
 }) {
   const itemsByStage = new Map<string, CRMLeadFollowUp[]>();
   for (const item of items) {
@@ -1375,16 +1378,16 @@ function PipelineBoardPanel({
     <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm xl:col-span-2">
       <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
         <div className="max-w-2xl">
-          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Where attention is needed</p>
-          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">See who is slipping before the relationship cools off.</h2>
+          <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Relationship attention</p>
+          <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Protect the relationships that are easiest to lose.</h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">
-            Brivoly keeps the stage context in view, but this page is mainly for spotting quiet relationships, overdue replies, and momentum that needs a warmer touch.
+            This page is for quiet threads, overdue replies, and gentle re-entry moments. The goal is continuity and warmth, not pipeline management.
           </p>
         </div>
         <div className="grid gap-3 sm:grid-cols-3">
           <CompactMetricLight label="Quiet relationships" value={String(summary.reduce((total, stage) => total + stage.dormant_count, 0))} tone="warning" />
           <CompactMetricLight label="Needs a touch" value={String(summary.reduce((total, stage) => total + stage.overdue_count, 0))} tone="critical" />
-          <CompactMetricLight label="Due soon" value={String(summary.reduce((total, stage) => total + stage.due_this_week_count, 0))} tone="neutral" />
+          <CompactMetricLight label="Warm openings" value={String(summary.reduce((total, stage) => total + stage.high_priority_count, 0))} tone="neutral" />
         </div>
       </div>
 
@@ -1392,40 +1395,74 @@ function PipelineBoardPanel({
         <div className="mt-6 rounded-[1.5rem] border bg-slate-50/80 p-4">
           <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
             <div>
-              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Needs care first</p>
-              <p className="mt-2 text-sm leading-6 text-slate-600">Start here if you want the shortest path to protecting relationship continuity today.</p>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Gentle re-entry first</p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">Start here if you want the shortest path to keeping a relationship warm before it fully slips.</p>
             </div>
-            <p className="text-xs text-slate-500">Reply pressure and drifting relationships are surfaced ahead of raw stage progress.</p>
+            <p className="text-xs text-slate-500">Reply pressure and quiet relationships are surfaced ahead of raw stage progression.</p>
           </div>
           <div className="mt-4 grid gap-3 xl:grid-cols-2">
             {needsCareFirst.map((item) => {
               const selected = item.id === selectedLeadId;
+              const reconnectable = isReconnectMoment(item);
               return (
-                <button
+                <div
                   key={`${item.id}-needs-care`}
-                  type="button"
-                  onClick={() => onSelectLead(item.id)}
-                  className={`block w-full rounded-[1.2rem] border px-4 py-4 text-left transition ${
+                  className={`rounded-[1.2rem] border px-4 py-4 text-left transition ${
                     selected ? "border-slate-900 bg-white shadow-sm" : "border-slate-200 bg-white/90 hover:border-slate-400"
                   }`}
                 >
-                  <div className="flex items-start justify-between gap-3">
-                    <div>
-                      <p className="text-sm font-semibold text-slate-950">{item.lead_name}</p>
-                      <p className="mt-1 text-xs text-slate-500">{item.company_name}</p>
+                  <button type="button" onClick={() => onSelectLead(item.id)} className="block w-full text-left">
+                    <div className="flex items-start justify-between gap-3">
+                      <div>
+                        <p className="text-sm font-semibold text-slate-950">{item.lead_name}</p>
+                        <p className="mt-1 text-xs text-slate-500">{item.company_name}</p>
+                      </div>
+                      <div className="flex flex-wrap gap-2">
+                        {item.relationship_state === "stale" ? <MiniFlag tone="warning" label="Stale" /> : null}
+                        {item.relationship_state === "drifting" ? <MiniFlag tone="warning" label="Drifting" /> : null}
+                        {item.relationship_state === "at_risk" ? <MiniFlag tone="critical" label="At risk" /> : null}
+                        {item.recent_email_threads.some((thread) => thread.needs_reply) ? <MiniFlag tone="critical" label="Reply" /> : null}
+                      </div>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                      {item.relationship_state === "stale" ? <MiniFlag tone="warning" label="Stale" /> : null}
-                      {item.relationship_state === "drifting" ? <MiniFlag tone="warning" label="Drifting" /> : null}
-                      {item.relationship_state === "at_risk" ? <MiniFlag tone="critical" label="At risk" /> : null}
-                      {item.recent_email_threads.some((thread) => thread.needs_reply) ? <MiniFlag tone="critical" label="Reply" /> : null}
-                    </div>
+                    <p className="mt-3 text-sm leading-6 text-slate-700">{item.relationship_reconnect_why_now || item.relationship_timing_nudge || item.next_step}</p>
+                    {reconnectable ? (
+                      <div className="mt-3 rounded-xl border bg-slate-50 px-3 py-3">
+                        <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Best re-entry</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-700">{item.relationship_reconnect_next_move || item.next_step}</p>
+                        <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Message angle</p>
+                        <p className="mt-2 text-sm leading-6 text-slate-700">{item.relationship_reconnect_message_hint || item.relationship_timing_nudge}</p>
+                      </div>
+                    ) : null}
+                    <p className="mt-3 text-xs text-slate-500">
+                      {formatDateTime(item.last_meaningful_interaction_at)} · {formatStageLabel(item.stage)}
+                    </p>
+                  </button>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <button
+                      type="button"
+                      onClick={() => onSelectLead(item.id)}
+                      className="rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition hover:border-slate-500 hover:text-slate-950"
+                    >
+                      Open relationship
+                    </button>
+                    {reconnectable ? (
+                      <button
+                        type="button"
+                        onClick={() =>
+                          onRunAction(item.id, "/clientos/follow-ups", {
+                            objective: "revive",
+                            tone: "warm",
+                            length: "short",
+                            status: "Drafting a reconnect from Attention...",
+                          })
+                        }
+                        className="rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition hover:border-slate-500 hover:text-slate-950"
+                      >
+                        Draft reconnect
+                      </button>
+                    ) : null}
                   </div>
-                  <p className="mt-3 text-sm leading-6 text-slate-700">{item.relationship_timing_nudge || item.next_step}</p>
-                  <p className="mt-3 text-xs text-slate-500">
-                    {formatDateTime(item.last_meaningful_interaction_at)} · {formatStageLabel(item.stage)}
-                  </p>
-                </button>
+                </div>
               );
             })}
           </div>
@@ -1442,7 +1479,7 @@ function PipelineBoardPanel({
             >
               <div className="flex items-start justify-between gap-3">
                 <div>
-                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Where it stands</p>
+                  <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Relationship lane</p>
                   <h3 className="mt-2 text-xl font-semibold tracking-tight text-slate-950">{stage.stage}</h3>
                 </div>
                 <div className="rounded-full border border-slate-200 bg-white px-3 py-1 text-sm font-semibold text-slate-700">
@@ -1453,7 +1490,7 @@ function PipelineBoardPanel({
               <div className="mt-4 grid gap-2 sm:grid-cols-2">
                 <TimelineTile label="Needs a touch" value={String(stage.overdue_count)} />
                 <TimelineTile label="Due soon" value={String(stage.due_this_week_count)} />
-                <TimelineTile label="Warm" value={String(stage.high_priority_count)} />
+                <TimelineTile label="Openings" value={String(stage.high_priority_count)} />
                 <TimelineTile label="Quiet" value={String(stage.dormant_count)} />
               </div>
 
@@ -1483,10 +1520,13 @@ function PipelineBoardPanel({
                           <PriorityBadge priority={item.priority} />
                         </div>
                       </div>
-                      <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Next reminder</p>
+                      <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Needs attention by</p>
                       <p className="mt-1 text-sm text-slate-700">{formatDateTime(item.next_follow_up_at)}</p>
-                      <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Suggested next touch</p>
-                      <p className="mt-1 text-sm leading-6 text-slate-600">{item.next_step}</p>
+                      <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Best next touch</p>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">{isReconnectMoment(item) ? item.relationship_reconnect_next_move || item.next_step : item.next_step}</p>
+                      {isReconnectMoment(item) ? (
+                        <p className="mt-3 text-sm leading-6 text-slate-600">{item.relationship_reconnect_message_hint || item.relationship_timing_nudge}</p>
+                      ) : null}
                     </button>
                   );
                 })}
