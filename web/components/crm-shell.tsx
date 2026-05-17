@@ -25,7 +25,7 @@ export function CRMShell({ data }: { data: CRMPageData }) {
     <>
       <section className="mt-6 rounded-[1.75rem] border border-amber-200 bg-amber-50 p-6 shadow-sm">
         <p className="ui-eyebrow-strong text-amber-700">Client OS Load Issue</p>
-        <h2 className="mt-3 text-3xl font-semibold tracking-tight text-amber-950">We could not load the workspace data.</h2>
+        <h2 className="mt-3 text-3xl font-semibold tracking-tight text-amber-950">We could not load your relationships right now.</h2>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-amber-900">
           {describeLoadFailure(data)}
         </p>

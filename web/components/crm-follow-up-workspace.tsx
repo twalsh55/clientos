@@ -674,7 +674,7 @@ export function CRMFollowUpWorkspace({
                 {selectedFile ? <p className="mt-2 text-sm font-medium text-slate-700">{selectedFile.name}</p> : null}
                 {selectedFile && isImageFile(selectedFile.name) ? (
                   <p className="mt-2 text-xs text-slate-500">
-                    Brivoly will use your AI Intake Profile to turn this note image into CRM-ready rows before previewing them.
+                    Brivoly will use your AI Intake Profile to turn this note image into relationship-ready rows before previewing them.
                   </p>
                 ) : null}
               </section>
@@ -2666,20 +2666,28 @@ function LeadMemoryPanel({
 }
 
 function RelationshipSignalsPanel({ summary }: { summary: NonNullable<CRMFollowUpOverview["relationship_summary"]> }) {
+  const needsAttention = summary.drifting_count + summary.stale_count + summary.at_risk_count;
+  const warmMoments = summary.referral_reminder_count + summary.milestone_reminder_count;
   return (
     <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client momentum</p>
-      <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">See who is slipping before the relationship cools.</h2>
+      <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">A calmer read on which relationships are steady and which ones need warmth.</h2>
+      <p className="mt-3 text-sm leading-6 text-slate-600">
+        Instead of a dashboard full of counters, Brivoly keeps a short read on what is healthy, what is slipping, and where a thoughtful touch could reopen momentum.
+      </p>
       <div className="mt-5 grid gap-3 md:grid-cols-3">
-        <CompactMetricLight label="Active" value={String(summary.active_count)} tone="positive" />
-        <CompactMetricLight label="Warm" value={String(summary.warm_count)} tone="neutral" />
-        <CompactMetricLight label="At risk" value={String(summary.at_risk_count)} tone="critical" />
-      </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
-        <TimelineTile label="Drifting" value={String(summary.drifting_count)} />
-        <TimelineTile label="Stale" value={String(summary.stale_count)} />
-        <TimelineTile label="Referral reminders" value={String(summary.referral_reminder_count)} />
-        <TimelineTile label="Birthday + milestone reminders" value={String(summary.milestone_reminder_count)} />
+        <TimelineTile
+          label="Holding steady"
+          value={`${summary.active_count + summary.warm_count} relationship${summary.active_count + summary.warm_count === 1 ? "" : "s"} still feel warm or active`}
+        />
+        <TimelineTile
+          label="Needs attention"
+          value={needsAttention ? `${needsAttention} relationship${needsAttention === 1 ? "" : "s"} may need a warmer touch soon` : "Nothing feels especially fragile right now"}
+        />
+        <TimelineTile
+          label="Thoughtful touchpoints"
+          value={warmMoments ? `${warmMoments} personal or referral moment${warmMoments === 1 ? "" : "s"} could help you reconnect naturally` : "No personal or referral touchpoints are waiting right now"}
+        />
       </div>
     </section>
   );
