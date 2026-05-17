@@ -35,6 +35,8 @@ from src.application.crm import (
     _build_relationship_timing_nudge,
     _build_thread_memory_summary,
     _build_thread_next_touch_hint,
+    _build_thread_open_loop,
+    _build_thread_relationship_pulse,
     _compute_relationship_health_score,
     _describe_upload_source,
     _derive_company_from_email,
@@ -321,6 +323,8 @@ def test_follow_up_overview_enriches_relationship_intelligence() -> None:
     assert amber.relationship_reconnect_message_hint
     assert amber.recent_email_threads[0].memory_summary
     assert amber.recent_email_threads[0].next_touch_hint
+    assert amber.recent_email_threads[0].open_loop
+    assert amber.recent_email_threads[0].relationship_pulse
     assert overview.relationship_summary is not None
     assert overview.relationship_summary.stale_count >= 1
     assert overview.relationship_summary.referral_reminder_count >= 1
@@ -363,6 +367,8 @@ def test_ingest_lead_email_thread_auto_updates_relationship_memory() -> None:
     assert lead.recent_email_threads[0].needs_reply is True
     assert "Sheets first" in lead.recent_email_threads[0].memory_summary
     assert "Reply to Priya Nair" in lead.recent_email_threads[0].next_touch_hint
+    assert "Sheets first" in lead.recent_email_threads[0].open_loop
+    assert "waiting on you" in lead.recent_email_threads[0].relationship_pulse
     assert any(entry.id == "email-msg-1" for entry in lead.timeline)
     assert overview.inbox_summary is not None
     assert overview.inbox_summary.needs_reply_count >= 1
@@ -438,20 +444,61 @@ def test_crm_helper_branches_cover_thread_memory_and_timing_paths() -> None:
         needs_reply=False,
         waiting_on_contact=False,
     )
+    active_thread = LeadEmailThreadSummary(
+        thread_id="thread-4",
+        subject="Active",
+        counterpart_name="Priya",
+        counterpart_email="priya@example.com",
+        last_message_at=now - timedelta(days=1),
+        last_message_direction="inbound",
+        message_count=4,
+        snippet="",
+        needs_reply=False,
+        waiting_on_contact=False,
+    )
+    light_thread = LeadEmailThreadSummary(
+        thread_id="thread-5",
+        subject="Light",
+        counterpart_name="Lee",
+        counterpart_email="lee@example.com",
+        last_message_at=now - timedelta(days=1),
+        last_message_direction="outbound",
+        message_count=2,
+        snippet="",
+        needs_reply=False,
+        waiting_on_contact=False,
+    )
 
     next_step_lead = build_follow_up(now=now, next_step="check in next week", notes="", threads=(reply_thread,))
     notes_lead = build_follow_up(now=now, next_step="   ", notes="notes only", threads=(waiting_thread,))
     empty_lead = build_follow_up(now=now, next_step="   ", notes="   ", threads=(quiet_thread,))
+    upload_context_lead = build_follow_up(
+        now=now,
+        next_step="   ",
+        notes="   ",
+        timeline=(LeadTimelineEntry(id="upload-1", occurred_at=now, kind="import", channel="magic_link", summary="sent annotated scope screenshot"),),
+        threads=(light_thread,),
+    )
 
     assert _build_thread_memory_summary(next_step_lead, reply_thread) == "This thread is tied to Check in next week."
     assert _build_thread_memory_summary(notes_lead, waiting_thread) == "Notes only."
     assert _build_thread_memory_summary(empty_lead, quiet_thread) == "Brivoly has not captured enough thread context yet."
+
+    assert _build_thread_open_loop(next_step_lead, reply_thread) == "Check in next week."
+    assert _build_thread_open_loop(notes_lead, waiting_thread) == "Notes only."
+    assert _build_thread_open_loop(empty_lead, quiet_thread) == "Brivoly has not isolated the open loop here yet."
+    assert "annotated scope screenshot" in _build_thread_open_loop(upload_context_lead, light_thread)
 
     assert "Reply to Amber." in _build_thread_next_touch_hint(next_step_lead, reply_thread, now)
     assert "Hold steady for now." in _build_thread_next_touch_hint(notes_lead, waiting_thread, now)
     assert _build_thread_next_touch_hint(empty_lead, quiet_thread, now) == "Reconnect with Jordan. This thread has gone quiet."
     assert _build_thread_next_touch_hint(build_follow_up(now=now, threads=(), next_step="send the recap"), quiet_thread, now.replace(day=3)) == "Send the recap."
     assert _build_thread_next_touch_hint(build_follow_up(now=now, threads=(), next_step="   "), quiet_thread, now.replace(day=3)) == "Keep this relationship warm with a light check-in."
+    assert "waiting on you" in _build_thread_relationship_pulse(next_step_lead, reply_thread, now)
+    assert "waiting on Marcus" in _build_thread_relationship_pulse(notes_lead, waiting_thread, now)
+    assert "has been quiet" in _build_thread_relationship_pulse(empty_lead, quiet_thread, now)
+    assert "active back-and-forth" in _build_thread_relationship_pulse(build_follow_up(now=now, threads=(active_thread,)), active_thread, now)
+    assert "still light" in _build_thread_relationship_pulse(upload_context_lead, light_thread, now)
 
 
 def test_crm_helper_branches_cover_relationship_summaries() -> None:

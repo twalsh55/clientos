@@ -908,7 +908,7 @@ export function CRMFollowUpWorkspace({
               Brivoly turns email activity into living relationship memory: it matches contacts by email, creates missing contacts automatically, and keeps the right conversation attached to the right person.
             </p>
 
-            <div className="mt-6 grid gap-4 md:grid-cols-3">
+            <div className="mt-6 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
               <CompactMetricLight label="Reply soon" value={String(overview.inbox_summary?.needs_reply_count ?? 0)} tone="critical" />
               <CompactMetricLight label="Waiting on them" value={String(overview.inbox_summary?.waiting_on_contact_count ?? 0)} tone="warning" />
               <CompactMetricLight label="Quiet threads" value={String(overview.inbox_summary?.stale_thread_count ?? 0)} tone="neutral" />
@@ -965,6 +965,13 @@ export function CRMFollowUpWorkspace({
             items={overview.items}
             selectedLeadId={selectedLead?.id ?? null}
             onSelectLead={setSelectedLeadId}
+            onDraftAction={(leadId, draft) => {
+              setSelectedLeadId(leadId);
+              void router.push("/clientos/follow-ups");
+              startTransition(() => {
+                setQueuedTodayDraft({ leadId, preset: draft });
+              });
+            }}
             inboxQuery={inboxQuery}
             inboxFilter={inboxFilter}
             onInboxQueryChange={setInboxQuery}
@@ -1220,26 +1227,30 @@ function TodayPrioritiesPanel({
       <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
         Brivoly pulls together reply pressure, reconnect risk, proposal momentum, and fresh context so you can pick up the right relationships without re-reading everything first.
       </p>
-      <div className="mt-5 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
         <TodaySignal
           label="Reply pressure"
-          value={replyCount ? `${replyCount} conversation${replyCount === 1 ? "" : "s"} waiting on you` : "No replies piling up"}
+          value={replyCount ? String(replyCount) : "Clear"}
+          detail={replyCount ? `conversation${replyCount === 1 ? "" : "s"} waiting on you` : "No replies piling up"}
         />
         <TodaySignal
           label="Reconnects"
-          value={reconnectCount ? `${reconnectCount} relationship${reconnectCount === 1 ? "" : "s"} could cool off` : "No quiet relationships need a nudge"}
+          value={reconnectCount ? String(reconnectCount) : "Steady"}
+          detail={reconnectCount ? `relationship${reconnectCount === 1 ? "" : "s"} could cool off` : "No quiet relationships need a nudge"}
         />
         <TodaySignal
           label="Proposal momentum"
-          value={proposalCount ? `${proposalCount} proposal${proposalCount === 1 ? "" : "s"} need follow-through` : "No proposals need a push today"}
+          value={proposalCount ? String(proposalCount) : "Clear"}
+          detail={proposalCount ? `proposal${proposalCount === 1 ? "" : "s"} need follow-through` : "No proposals need a push today"}
         />
         <TodaySignal
           label="Fresh context"
-          value={
+          value={recentUploadCount ? String(recentUploadCount) : freshContextCount ? String(freshContextCount) : "Quiet"}
+          detail={
             recentUploadCount
-              ? `${recentUploadCount} client upload${recentUploadCount === 1 ? "" : "s"} landed recently`
+              ? `client upload${recentUploadCount === 1 ? "" : "s"} landed recently`
               : freshContextCount
-                ? `${freshContextCount} relationship${freshContextCount === 1 ? "" : "s"} picked up new context recently`
+                ? `relationship${freshContextCount === 1 ? "" : "s"} picked up new context recently`
                 : "No new context landed overnight"
           }
         />
@@ -1258,7 +1269,7 @@ function TodayPrioritiesPanel({
           />
         ))}
       </div>
-      <div className="mt-5 grid gap-4 md:grid-cols-3">
+      <div className="mt-5 grid gap-4 md:grid-cols-2 2xl:grid-cols-3">
         <QuickLinkCard href="/clientos/follow-ups" title="Relationship memory" body="Keep the last touch, the next touch, and the full story together." />
         <QuickLinkCard href="/clientos/inbox" title="Inbox continuity" body="Let email quietly update context instead of asking you to log everything." />
         <QuickLinkCard href="/clientos/intake" title="Client dropzones" body="Let clients send files and notes without friction when something changes." />
@@ -1267,20 +1278,25 @@ function TodayPrioritiesPanel({
   );
 }
 
-function TodaySignal({ label, value }: { label: string; value: string }) {
+function TodaySignal({ label, value, detail }: { label: string; value: string; detail: string }) {
   return (
-    <div className="rounded-[1.2rem] border bg-slate-50/80 px-4 py-4">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
-      <p className="mt-2 text-sm leading-6 text-slate-700">{value}</p>
+    <div className="min-w-0 overflow-hidden rounded-[1.2rem] border bg-slate-50/80 px-5 py-5">
+      <div className="flex items-start justify-between gap-4">
+        <p className="max-w-[16rem] break-words text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 [overflow-wrap:anywhere] sm:tracking-[0.18em]">
+          {label}
+        </p>
+        <p className="shrink-0 text-3xl font-semibold tracking-tight text-slate-950">{value}</p>
+      </div>
+      <p className="mt-4 max-w-[24rem] break-words text-sm leading-6 text-slate-700 [overflow-wrap:anywhere]">{detail}</p>
     </div>
   );
 }
 
 function QuickLinkCard({ href, title, body }: { href: string; title: string; body: string }) {
   return (
-    <Link href={href} className="block rounded-[1.35rem] border bg-slate-50/80 px-5 py-5 transition hover:border-slate-400 hover:bg-white">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{title}</p>
-      <p className="mt-3 text-sm leading-6 text-slate-700">{body}</p>
+    <Link href={href} className="block min-w-0 overflow-hidden rounded-[1.35rem] border bg-slate-50/80 px-5 py-5 transition hover:border-slate-400 hover:bg-white">
+      <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 [overflow-wrap:anywhere] sm:tracking-[0.18em]">{title}</p>
+      <p className="mt-3 break-words text-sm leading-6 text-slate-700 [overflow-wrap:anywhere]">{body}</p>
     </Link>
   );
 }
@@ -1290,7 +1306,7 @@ function RelationshipContinuityPanel({ summary }: { summary: NonNullable<CRMFoll
     <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Relationship continuity</p>
       <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Stay warm without holding everything in your head.</h2>
-      <div className="mt-5 grid gap-3 md:grid-cols-3">
+      <div className="mt-5 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
         <CompactMetricLight label="Active" value={String(summary.active_count)} tone="positive" />
         <CompactMetricLight label="Warm" value={String(summary.warm_count)} tone="neutral" />
         <CompactMetricLight label="Needs care" value={String(summary.drifting_count + summary.stale_count + summary.at_risk_count)} tone="warning" />
@@ -1321,12 +1337,12 @@ function PriorityCard({
   onAction?: () => void;
 }) {
   return (
-    <div className="rounded-[1.35rem] border bg-slate-50/80 px-5 py-5 transition hover:border-slate-400 hover:bg-white">
-      <Link href={href} className="block">
-        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{eyebrow}</p>
-        <p className="text-lg font-semibold tracking-tight text-slate-950">{title}</p>
-        <p className="mt-2 text-sm leading-6 text-slate-600">{body}</p>
-        <p className="mt-3 text-xs text-slate-500">{meta}</p>
+    <div className="min-w-0 overflow-hidden rounded-[1.35rem] border bg-slate-50/80 px-5 py-5 transition hover:border-slate-400 hover:bg-white">
+      <Link href={href} className="block min-w-0">
+        <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 [overflow-wrap:anywhere] sm:tracking-[0.18em]">{eyebrow}</p>
+        <p className="break-words text-lg font-semibold tracking-tight text-slate-950 [overflow-wrap:anywhere]">{title}</p>
+        <p className="mt-2 break-words text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">{body}</p>
+        <p className="mt-3 break-words text-xs text-slate-500 [overflow-wrap:anywhere]">{meta}</p>
       </Link>
       {actionLabel && onAction ? (
         <div className="mt-4 flex justify-start">
@@ -1377,7 +1393,7 @@ function PipelineBoardPanel({
             This page is for quiet threads, overdue replies, and gentle re-entry moments. The goal is continuity and warmth, not pipeline management.
           </p>
         </div>
-        <div className="grid gap-3 sm:grid-cols-3">
+        <div className="grid gap-3 sm:grid-cols-2 2xl:grid-cols-3">
           <CompactMetricLight label="Quiet relationships" value={String(summary.reduce((total, stage) => total + stage.dormant_count, 0))} tone="warning" />
           <CompactMetricLight label="Needs a touch" value={String(summary.reduce((total, stage) => total + stage.overdue_count, 0))} tone="critical" />
           <CompactMetricLight label="Warm openings" value={String(summary.reduce((total, stage) => total + stage.high_priority_count, 0))} tone="neutral" />
@@ -1536,6 +1552,7 @@ function InboxActivityPanel({
   items,
   selectedLeadId,
   onSelectLead,
+  onDraftAction,
   inboxQuery,
   inboxFilter,
   onInboxQueryChange,
@@ -1544,6 +1561,15 @@ function InboxActivityPanel({
   items: CRMLeadFollowUp[];
   selectedLeadId: string | null;
   onSelectLead: (leadId: string) => void;
+  onDraftAction: (
+    leadId: string,
+    draft: {
+      objective: CRMEmailDraft["objective"];
+      tone: CRMEmailDraft["tone"];
+      length: CRMEmailDraft["length"];
+      status: string;
+    },
+  ) => void;
   inboxQuery: string;
   inboxFilter: InboxFilter;
   onInboxQueryChange: (value: string) => void;
@@ -1604,14 +1630,13 @@ function InboxActivityPanel({
         {filteredThreads.map(({ leadId, leadName, companyName, stage, thread }) => {
           const selected = leadId === selectedLeadId;
           return (
-            <button
+            <div
               key={thread.thread_id}
-              type="button"
-              onClick={() => onSelectLead(leadId)}
               className={`block w-full rounded-[1.35rem] border px-5 py-5 text-left transition ${
                 selected ? "border-slate-900 bg-white shadow-sm" : "bg-slate-50/80 hover:border-slate-400 hover:bg-white"
               }`}
             >
+              <button type="button" onClick={() => onSelectLead(leadId)} className="block w-full text-left">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div>
                   <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
@@ -1621,6 +1646,7 @@ function InboxActivityPanel({
                   <p className="mt-1 text-sm text-slate-600">
                     {leadName} · {companyName}
                   </p>
+                  <p className="mt-3 text-sm font-medium text-slate-900">{thread.relationship_pulse}</p>
                   <p className="mt-3 text-sm leading-6 text-slate-600">{thread.memory_summary}</p>
                 </div>
                 <div className="flex flex-wrap items-center gap-2">
@@ -1632,12 +1658,48 @@ function InboxActivityPanel({
                   </div>
                 </div>
               </div>
-              <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="mt-4 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
                 <TimelineTile label="Brivoly read" value={thread.next_touch_hint} />
-                <TimelineTile label="Counterpart" value={thread.counterpart_email} />
+                <TimelineTile label="Open loop" value={thread.open_loop} />
                 <TimelineTile label="Last message" value={formatDateTime(thread.last_message_at)} />
               </div>
-            </button>
+              </button>
+              <div className="mt-4 flex flex-wrap gap-3">
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    onDraftAction(
+                      leadId,
+                      thread.needs_reply
+                        ? {
+                            objective: "follow_up",
+                            tone: "warm",
+                            length: "short",
+                            status: "Drafting a reply from Inbox...",
+                          }
+                        : {
+                            objective: "revive",
+                            tone: "warm",
+                            length: "short",
+                            status: "Drafting a reconnect from Inbox...",
+                          },
+                    );
+                  }}
+                >
+                  {thread.needs_reply ? "Draft reply" : "Draft reconnect"}
+                </Button>
+                <Button
+                  type="button"
+                  variant="outline"
+                  onClick={() => {
+                    onSelectLead(leadId);
+                  }}
+                >
+                  Open relationship
+                </Button>
+              </div>
+            </div>
           );
         })}
         {!filteredThreads.length ? (
@@ -1704,7 +1766,14 @@ function InboxNextMovePanel({
         <div className="mt-4 rounded-[1.2rem] border bg-slate-50/80 px-4 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Latest thread</p>
           <p className="mt-2 text-sm font-medium text-slate-900">{latestThread.subject}</p>
+          <p className="mt-2 text-sm font-medium text-slate-900">{latestThread.relationship_pulse}</p>
           <p className="mt-2 text-sm leading-6 text-slate-600">{latestThread.memory_summary}</p>
+        </div>
+      ) : null}
+      {latestThread?.open_loop ? (
+        <div className="mt-4 rounded-[1.2rem] border bg-slate-50/80 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Open loop</p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">{latestThread.open_loop}</p>
         </div>
       ) : null}
       {lead.relationship_recent_upload_summary ? (
@@ -1845,7 +1914,7 @@ function IntakeTaskNav({ activeTask }: { activeTask: CRMIntakeTask }) {
   return (
     <section className="rounded-[1.75rem] border bg-white/90 p-5 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Client handoff</p>
-      <div className="mt-4 grid gap-3 md:grid-cols-2 xl:grid-cols-4">
+      <div className="mt-4 grid gap-3 md:grid-cols-2">
         {items.map((item) => {
           const active = item.task === activeTask;
           return (
@@ -1878,7 +1947,7 @@ function IntakeTaskHub({
   const normalizedChannels = normalizeDisplayChannels(preferredChannels);
 
   return (
-    <section className="grid gap-6 xl:grid-cols-3">
+    <section className="grid gap-6 md:grid-cols-2 2xl:grid-cols-3">
       <TaskSummaryCard
         href="/clientos/intake/profile"
         eyebrow="Step 1"
@@ -1913,10 +1982,10 @@ function TaskSummaryCard({
   body: string;
 }) {
   return (
-    <Link href={href} className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm transition hover:border-slate-400 hover:bg-white">
-      <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">{eyebrow}</p>
-      <h3 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">{title}</h3>
-      <p className="mt-3 text-sm leading-6 text-slate-600">{body}</p>
+    <Link href={href} className="block min-w-0 overflow-hidden rounded-[1.75rem] border bg-white/90 p-6 shadow-sm transition hover:border-slate-400 hover:bg-white">
+      <p className="break-words text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 [overflow-wrap:anywhere] sm:tracking-[0.24em]">{eyebrow}</p>
+      <h3 className="mt-3 break-words text-2xl font-semibold tracking-tight text-slate-950 [overflow-wrap:anywhere]">{title}</h3>
+      <p className="mt-3 break-words text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">{body}</p>
     </Link>
   );
 }
@@ -1958,6 +2027,22 @@ function IntakeRoutingPanel({
             className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white"
           />
         </label>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { label: "Upload + link", value: "upload, magic_link" },
+            { label: "Upload + email", value: "upload, email" },
+            { label: "Upload + WhatsApp", value: "upload, whatsapp" },
+          ].map((preset) => (
+            <button
+              key={preset.label}
+              type="button"
+              onClick={() => onChannelsDraftChange(preset.value)}
+              className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600 transition hover:border-slate-400 hover:text-slate-900"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
         <label className="block">
           <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Handoff notes</span>
           <textarea
@@ -2038,6 +2123,22 @@ function AIIntakePanel({
             className="mt-2 w-full rounded-2xl border border-slate-200 bg-slate-50 px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400 focus:bg-white"
           />
         </label>
+        <div className="flex flex-wrap gap-2">
+          {[
+            { label: "Freelancer default", value: "csv, google_sheets, spreadsheet_screenshot" },
+            { label: "Image-first", value: "spreadsheet_screenshot, whiteboard_photo, handwritten_note" },
+            { label: "Ops-heavy", value: "csv, google_sheets, pdf_export, spreadsheet_screenshot" },
+          ].map((preset) => (
+            <button
+              key={preset.label}
+              type="button"
+              onClick={() => onAiFormatsDraftChange(preset.value)}
+              className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-600 transition hover:border-slate-400 hover:text-slate-900"
+            >
+              {preset.label}
+            </button>
+          ))}
+        </div>
         <label className="block">
           <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Custom AI memory prompt</span>
           <textarea
@@ -2055,7 +2156,7 @@ function AIIntakePanel({
         </Button>
         {saveStatus ? <p className="text-sm text-slate-500">{saveStatus}</p> : null}
       </div>
-      {!canPersistSettings ? <p className="mt-3 text-sm text-slate-500">AI intake settings are unavailable until account settings finish loading.</p> : null}
+      {!canPersistSettings ? <p className="mt-3 text-sm text-slate-500">AI memory settings are unavailable until account settings finish loading.</p> : null}
     </section>
   );
 }
@@ -2102,7 +2203,7 @@ function ImportPreviewPanel({
     <section className="rounded-[1.4rem] border bg-slate-950 p-6 text-slate-50 shadow-[0_24px_80px_-55px_rgba(15,23,42,0.9)]">
       <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Preview</p>
       <h3 className="mt-3 text-2xl font-semibold tracking-tight">{preview.source_label} import check</h3>
-      <div className="mt-5 grid gap-3 md:grid-cols-3">
+      <div className="mt-5 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
         <CompactMetric label="Rows" value={String(preview.total_rows)} />
         <CompactMetric label="Importable" value={String(preview.importable_rows)} />
         <CompactMetric label="Skipped" value={String(preview.duplicate_rows + preview.invalid_rows)} />
@@ -2293,7 +2394,7 @@ function ImportPreviewRowCard({
           <p className="mt-2 text-sm text-slate-200">{formatDateTime(row.next_follow_up_at)}</p>
         </div>
       </div>
-      <div className="mt-3 grid gap-3 md:grid-cols-3">
+      <div className="mt-3 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
         <TimelineTileDark label="Priority" value={row.priority ? `${row.priority} priority` : "Auto after import"} />
         <TimelineTileDark label="Channel" value={row.contact_channel || "Spreadsheet default"} />
         <TimelineTileDark label="Next step" value={row.next_step || "Brivoly will draft a default follow-up task"} />
@@ -2395,13 +2496,13 @@ function LeadMemoryPanel({
       <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">{lead.lead_name}</h2>
       <p className="mt-1 text-sm text-slate-600">{lead.company_name}</p>
 
-      <div className="mt-5 grid gap-3 md:grid-cols-3">
+      <div className="mt-5 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
         <TimelineTile label="Where it stands" value={formatStageLabel(lead.stage)} />
         <TimelineTile label="Best channel" value={lead.contact_channel} />
         <TimelineTile label="Point person" value={lead.owner_name} />
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-3">
+      <div className="mt-4 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
         <TimelineTile label="Last meaningful interaction" value={formatDateTime(lead.last_meaningful_interaction_at)} />
         <TimelineTile label="Relationship state" value={formatRelationshipState(lead.relationship_state)} />
         <TimelineTile label="Brivoly nudge" value={lead.relationship_timing_nudge || "Brivoly is keeping the timing in view."} />
@@ -2433,7 +2534,7 @@ function LeadMemoryPanel({
               </Button>
             </div>
           </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="mt-4 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
             <TimelineTile label="Why now" value={lead.relationship_reconnect_why_now || lead.relationship_timing_nudge || "Brivoly is keeping a reconnect path ready."} />
             <TimelineTile label="Best re-entry" value={lead.relationship_reconnect_next_move || lead.next_step} />
             <TimelineTile label="Message angle" value={lead.relationship_reconnect_message_hint || "Keep it short, warm, and easy to answer."} />
@@ -2686,7 +2787,7 @@ function RelationshipSignalsPanel({ summary }: { summary: NonNullable<CRMFollowU
       <p className="mt-3 text-sm leading-6 text-slate-600">
         Instead of a dashboard full of counters, Brivoly keeps a short read on what is healthy, what is slipping, and where a thoughtful touch could reopen momentum.
       </p>
-      <div className="mt-5 grid gap-3 md:grid-cols-3">
+      <div className="mt-5 grid gap-3 md:grid-cols-2 2xl:grid-cols-3">
         <TimelineTile
           label="Holding steady"
           value={`${summary.active_count + summary.warm_count} relationship${summary.active_count + summary.warm_count === 1 ? "" : "s"} still feel warm or active`}
@@ -2749,7 +2850,7 @@ function RelationshipReminderCard({ reminder }: { reminder: CRMRelationshipRemin
 function MiniFlag({ label, tone }: { label: string; tone: "warning" | "critical" | "neutral" }) {
   return (
     <span
-      className={`inline-flex items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.14em] ${
+      className={`inline-flex max-w-full items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] [overflow-wrap:anywhere] ${
         tone === "critical" ? "bg-rose-100 text-rose-800" : tone === "warning" ? "bg-amber-100 text-amber-800" : "bg-slate-100 text-slate-700"
       }`}
     >
@@ -2784,18 +2885,18 @@ function MetricCard({ label, value, tone }: { label: string; value: string; tone
           : "border-slate-200 bg-white text-slate-900";
 
   return (
-    <div className={`rounded-[1.4rem] border p-5 shadow-sm ${toneClass}`}>
-      <p className="text-xs font-semibold uppercase tracking-[0.2em]">{label}</p>
-      <p className="mt-3 text-3xl font-semibold tracking-tight">{value}</p>
+    <div className={`min-w-0 overflow-hidden rounded-[1.4rem] border p-5 shadow-sm ${toneClass}`}>
+      <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] [overflow-wrap:anywhere] sm:tracking-[0.2em]">{label}</p>
+      <p className="mt-3 break-words text-3xl font-semibold tracking-tight [overflow-wrap:anywhere]">{value}</p>
     </div>
   );
 }
 
 function CompactMetric({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
-      <p className="mt-2 text-xl font-semibold text-white">{value}</p>
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
+      <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 [overflow-wrap:anywhere] sm:tracking-[0.18em]">{label}</p>
+      <p className="mt-2 break-words text-xl font-semibold text-white [overflow-wrap:anywhere]">{value}</p>
     </div>
   );
 }
@@ -2818,9 +2919,9 @@ function CompactMetricLight({
           ? "border-rose-200 bg-rose-50 text-rose-900"
           : "border-slate-200 bg-white text-slate-900";
   return (
-    <div className={`rounded-2xl border px-4 py-3 ${className}`}>
-      <p className="text-xs font-semibold uppercase tracking-[0.18em]">{label}</p>
-      <p className="mt-2 text-xl font-semibold">{value}</p>
+    <div className={`min-w-0 overflow-hidden rounded-2xl border px-4 py-3 ${className}`}>
+      <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] [overflow-wrap:anywhere] sm:tracking-[0.18em]">{label}</p>
+      <p className="mt-2 break-words text-xl font-semibold [overflow-wrap:anywhere]">{value}</p>
     </div>
   );
 }
@@ -2834,7 +2935,7 @@ function PriorityBadge({ priority }: { priority: string }) {
         : "border-slate-200 bg-white text-slate-700";
 
   return (
-    <div className={`inline-flex rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.2em] ${className}`}>
+    <div className={`inline-flex max-w-full rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] [overflow-wrap:anywhere] sm:tracking-[0.2em] ${className}`}>
       {priority} priority
     </div>
   );
@@ -2842,18 +2943,18 @@ function PriorityBadge({ priority }: { priority: string }) {
 
 function TimelineTile({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border bg-white px-4 py-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{label}</p>
-      <p className="mt-2 text-sm text-slate-700">{value}</p>
+    <div className="min-w-0 overflow-hidden rounded-2xl border bg-white px-4 py-3">
+      <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 [overflow-wrap:anywhere] sm:tracking-[0.2em]">{label}</p>
+      <p className="mt-2 break-words text-sm text-slate-700 [overflow-wrap:anywhere]">{value}</p>
     </div>
   );
 }
 
 function TimelineTileDark({ label, value }: { label: string; value: string }) {
   return (
-    <div className="rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3">
-      <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">{label}</p>
-      <p className="mt-2 text-sm text-slate-200">{value}</p>
+    <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3">
+      <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 [overflow-wrap:anywhere] sm:tracking-[0.2em]">{label}</p>
+      <p className="mt-2 break-words text-sm text-slate-200 [overflow-wrap:anywhere]">{value}</p>
     </div>
   );
 }
@@ -3024,13 +3125,15 @@ function matchesInboxThread(
   item: {
     leadName: string;
     companyName: string;
-    thread: {
+      thread: {
       subject: string;
       counterpart_email: string;
       counterpart_name: string;
       snippet: string;
       memory_summary: string;
       next_touch_hint: string;
+      open_loop: string;
+      relationship_pulse: string;
       waiting_on_contact: boolean;
       needs_reply: boolean;
       last_message_at: string;
@@ -3051,6 +3154,8 @@ function matchesInboxThread(
       item.thread.snippet,
       item.thread.memory_summary,
       item.thread.next_touch_hint,
+      item.thread.open_loop,
+      item.thread.relationship_pulse,
     ]
       .join(" ")
       .toLowerCase()

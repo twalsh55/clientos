@@ -44,6 +44,8 @@ class LeadEmailThreadSummary:
     waiting_on_contact: bool
     memory_summary: str = ""
     next_touch_hint: str = ""
+    open_loop: str = ""
+    relationship_pulse: str = ""
 
 
 @dataclass(frozen=True)

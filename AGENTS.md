@@ -96,6 +96,7 @@ cd web && npm run e2e
   - Today priorities with direct draft/review actions
   - follow-up queue
   - inbox-native relationship page for auto-logging email threads and reconnect-aware next moves
+  - inbox cards now surface backend-driven relationship pulse and open-loop memory, plus direct draft actions
   - email-thread ingestion that can auto-create/update contacts from inbox activity
   - attention view with reconnect-first guidance and direct draft actions
   - complete and snooze actions
@@ -124,6 +125,8 @@ cd web && npm run e2e
   - magic-link remote note capture for phone image uploads
   - client-facing upload flow with lighter no-login handoff copy, simpler share-link language, and camera-friendly mobile capture
   - relationship history now visually calls out client-shared upload context instead of burying it in generic activity
+  - intake setup now has one-tap channel and source-format defaults to reduce typing
+  - text-heavy card layouts now prefer wider 2-column patterns so copy does not collapse into cramped narrow cards
 
 ### Relationship OS Todo
 

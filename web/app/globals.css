@@ -62,14 +62,17 @@
 
 @layer components {
   .ui-eyebrow {
-    @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-400;
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-400 sm:tracking-[0.18em];
+    overflow-wrap: anywhere;
   }
 
   .ui-eyebrow-strong {
-    @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-slate-500;
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-slate-500 sm:tracking-[0.18em];
+    overflow-wrap: anywhere;
   }
 
   .ui-eyebrow-inverse {
-    @apply text-[11px] font-semibold uppercase tracking-[0.18em] text-cyan-200;
+    @apply text-[11px] font-semibold uppercase tracking-[0.14em] text-cyan-200 sm:tracking-[0.18em];
+    overflow-wrap: anywhere;
   }
 }

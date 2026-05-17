@@ -147,6 +147,8 @@ export type CRMEmailThreadSummary = {
   waiting_on_contact: boolean;
   memory_summary: string;
   next_touch_hint: string;
+  open_loop: string;
+  relationship_pulse: string;
 };
 
 export type CRMRelationshipReminder = {

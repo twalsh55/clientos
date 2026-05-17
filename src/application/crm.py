@@ -103,6 +103,8 @@ def _build_enriched_threads(item: LeadFollowUp, current_time: datetime) -> list[
             thread,
             memory_summary=_build_thread_memory_summary(item, thread),
             next_touch_hint=_build_thread_next_touch_hint(item, thread, current_time),
+            open_loop=_build_thread_open_loop(item, thread),
+            relationship_pulse=_build_thread_relationship_pulse(item, thread, current_time),
         )
         for thread in item.recent_email_threads
     ]
@@ -130,6 +132,33 @@ def _build_thread_next_touch_hint(item: LeadFollowUp, thread: LeadEmailThreadSum
     if item.next_step.strip():
         return _sentence_case(item.next_step.strip().rstrip(".")) + "."
     return "Keep this relationship warm with a light check-in."
+
+
+def _build_thread_open_loop(item: LeadFollowUp, thread: LeadEmailThreadSummary) -> str:
+    snippet = thread.snippet.strip().rstrip(".")
+    if snippet:
+        return _sentence_case(snippet) + "."
+    if item.next_step.strip():
+        return _sentence_case(item.next_step.strip().rstrip(".")) + "."
+    upload_context = _build_upload_memory_snippet(item)
+    if upload_context:
+        return upload_context
+    if item.notes.strip():
+        return _sentence_case(item.notes.strip().rstrip(".")) + "."
+    return "Brivoly has not isolated the open loop here yet."
+
+
+def _build_thread_relationship_pulse(item: LeadFollowUp, thread: LeadEmailThreadSummary, current_time: datetime) -> str:
+    counterpart = thread.counterpart_name or item.lead_name
+    if thread.needs_reply:
+        return f"{counterpart} replied {_relative_days(thread.last_message_at, current_time).lower()} and this conversation is waiting on you."
+    if thread.waiting_on_contact:
+        return f"You sent the latest note {_relative_days(thread.last_message_at, current_time).lower()} and are waiting on {counterpart}."
+    if thread.last_message_at <= current_time - timedelta(days=7):
+        return f"This thread has been quiet since {_relative_days(thread.last_message_at, current_time).lower()}."
+    if thread.message_count >= 3:
+        return "There is active back-and-forth here, so Brivoly is keeping the context easy to re-enter."
+    return "This conversation is still light, but Brivoly is keeping the thread context warm."
 
 
 def _resolve_last_meaningful_interaction(item: LeadFollowUp) -> datetime | None:
