@@ -122,6 +122,7 @@ cd web && npm run e2e
   - first-login business onboarding with skip-for-now path
   - paid image-note intake
   - magic-link remote note capture for phone image uploads
+  - client-facing upload flow with lighter no-login handoff copy
 
 ### Relationship OS Todo
 
