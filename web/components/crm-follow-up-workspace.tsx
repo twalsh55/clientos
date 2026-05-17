@@ -110,7 +110,7 @@ export function CRMFollowUpWorkspace({
   const showingPipeline = view === "pipeline";
   const showingImport = view === "import";
   const showingIntake = view === "intake";
-  const intakeTask = resolveIntakeTask(pathname ?? "/crm/intake");
+  const intakeTask = resolveIntakeTask(pathname ?? "/clientos/intake");
 
   useEffect(() => {
     setAiPromptDraft(initialSettings?.crm_ai_prompt ?? "");
@@ -1014,13 +1014,13 @@ function CRMViewHeader({ view }: { view: CRMWorkspaceView }) {
 }
 
 function resolveIntakeTask(pathname: string): CRMIntakeTask {
-  if (pathname === "/crm/intake/profile") {
+  if (pathname === "/crm/intake/profile" || pathname === "/clientos/intake/profile") {
     return "profile";
   }
-  if (pathname === "/crm/intake/routing") {
+  if (pathname === "/crm/intake/routing" || pathname === "/clientos/intake/routing") {
     return "routing";
   }
-  if (pathname === "/crm/intake/capture") {
+  if (pathname === "/crm/intake/capture" || pathname === "/clientos/intake/capture") {
     return "capture";
   }
   return "hub";
@@ -1043,27 +1043,27 @@ function OverviewQuickLinks({
       <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Jump into the right client workflow.</h2>
       <div className="mt-5 grid gap-4 md:grid-cols-2">
         <QuickLinkCard
-          href="/crm/follow-ups"
+          href="/clientos/follow-ups"
           title="Relationships"
           body={selectedLead ? `Next relationship ready: ${selectedLead.lead_name} at ${selectedLead.company_name}.` : "Work live follow-ups and relationship memory."}
         />
         <QuickLinkCard
-          href="/crm/pipeline"
+          href="/clientos/pipeline"
           title="Health"
           body={pipelineStages.length ? `${pipelineStages.length} relationship stages are active right now.` : "See stale, overdue, and at-risk relationships."}
         />
         <QuickLinkCard
-          href="/crm/inbox"
+          href="/clientos/inbox"
           title="Inbox"
           body={inboxSummary?.needs_reply_count ? `${inboxSummary.needs_reply_count} thread${inboxSummary.needs_reply_count === 1 ? "" : "s"} need your reply.` : "Auto-log email threads and keep contacts current."}
         />
         <QuickLinkCard
-          href="/crm/import"
+          href="/clientos/import"
           title="Quick Intake"
           body="Bring in spreadsheets, rescue messy headers, and validate relationship rows before commit."
         />
         <QuickLinkCard
-          href="/crm/intake"
+          href="/clientos/intake"
           title="Dropzones"
           body={intakeChannel?.magic_link_url ? "No-login client upload links are configured." : "Set up AI intake guidance and client dropzones."}
         />
@@ -1308,10 +1308,10 @@ function RemoteImageCapturePanel({
 
 function IntakeTaskNav({ activeTask }: { activeTask: CRMIntakeTask }) {
   const items: Array<{ href: string; title: string; body: string; task: CRMIntakeTask }> = [
-    { href: "/crm/intake", title: "Dropzone Hub", body: "See the overall intake setup.", task: "hub" },
-    { href: "/crm/intake/profile", title: "AI Profile", body: "Teach Brivoly your messy sources.", task: "profile" },
-    { href: "/crm/intake/routing", title: "Routing", body: "Define preferred channels and notes.", task: "routing" },
-    { href: "/crm/intake/capture", title: "Client Link", body: "Share the no-login upload path.", task: "capture" },
+    { href: "/clientos/intake", title: "Dropzone Hub", body: "See the overall intake setup.", task: "hub" },
+    { href: "/clientos/intake/profile", title: "AI Profile", body: "Teach Brivoly your messy sources.", task: "profile" },
+    { href: "/clientos/intake/routing", title: "Routing", body: "Define preferred channels and notes.", task: "routing" },
+    { href: "/clientos/intake/capture", title: "Client Link", body: "Share the no-login upload path.", task: "capture" },
   ];
 
   return (
@@ -1352,19 +1352,19 @@ function IntakeTaskHub({
   return (
     <section className="grid gap-6 xl:grid-cols-3">
       <TaskSummaryCard
-        href="/crm/intake/profile"
+        href="/clientos/intake/profile"
         eyebrow="Task 1"
         title="Set the AI profile"
         body={advancedAiUnlocked ? "Your paid AI intake tools are available. Keep the prompt and common formats current." : "Unlock the paid AI intake layer before relying on note-image and messy-file interpretation."}
       />
       <TaskSummaryCard
-        href="/crm/intake/routing"
+        href="/clientos/intake/routing"
         eyebrow="Task 2"
         title="Define routing rules"
         body={normalizedChannels.length ? `Preferred channels are set: ${normalizedChannels.join(", ")}.` : "Add preferred intake channels and operator notes so the team knows where raw material should come from."}
       />
       <TaskSummaryCard
-        href="/crm/intake/capture"
+        href="/clientos/intake/capture"
         eyebrow="Task 3"
         title="Share the client dropzone"
         body={hasMagicLink ? "A signed no-login upload link is live and ready to share with clients." : "Finish setup so the client upload path can be used from a phone."}

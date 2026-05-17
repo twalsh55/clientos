@@ -35,11 +35,11 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
                 Sign In
               </p>
               <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
-                Open Brivoly CRM.
+                Open Brivoly Client OS.
               </h1>
             </div>
             <p className="mt-5 text-base leading-7 text-slate-600">
-              Sign in to access your CRM workspace and continue where you left off.
+              Sign in to access your client workspace and continue where you left off.
             </p>
             <div className="mt-6 space-y-3">
               <SimpleAccessRow label="Opens" value="Follow-ups, pipeline, imports, and intake" />
@@ -47,9 +47,9 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
             </div>
             <div className="mt-8 flex flex-wrap gap-3">
               {bootstrap?.clerk_sign_up_url ? (
-                <Button asChild size="lg" variant="outline">
-                  <Link href="/sign-up?redirectTo=%2Fcrm">Create account</Link>
-                </Button>
+              <Button asChild size="lg" variant="outline">
+                <Link href="/sign-up?redirectTo=%2Fclientos">Create account</Link>
+              </Button>
               ) : null}
             </div>
           </section>

@@ -95,7 +95,7 @@ export function SignOutBridge({ publishableKey, host }: SignOutBridgeProps) {
         await fetch("/api/session", { method: "DELETE" });
       } finally {
         if (!cancelled) {
-          window.location.replace("/sign-in?redirectTo=%2Fcrm");
+          window.location.replace("/sign-in?redirectTo=%2Fclientos");
         }
       }
     }
@@ -110,7 +110,7 @@ export function SignOutBridge({ publishableKey, host }: SignOutBridgeProps) {
   return (
     <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Sign Out</p>
-      <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Closing your CRM session.</h1>
+      <h1 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Closing your Client OS session.</h1>
       <p className="mt-3 text-sm leading-6 text-slate-600">{status}</p>
     </section>
   );

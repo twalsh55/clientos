@@ -35,22 +35,22 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
                 CRM Portal
               </p>
               <h1 className="mt-2 text-4xl font-semibold tracking-tight text-slate-950 md:text-5xl">
-                Create your account and enter the CRM directly.
+                Create your account and enter Client OS directly.
               </h1>
             </div>
             <p className="mt-6 max-w-2xl text-base leading-7 text-slate-600">
-              This keeps account creation inside Brivoly so the handoff into the CRM workspace feels continuous instead of bouncing through a hosted auth redirect.
+              This keeps account creation inside Brivoly so the handoff into Client OS feels continuous instead of bouncing through a hosted auth redirect.
             </p>
             <div className="mt-6 rounded-[1.5rem] border border-cyan-200 bg-cyan-50 px-5 py-4 text-cyan-950">
               <p className="text-xs font-semibold uppercase tracking-[0.22em]">New account setup</p>
-              <p className="mt-2 text-lg font-semibold">Create the account here, then Brivoly will open your CRM workspace.</p>
+              <p className="mt-2 text-lg font-semibold">Create the account here, then Brivoly will open your client workspace.</p>
               <p className="mt-2 text-sm leading-6">
                 No localhost redirect detour, no manual re-entry. The goal is one clean handoff into the app.
               </p>
             </div>
             <div className="mt-8 flex flex-wrap gap-3">
               <Button asChild size="lg" variant="outline">
-                <Link href="/sign-in?redirectTo=%2Fcrm">Already have an account?</Link>
+                <Link href="/sign-in?redirectTo=%2Fclientos">Already have an account?</Link>
               </Button>
             </div>
           </div>
@@ -59,7 +59,7 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
             <p className="text-xs font-semibold uppercase tracking-[0.24em] text-cyan-300">Portal Status</p>
             <div className="mt-4 space-y-3">
               <SignUpStatusRow label="Session" value="Creating a new account on this device" />
-              <SignUpStatusRow label="Destination" value={redirectTo === "/crm" ? "CRM follow-up workspace" : "Brivoly CRM workspace"} />
+              <SignUpStatusRow label="Destination" value={redirectTo === "/clientos" ? "Client OS workspace" : "Brivoly workspace"} />
               <SignUpStatusRow label="Next step" value="Create account, then open your queue" />
             </div>
           </div>
@@ -80,7 +80,7 @@ export default async function SignUpPage({ searchParams }: SignUpPageProps) {
             />
             <InfoCard
               label="What happens"
-              body="Create the account below, Brivoly secures your session, then returns you to the CRM workspace."
+              body="Create the account below, Brivoly secures your session, then returns you to the client workspace."
             />
             <InfoCard
               label="Why this path"

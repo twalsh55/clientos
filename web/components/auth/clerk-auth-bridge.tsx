@@ -169,8 +169,8 @@ export function ClerkAuthBridge({ publishableKey, host, redirectTo, mode = "sign
       </div>
       <p className="mt-3 max-w-xl text-sm leading-6 text-slate-600">
         {isSignUp
-          ? "Create your account, then Brivoly will open CRM."
-          : "Use your account to open CRM."}
+          ? "Create your account, then Brivoly will open Client OS."
+          : "Use your account to open Client OS."}
       </p>
       <div className="relative mt-6 min-h-[360px] overflow-hidden rounded-[1.5rem] border bg-slate-50 p-4">
         <div
@@ -183,7 +183,7 @@ export function ClerkAuthBridge({ publishableKey, host, redirectTo, mode = "sign
               <div className="inline-flex items-center rounded-full border border-emerald-200 bg-emerald-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.18em] text-emerald-800">
                 Signed in
               </div>
-              <h3 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">Opening your CRM workspace.</h3>
+              <h3 className="mt-4 text-2xl font-semibold tracking-tight text-slate-950">Opening your client workspace.</h3>
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 We’re securing your session and loading the app so the handoff feels cleaner.
               </p>

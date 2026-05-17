@@ -11,7 +11,7 @@ export default function CRMRouteLoading() {
           href={null}
         />
         <div className="inline-flex items-center rounded-full border border-cyan-200 bg-cyan-50 px-3 py-1 text-xs font-semibold uppercase tracking-[0.22em] text-cyan-800">
-          Opening CRM
+          Opening Client OS
         </div>
         <div className="mt-5 h-14 w-full max-w-2xl animate-pulse rounded-[1.25rem] bg-slate-200" />
         <div className="mt-5 space-y-3">

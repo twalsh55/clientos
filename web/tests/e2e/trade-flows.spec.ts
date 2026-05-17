@@ -68,7 +68,7 @@ test("saves settings and applies them back to the dashboard", async ({ page }) =
 
 test("lets a first-time user defer the business profile setup", async ({ page }) => {
   await bootstrapSession(page);
-  await page.goto("/crm");
+  await page.goto("/clientos");
 
   await expect(page.getByText("Set the basics once so Brivoly can sound like your business.")).toBeVisible();
   await page.getByRole("button", { name: "Add later" }).first().click();
@@ -90,7 +90,7 @@ test("refreshes the alert feed through the local proxy route", async ({ page }) 
 
 test("previews and imports CRM spreadsheet rows through the local proxy routes", async ({ page }) => {
   await bootstrapSession(page);
-  await page.goto("/crm");
+  await page.goto("/clientos");
 
   await expect(page.getByText("Bring your lead sheet in without retyping it.")).toBeVisible();
 

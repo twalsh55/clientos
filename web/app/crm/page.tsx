@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 export default function CRMPortalRoute() {
-  return null;
+  redirect("/clientos");
 }

@@ -1,3 +1,5 @@
+import { redirect } from "next/navigation";
+
 export default function CRMInboxRoute() {
-  return null;
+  redirect("/clientos/inbox");
 }

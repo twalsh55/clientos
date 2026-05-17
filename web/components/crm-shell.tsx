@@ -7,7 +7,7 @@ import type { CRMPageData } from "@/lib/crm-page-data";
 
 export function CRMShell({ data }: { data: CRMPageData }) {
   const pathname = usePathname();
-  const view = resolveCRMView(pathname ?? "/crm");
+  const view = resolveCRMView(pathname ?? "/clientos");
 
   if (data.followUps) {
     return (
@@ -51,19 +51,24 @@ export function CRMShell({ data }: { data: CRMPageData }) {
 }
 
 function resolveCRMView(pathname: string): CRMWorkspaceView {
-  if (pathname === "/crm/follow-ups") {
+  if (pathname === "/crm/follow-ups" || pathname === "/clientos/follow-ups") {
     return "followups";
   }
-  if (pathname === "/crm/inbox") {
+  if (pathname === "/crm/inbox" || pathname === "/clientos/inbox") {
     return "inbox";
   }
-  if (pathname === "/crm/pipeline") {
+  if (pathname === "/crm/pipeline" || pathname === "/clientos/pipeline") {
     return "pipeline";
   }
-  if (pathname === "/crm/import") {
+  if (pathname === "/crm/import" || pathname === "/clientos/import") {
     return "import";
   }
-  if (pathname === "/crm/intake" || pathname.startsWith("/crm/intake/")) {
+  if (
+    pathname === "/crm/intake" ||
+    pathname.startsWith("/crm/intake/") ||
+    pathname === "/clientos/intake" ||
+    pathname.startsWith("/clientos/intake/")
+  ) {
     return "intake";
   }
   return "overview";
