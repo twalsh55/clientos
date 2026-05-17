@@ -1020,9 +1020,9 @@ def _build_ambient_memory_summary(
         waiting_action_route = "/clientos/inbox?connections=mailbox"
         waiting_action_note = "A fresh inbox event should be enough to warm the next thread back up."
     elif active_calendar_count and not active_mailbox_count:
-        waiting_action_label = "Check meeting context"
-        waiting_action_route = "/clientos/follow-ups?memory=meeting_prep"
-        waiting_action_note = "Open meeting prep and Brivoly will hold onto the saved context you already have."
+        waiting_action_label = "Check calendars"
+        waiting_action_route = "/clientos/inbox?connections=calendar"
+        waiting_action_note = "A fresh meeting event should be enough to warm the next prep moment back up."
     else:
         waiting_action_label = "Open inbox"
         waiting_action_route = "/clientos/inbox?connections=all"

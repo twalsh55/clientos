@@ -47,6 +47,7 @@ from src.application.crm import (
     _build_thread_unresolved_hint,
     _build_thread_recent_change_hint,
     _build_thread_continuity_span,
+    _build_ambient_memory_summary,
     _compute_relationship_health_score,
     _describe_upload_source,
     _derive_company_from_email,
@@ -72,6 +73,7 @@ from src.adapters.crm.in_memory_follow_up_repository import InMemoryLeadFollowUp
 from src.application.use_cases import BuildCrashDashboardUseCase
 from src.domain.auth import User
 from src.domain.crm import LeadEmailThreadSummary, LeadFollowUp, LeadRelationshipReminder, LeadTimelineEntry, MailboxConnection
+from src.domain.crm import CalendarConnection
 from src.domain.models import DashboardConfig
 
 
@@ -460,6 +462,32 @@ def test_follow_up_overview_enriches_relationship_intelligence() -> None:
     assert isinstance(overview.ambient_memory_summary.quiet_source_labels, tuple)
     assert isinstance(overview.ambient_memory_summary.attention_source_labels, tuple)
     assert isinstance(overview.ambient_memory_summary.paused_source_labels, tuple)
+
+
+def test_ambient_memory_summary_routes_calendar_only_waiting_state_to_calendar_memory() -> None:
+    now = datetime(2024, 5, 17, 12, 30, tzinfo=UTC)
+
+    summary = _build_ambient_memory_summary(
+        mailbox_connections=[],
+        calendar_connections=[
+            CalendarConnection(
+                id="calendar-1",
+                provider="google_calendar",
+                calendar_address="ada@northstar.example",
+                display_name="Northstar schedule",
+                status="connected",
+                connected_at=now - timedelta(days=5),
+                last_sync_at=now - timedelta(hours=4),
+                last_event_ingested_at=None,
+                background_sync_enabled=True,
+            )
+        ],
+    )
+
+    assert summary.continuity_state == "waiting"
+    assert summary.suggested_action_label == "Check calendars"
+    assert summary.suggested_action_route == "/clientos/inbox?connections=calendar"
+    assert "meeting event" in summary.suggested_action_note
 
 
 def test_ingest_lead_email_thread_auto_updates_relationship_memory() -> None:

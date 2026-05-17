@@ -62,6 +62,8 @@ export function CRMFollowUpWorkspace({
   const pathname = usePathname();
   const searchParams = useSearchParams();
   const fileInputRef = useRef<HTMLInputElement | null>(null);
+  const mailboxSectionRef = useRef<HTMLElement | null>(null);
+  const calendarSectionRef = useRef<HTMLElement | null>(null);
   const [overview, setOverview] = useState(initialOverview);
   const [settings, setSettings] = useState<AccountSettings | null>(initialSettings);
   const [selectedLeadId, setSelectedLeadId] = useState(initialOverview.items[0]?.id ?? null);
@@ -163,6 +165,7 @@ export function CRMFollowUpWorkspace({
   const intakeTask = resolveIntakeTask(pathname ?? "/clientos/intake");
   const requestedLeadId = searchParams?.get("lead");
   const requestedMemoryView = searchParams?.get("memory") === "meeting_prep" ? "meeting_prep" : null;
+  const requestedConnectionFocus = searchParams?.get("connections");
 
   useEffect(() => {
     if (view !== "followups" || !queuedTodayDraft || !selectedLead || selectedLead.id !== queuedTodayDraft.leadId) {
@@ -263,6 +266,25 @@ export function CRMFollowUpWorkspace({
       router.replace(view === "inbox" ? "/clientos/inbox" : pathname ?? "/clientos/inbox");
     }
   }, [pathname, router, searchParams, view]);
+
+  useEffect(() => {
+    if (view !== "inbox" || !requestedConnectionFocus) {
+      return;
+    }
+    if (requestedConnectionFocus === "mailbox") {
+      setMailboxStatus((current) => current ?? "This is the inbox connection area Brivoly wants you to check next.");
+      mailboxSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    if (requestedConnectionFocus === "calendar") {
+      setCalendarStatus((current) => current ?? "This is the calendar memory area Brivoly wants you to check next.");
+      calendarSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+      return;
+    }
+    if (requestedConnectionFocus === "all") {
+      mailboxSectionRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }
+  }, [requestedConnectionFocus, view]);
 
   async function refreshAmbientMemory() {
     const [overviewResponse, mailboxResponse, calendarResponse] = await Promise.all([
@@ -1418,7 +1440,14 @@ export function CRMFollowUpWorkspace({
               <CompactMetricLight label="Quiet threads" value={String(overview.inbox_summary?.stale_thread_count ?? 0)} tone="neutral" />
             </div>
 
-            <section className="mt-6 rounded-[1.4rem] border bg-slate-50/80 p-5">
+            <section
+              ref={mailboxSectionRef}
+              className={`mt-6 rounded-[1.4rem] border bg-slate-50/80 p-5 ${
+                requestedConnectionFocus === "mailbox" || requestedConnectionFocus === "all"
+                  ? "border-slate-400 bg-white/95 shadow-[0_18px_60px_-40px_rgba(15,23,42,0.35)]"
+                  : ""
+              }`}
+            >
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Connected mailboxes</p>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Connect Gmail or Outlook once, then let Brivoly pull thread context back into relationship memory and send notes from the same account.
@@ -1554,7 +1583,14 @@ export function CRMFollowUpWorkspace({
               {mailboxStatus ? <p className="mt-4 rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-700">{mailboxStatus}</p> : null}
             </section>
 
-            <section className="mt-6 rounded-[1.4rem] border bg-slate-50/80 p-5">
+            <section
+              ref={calendarSectionRef}
+              className={`mt-6 rounded-[1.4rem] border bg-slate-50/80 p-5 ${
+                requestedConnectionFocus === "calendar"
+                  ? "border-slate-400 bg-white/95 shadow-[0_18px_60px_-40px_rgba(15,23,42,0.35)]"
+                  : ""
+              }`}
+            >
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Connected calendars</p>
               <p className="mt-2 text-sm leading-6 text-slate-600">
                 Calendar beta: connect the address you usually schedule from, then bring meetings into relationship memory so Brivoly can prep the next conversation before it starts.
