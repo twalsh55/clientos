@@ -1124,7 +1124,28 @@ function TodayPrioritiesPanel({
     .sort((left, right) => compareFreshContextPriority(left, right))[0] ?? null;
   const replyThread = replyLead ? getReplyThread(replyLead) : null;
 
+  const uploadReentryLead = recentUploadLead && isReconnectMoment(recentUploadLead) ? recentUploadLead : null;
+
   const priorities = compactPriorityCards<TodayPriorityCardItem>([
+    uploadReentryLead
+      ? {
+          id: `${uploadReentryLead.id}-upload-reconnect`,
+          href: "/clientos/follow-ups",
+          eyebrow: "Fresh way back in",
+          title: `Use new context to reopen ${uploadReentryLead.lead_name}`,
+          body: uploadReentryLead.relationship_reconnect_why_now || uploadReentryLead.relationship_upload_follow_through_hint || uploadReentryLead.relationship_recent_upload_summary,
+          meta: `${uploadReentryLead.company_name} · ${formatDateTime(getLatestUploadContextEntry(uploadReentryLead)?.occurred_at ?? null)}`,
+          nextMove: uploadReentryLead.relationship_reconnect_next_move || uploadReentryLead.relationship_upload_follow_through_hint || "Use the fresh context to restart the thread gently.",
+          actionLabel: "Draft reconnect",
+          onAction: () =>
+            onRunAction(uploadReentryLead.id, "/clientos/follow-ups", {
+              objective: "revive",
+              tone: "warm",
+              length: "short",
+              status: "Drafting a reconnect from fresh client context...",
+            }),
+        }
+      : null,
     replyLead
       ? {
           id: `${replyLead.id}-reply`,
@@ -1144,7 +1165,7 @@ function TodayPrioritiesPanel({
             }),
         }
       : null,
-    reconnectLead
+    reconnectLead && reconnectLead.id !== uploadReentryLead?.id
       ? {
           id: `${reconnectLead.id}-reconnect`,
           href: "/clientos/follow-ups",
@@ -1182,7 +1203,7 @@ function TodayPrioritiesPanel({
             }),
         }
       : null,
-    recentUploadLead
+    recentUploadLead && recentUploadLead.id !== uploadReentryLead?.id
       ? {
           id: `${recentUploadLead.id}-upload`,
           href: "/clientos/follow-ups",
@@ -1969,14 +1990,14 @@ function InboxNextMovePanel({
               disabled={isDrafting}
               onClick={() =>
                 onDraftAction({
-                  objective: "follow_up",
+                  objective: shouldReconnect ? "revive" : "follow_up",
                   tone: "warm",
                   length: "short",
-                  status: "Drafting a reply from fresh client context...",
+                  status: shouldReconnect ? "Drafting a reconnect from fresh client context..." : "Drafting a reply from fresh client context...",
                 })
               }
             >
-              Turn this into a note
+              {shouldReconnect ? "Turn this into a reconnect" : "Turn this into a note"}
             </Button>
           </div>
         </div>
