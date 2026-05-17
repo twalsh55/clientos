@@ -701,6 +701,8 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
 
 
 def _extract_session_token(authorization: str | None, session_cookie: str | None) -> str | None:
+    if session_cookie:
+        return session_cookie
     if authorization:
         scheme, _, token = authorization.partition(" ")
         if scheme.lower() != "bearer" or not token.strip():

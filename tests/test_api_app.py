@@ -18,6 +18,7 @@ from src.adapters.api.app import (
     _build_crm_intake_token,
     _build_etf_sentiment_status_message,
     _build_prospecting_status_message,
+    _extract_session_token,
     _extract_telegram_command,
     _extract_telegram_image_intake,
     _normalize_universe,
@@ -244,6 +245,14 @@ def test_authenticated_user_dto_serializes_values() -> None:
     assert dto.id == "11111111-1111-1111-1111-111111111111"
     assert dto.email == "user@example.com"
     assert dto.created_at == "2024-05-06T12:30:00+00:00"
+
+
+def test_extract_session_token_prefers_cookie_before_authorization_header() -> None:
+    assert _extract_session_token("Bearer persisted-token", "cookie-token") == "cookie-token"
+
+
+def test_extract_session_token_falls_back_to_authorization_header_when_cookie_missing() -> None:
+    assert _extract_session_token("Bearer persisted-token", None) == "persisted-token"
 
 
 def test_account_settings_and_alert_history_dtos_serialize_values() -> None:

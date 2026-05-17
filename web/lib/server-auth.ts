@@ -8,10 +8,10 @@ export async function getServerApiAuthOptions(): Promise<{ sessionToken: string 
   const persistedSessionToken =
     cookieStore.get(BRIVOLY_SESSION_COOKIE)?.value ?? cookieStore.get(LEGACY_TRADE_SESSION_COOKIE)?.value ?? null;
   return {
-    // Prefer the live Clerk session cookie when it exists. The API authenticates the
-    // Authorization header before the forwarded cookie, so sending an older persisted
-    // token here can incorrectly override a fresh __session value.
-    sessionToken: sessionCookie ?? persistedSessionToken,
+    // Keep the app-persisted token in Authorization when available, and always forward
+    // the live Clerk session cookie separately. The API can then prefer the fresher
+    // cookie when both are present without forcing the raw cookie into Bearer auth.
+    sessionToken: persistedSessionToken,
     cookieHeader: sessionCookie ? `__session=${sessionCookie}` : null,
   };
 }

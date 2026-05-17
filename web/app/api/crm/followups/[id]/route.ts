@@ -11,7 +11,7 @@ export async function PATCH(request: NextRequest, context: Context) {
   const { id } = await context.params;
   const { sessionToken, cookieHeader } = await getServerApiAuthOptions();
 
-  if (!sessionToken) {
+  if (!sessionToken && !cookieHeader) {
     return NextResponse.json({ error: "Authentication required." }, { status: 401 });
   }
 
