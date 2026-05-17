@@ -116,6 +116,8 @@ function makeState() {
         relationship_state: "drifting",
         relationship_context_summary: "Discovery call completed. Timing and scope were positive, but the recap needs to be tighter. Could you tighten the recap and send two possible times for next week?",
         relationship_recent_changes_summary: "5 days ago Brivoly logged a call: Discovery call completed. Timing and scope were positive, but the recap needs to be tighter. Today Amber Flores sent a message that still needs a reply.",
+        relationship_last_30_days_summary: "Over the last 30 days, the most important shift was Discovery call completed. Timing and scope were positive, but the recap needs to be tighter. Before that, Brivoly logged an inbound message: Inbound request mentioned spreadsheet-heavy client onboarding and missed follow-ups.",
+        relationship_meeting_prep_summary: "The last meaningful discussion centered on Discovery call completed. Timing and scope were positive, but the recap needs to be tighter. Best next move: Send a concise recap and propose two call slots. You still owe a reply from today.",
         dormant: false,
         relationship_reminders: [],
         timeline: [
@@ -393,6 +395,8 @@ const server = http.createServer(async (request, response) => {
       relationship_state: "warm",
       relationship_context_summary: message.snippet || message.body_text || "Brivoly has not captured enough relationship context yet.",
       relationship_recent_changes_summary: `Today Brivoly logged an email update: ${message.subject || "(no subject)"}.`,
+      relationship_last_30_days_summary: message.snippet || message.body_text || "There has not been much relationship activity in the last 30 days.",
+      relationship_meeting_prep_summary: `Best next move: Reply to ${counterpartName}'s latest email.`,
       dormant: false,
       relationship_reminders: [],
       timeline: [

@@ -67,6 +67,8 @@ def _enrich_follow_up(item: LeadFollowUp, current_time: datetime) -> LeadFollowU
     reminders = _build_relationship_reminders(item, last_meaningful, current_time)
     context_summary = _build_relationship_context_summary(item)
     recent_changes_summary = _build_recent_changes_summary(item, current_time)
+    last_30_days_summary = _build_last_30_days_summary(item, current_time)
+    meeting_prep_summary = _build_meeting_prep_summary(item, current_time)
     return replace(
         item,
         last_meaningful_interaction_at=last_meaningful,
@@ -75,6 +77,8 @@ def _enrich_follow_up(item: LeadFollowUp, current_time: datetime) -> LeadFollowU
         relationship_state=_relationship_state(health_score, dormant, item, current_time),
         relationship_context_summary=context_summary,
         relationship_recent_changes_summary=recent_changes_summary,
+        relationship_last_30_days_summary=last_30_days_summary,
+        relationship_meeting_prep_summary=meeting_prep_summary,
         dormant=dormant,
         relationship_reminders=tuple(reminders),
     )
@@ -245,6 +249,48 @@ def _build_recent_changes_summary(item: LeadFollowUp, current_time: datetime) ->
         return "No major relationship changes were captured recently."
 
     return " ".join(changes[:2])
+
+
+def _build_last_30_days_summary(item: LeadFollowUp, current_time: datetime) -> str:
+    window_start = current_time - timedelta(days=30)
+    recent_entries = [entry for entry in sorted(item.timeline, key=lambda entry: entry.occurred_at, reverse=True) if entry.occurred_at >= window_start]
+    if not recent_entries and not item.recent_email_threads:
+        return "There has not been much relationship activity in the last 30 days."
+
+    parts: list[str] = []
+    if recent_entries:
+        latest = recent_entries[0]
+        parts.append(f"Over the last 30 days, the most important shift was {_sentence_case(latest.summary.rstrip('.'))}.")
+    if len(recent_entries) > 1:
+        second = recent_entries[1]
+        parts.append(f"Before that, Brivoly logged {summarize_timeline_kind(second.kind)}: {_sentence_case(second.summary.rstrip('.'))}.")
+    latest_thread = sorted(item.recent_email_threads, key=lambda thread: thread.last_message_at, reverse=True)[:1]
+    if latest_thread:
+        thread = latest_thread[0]
+        if thread.snippet.strip():
+            parts.append(f"Recent email context: {_sentence_case(thread.snippet.strip().rstrip('.'))}.")
+    return " ".join(parts[:3])
+
+
+def _build_meeting_prep_summary(item: LeadFollowUp, current_time: datetime) -> str:
+    latest_entries = sorted(item.timeline, key=lambda entry: entry.occurred_at, reverse=True)[:2]
+    thread = sorted(item.recent_email_threads, key=lambda thread: thread.last_message_at, reverse=True)[:1]
+    parts: list[str] = []
+    if latest_entries:
+        parts.append(f"The last meaningful discussion centered on {_sentence_case(latest_entries[0].summary.rstrip('.'))}.")
+    if item.next_step.strip():
+        parts.append(f"Best next move: {_sentence_case(item.next_step.rstrip('.'))}.")
+    if thread:
+        latest_thread = thread[0]
+        if latest_thread.needs_reply:
+            parts.append(f"You still owe a reply from {_relative_days(latest_thread.last_message_at, current_time).lower()}.")
+        elif latest_thread.waiting_on_contact:
+            parts.append("You already sent the latest message and are waiting on them.")
+    if item.relationship_reminders:
+        parts.append(_sentence_case(item.relationship_reminders[0].message.rstrip(".")) + ".")
+    if not parts:
+        return "Brivoly does not have enough context yet to prep this meeting."
+    return " ".join(parts[:3])
 
 
 def summarize_timeline_kind(kind: str) -> str:

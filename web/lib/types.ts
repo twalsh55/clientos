@@ -102,6 +102,8 @@ export type CRMLeadFollowUp = {
   relationship_state: "active" | "warm" | "drifting" | "stale" | "at_risk" | string;
   relationship_context_summary: string;
   relationship_recent_changes_summary: string;
+  relationship_last_30_days_summary: string;
+  relationship_meeting_prep_summary: string;
   dormant: boolean;
   relationship_reminders: CRMRelationshipReminder[];
   recent_email_threads: CRMEmailThreadSummary[];

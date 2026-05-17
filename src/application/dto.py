@@ -167,6 +167,8 @@ class LeadFollowUpDTO:
     relationship_state: str
     relationship_context_summary: str
     relationship_recent_changes_summary: str
+    relationship_last_30_days_summary: str
+    relationship_meeting_prep_summary: str
     dormant: bool
     relationship_reminders: list["LeadRelationshipReminderDTO"]
     recent_email_threads: list["LeadEmailThreadSummaryDTO"]
@@ -530,6 +532,8 @@ def build_lead_follow_up_dto(item: LeadFollowUp) -> LeadFollowUpDTO:
         relationship_state=item.relationship_state,
         relationship_context_summary=item.relationship_context_summary,
         relationship_recent_changes_summary=item.relationship_recent_changes_summary,
+        relationship_last_30_days_summary=item.relationship_last_30_days_summary,
+        relationship_meeting_prep_summary=item.relationship_meeting_prep_summary,
         dormant=item.dormant,
         relationship_reminders=[build_lead_relationship_reminder_dto(item) for item in item.relationship_reminders],
         recent_email_threads=[build_lead_email_thread_summary_dto(thread) for thread in item.recent_email_threads],

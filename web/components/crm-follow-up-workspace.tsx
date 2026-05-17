@@ -2066,6 +2066,14 @@ function LeadMemoryPanel({
   onGenerateEmailDraft: () => void;
 }) {
   const launchHref = buildMailtoHref(emailSubjectDraft, emailBodyDraft);
+  const [memoryView, setMemoryView] = useState<"overview" | "last_30_days" | "meeting_prep" | "recent_changes">("overview");
+  const memoryPanels = [
+    { value: "overview" as const, label: "What matters", body: lead.relationship_context_summary || lead.notes || "No summary yet." },
+    { value: "last_30_days" as const, label: "Last 30 days", body: lead.relationship_last_30_days_summary || "No 30-day summary yet." },
+    { value: "meeting_prep" as const, label: "Meeting prep", body: lead.relationship_meeting_prep_summary || "No meeting prep summary yet." },
+    { value: "recent_changes" as const, label: "What changed", body: lead.relationship_recent_changes_summary || "No recent changes were captured yet." },
+  ];
+  const activeMemoryPanel = memoryPanels.find((item) => item.value === memoryView) ?? memoryPanels[0];
   return (
     <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Relationship Memory</p>
@@ -2112,15 +2120,25 @@ function LeadMemoryPanel({
 
       <section className="mt-6 rounded-[1.5rem] border bg-slate-50 p-5">
         <p className="ui-eyebrow">Relationship memory</p>
-        <div className="mt-3 grid gap-4 md:grid-cols-2">
-          <div className="rounded-[1.2rem] border bg-white px-4 py-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">What matters here</p>
-            <p className="mt-2 text-sm leading-6 text-slate-700">{lead.relationship_context_summary || lead.notes}</p>
-          </div>
-          <div className="rounded-[1.2rem] border bg-white px-4 py-4">
-            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">What changed recently</p>
-            <p className="mt-2 text-sm leading-6 text-slate-700">{lead.relationship_recent_changes_summary || "No recent changes were captured yet."}</p>
-          </div>
+        <div className="mt-3 flex flex-wrap gap-2">
+          {memoryPanels.map((item) => (
+            <button
+              key={item.value}
+              type="button"
+              onClick={() => setMemoryView(item.value)}
+              className={`rounded-full border px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] transition ${
+                memoryView === item.value
+                  ? "border-slate-900 bg-slate-950 text-white"
+                  : "border-slate-200 bg-white text-slate-600 hover:border-slate-400 hover:text-slate-900"
+              }`}
+            >
+              {item.label}
+            </button>
+          ))}
+        </div>
+        <div className="mt-4 rounded-[1.2rem] border bg-white px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{activeMemoryPanel.label}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-700">{activeMemoryPanel.body}</p>
         </div>
         <div className="mt-4 rounded-[1.2rem] border bg-white px-4 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Latest raw context</p>
