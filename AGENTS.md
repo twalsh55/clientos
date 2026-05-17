@@ -201,6 +201,15 @@ cd web && npm run e2e
 ### Next Likely Moves
 
 - Highest-conviction Client OS next steps:
+  - add real Gmail / Outlook account connection with OAuth, token handling, and mailbox connection management
+  - turn inbox sync from preview mode into a real background mailbox sync with provider webhooks or polling
+  - let users send and reply from their connected mailbox so drafts become real outbound follow-through
+  - deepen the real-world client model beyond lightweight follow-ups, including projects, engagements, and richer account context
+  - strengthen onboarding from real data sources beyond spreadsheets so Client OS can become the live source of relationship memory
+  - improve production trust and resilience with stronger empty states, safer session handling, and fewer smart-prototype moments
+  - refine billing and packaging so plan boundaries and premium features feel clearer in production
+  - add a fuller reminder layer outside the app so Brivoly can keep nudging through email, calendar, and inbox workflows
+  - add admin and support visibility for mailbox sync state, import failures, and relationship-memory troubleshooting
   - finish the last small pockets of relationship-OS copy cleanup across remaining user-facing surfaces
   - keep sharpening `Today` so the daily home feels instantly actionable without reading around
   - deepen inbox-native memory around recent changes and multi-message continuity across longer conversations
