@@ -242,6 +242,10 @@ export type CRMMailboxConnection = {
   reauth_required: boolean;
   health_note: string;
   last_sent_at: string | null;
+  continuity_state: string;
+  continuity_summary: string;
+  event_ready: boolean;
+  sync_stale: boolean;
 };
 
 export type CRMCalendarConnection = {
@@ -259,6 +263,10 @@ export type CRMCalendarConnection = {
   last_event_ingested_at: string | null;
   background_sync_enabled: boolean;
   health_note: string;
+  continuity_state: string;
+  continuity_summary: string;
+  memory_warm: boolean;
+  sync_stale: boolean;
 };
 
 export type AccountPrivacyExport = {

@@ -166,6 +166,7 @@ cd web && npm run e2e
   - Today, Inbox, Attention, and Relationships now quietly refresh from connected inbox/calendar memory while the page is open, so fresh context can surface without asking the user to manually refresh
   - Today and Attention now surface whether Brivoly is still holding context quietly in the background or whether paused / reconnect-needed inbox and calendar connections are starting to thin that memory layer out
   - Today and Attention now distinguish between event-ready inboxes, warm calendar context, and background memory that is technically on but waiting for fresh live context to land
+  - mailbox and calendar DTOs now carry Python-owned continuity states and summaries, so the Client OS shell can describe warm, quiet, paused, reconnect-needed, and event-ready memory without re-deriving those states in TypeScript
 
 ### Relationship OS Todo
 

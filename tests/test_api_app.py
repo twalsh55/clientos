@@ -1095,6 +1095,7 @@ def test_crm_calendar_connect_event_ingest_and_delete_endpoints_manage_meeting_m
     assert connect_response.status_code == 200
     connection = connect_response.json()
     assert connection["provider"] == "google_calendar"
+    assert connection["continuity_state"] == "connected"
 
     ingest_response = client.post(
         "/api/crm/calendars/events",
@@ -1120,6 +1121,7 @@ def test_crm_calendar_connect_event_ingest_and_delete_endpoints_manage_meeting_m
     assert list_response.json()["items"][0]["calendar_address"] == "ada@northstar.example"
     assert list_response.json()["items"][0]["last_event_ingested_at"] is not None
     assert list_response.json()["items"][0]["health_note"] == ""
+    assert list_response.json()["items"][0]["continuity_state"] == "warm"
 
     pause_response = client.patch(
         f"/api/crm/calendars/{connection['id']}",
@@ -1166,6 +1168,7 @@ def test_crm_mailbox_oauth_start_and_complete_endpoints_return_provider_connecti
     assert payload["email_address"] == "gmail@example.com"
     assert payload["watch_status"] == "active"
     assert payload["watch_expires_at"] is not None
+    assert payload["continuity_state"] == "connected"
 
 
 def test_crm_mailbox_watch_endpoint_renews_provider_watch_state() -> None:

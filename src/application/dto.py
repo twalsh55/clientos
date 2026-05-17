@@ -308,6 +308,10 @@ class MailboxConnectionDTO:
     reauth_required: bool
     health_note: str
     last_sent_at: str | None
+    continuity_state: str
+    continuity_summary: str
+    event_ready: bool
+    sync_stale: bool
 
 
 @dataclass(frozen=True)
@@ -326,6 +330,10 @@ class CalendarConnectionDTO:
     last_event_ingested_at: str | None
     background_sync_enabled: bool
     health_note: str
+    continuity_state: str
+    continuity_summary: str
+    memory_warm: bool
+    sync_stale: bool
 
 
 @dataclass(frozen=True)
@@ -757,6 +765,7 @@ def build_lead_inbox_summary_dto(summary: LeadInboxSummary | None) -> LeadInboxS
 
 
 def build_mailbox_connection_dto(connection: MailboxConnection) -> MailboxConnectionDTO:
+    continuity_state, continuity_summary, event_ready, sync_stale = _describe_mailbox_connection(connection)
     return MailboxConnectionDTO(
         id=connection.id,
         provider=connection.provider,
@@ -782,10 +791,15 @@ def build_mailbox_connection_dto(connection: MailboxConnection) -> MailboxConnec
         reauth_required=connection.reauth_required,
         health_note=connection.health_note,
         last_sent_at=connection.last_sent_at.isoformat() if connection.last_sent_at else None,
+        continuity_state=continuity_state,
+        continuity_summary=continuity_summary,
+        event_ready=event_ready,
+        sync_stale=sync_stale,
     )
 
 
 def build_calendar_connection_dto(connection: CalendarConnection) -> CalendarConnectionDTO:
+    continuity_state, continuity_summary, memory_warm, sync_stale = _describe_calendar_connection(connection)
     return CalendarConnectionDTO(
         id=connection.id,
         provider=connection.provider,
@@ -801,6 +815,121 @@ def build_calendar_connection_dto(connection: CalendarConnection) -> CalendarCon
         last_event_ingested_at=connection.last_event_ingested_at.isoformat() if connection.last_event_ingested_at else None,
         background_sync_enabled=connection.background_sync_enabled,
         health_note=connection.health_note,
+        continuity_state=continuity_state,
+        continuity_summary=continuity_summary,
+        memory_warm=memory_warm,
+        sync_stale=sync_stale,
+    )
+
+
+def _describe_mailbox_connection(connection: MailboxConnection) -> tuple[str, str, bool, bool]:
+    event_ready = (
+        connection.background_sync_enabled
+        and connection.status == "connected"
+        and connection.watch_status == "active"
+        and connection.last_watch_event_at is not None
+    )
+    sync_stale = (
+        connection.background_sync_enabled
+        and connection.last_sync_at is not None
+        and not event_ready
+        and connection.status == "connected"
+    )
+    if connection.reauth_required or connection.status == "needs_reauth":
+        return (
+            "needs_reauth",
+            "Reconnect this inbox so Brivoly can keep holding relationship memory quietly.",
+            event_ready,
+            sync_stale,
+        )
+    if connection.status == "attention_needed":
+        return (
+            "attention_needed",
+            connection.health_note.strip() or "This inbox needs attention before Brivoly can quietly keep the thread warm.",
+            event_ready,
+            sync_stale,
+        )
+    if not connection.background_sync_enabled:
+        return (
+            "paused",
+            "Background memory is paused for this inbox.",
+            event_ready,
+            sync_stale,
+        )
+    if event_ready:
+        return (
+            "event_ready",
+            "Fresh mailbox events are still landing quietly for this inbox.",
+            event_ready,
+            sync_stale,
+        )
+    if sync_stale:
+        return (
+            "quiet",
+            "This inbox has gone quiet enough that Brivoly may need a fresh sync to hold onto the latest context.",
+            event_ready,
+            sync_stale,
+        )
+    if connection.status == "connected":
+        return (
+            "connected",
+            "This inbox is connected and waiting for the next live context to land.",
+            event_ready,
+            sync_stale,
+        )
+    return (
+        connection.status or "disconnected",
+        connection.health_note.strip() or "This inbox is not ready to hold relationship memory yet.",
+        event_ready,
+        sync_stale,
+    )
+
+
+def _describe_calendar_connection(connection: CalendarConnection) -> tuple[str, str, bool, bool]:
+    memory_warm = (
+        connection.background_sync_enabled
+        and connection.status == "connected"
+        and connection.last_event_ingested_at is not None
+    )
+    sync_stale = (
+        connection.background_sync_enabled
+        and connection.last_sync_at is not None
+        and not memory_warm
+        and connection.status == "connected"
+    )
+    if connection.status != "connected":
+        return (
+            connection.status or "disconnected",
+            connection.health_note.strip() or "This calendar is not ready to hold meeting context yet.",
+            memory_warm,
+            sync_stale,
+        )
+    if not connection.background_sync_enabled:
+        return (
+            "paused",
+            "Background meeting memory is paused for this calendar.",
+            memory_warm,
+            sync_stale,
+        )
+    if memory_warm:
+        return (
+            "warm",
+            "Fresh meeting context is warm from this calendar.",
+            memory_warm,
+            sync_stale,
+        )
+    if sync_stale:
+        return (
+            "quiet",
+            "Meeting memory has gone quiet enough that Brivoly could use the next live event to warm it back up.",
+            memory_warm,
+            sync_stale,
+        )
+    return (
+        "connected",
+        "This calendar is connected and ready for the next meeting context to land.",
+        memory_warm,
+        sync_stale,
     )
 
 

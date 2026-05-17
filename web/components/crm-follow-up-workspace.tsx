@@ -1502,7 +1502,7 @@ export function CRMFollowUpWorkspace({
                           <MiniFlag label={connection.background_sync_enabled ? "background sync on" : "background sync paused"} tone={connection.background_sync_enabled ? "neutral" : "warning"} />
                           <MiniFlag label={`${connection.watch_event_count} watch event${connection.watch_event_count === 1 ? "" : "s"}`} tone="neutral" />
                           <MiniFlag label={`watch ${connection.watch_status || "inactive"}`} tone={connection.watch_status === "active" ? "neutral" : connection.watch_status === "manual" ? "warning" : "warning"} />
-                          {isMailboxSyncStale(connection) ? <MiniFlag label="sync stale" tone="warning" /> : null}
+                          {connection.sync_stale ? <MiniFlag label="sync stale" tone="warning" /> : null}
                           {isMailboxTokenExpiringSoon(connection) ? <MiniFlag label="token soon" tone="warning" /> : null}
                           {connection.reauth_required ? <MiniFlag label="reauth needed" tone="warning" /> : null}
                           {connection.connection_mode === "oauth" && (connection.reauth_required || connection.status === "needs_reauth") ? (
@@ -1530,8 +1530,8 @@ export function CRMFollowUpWorkspace({
                       {connection.watch_expires_at ? (
                         <p className="mt-2 text-xs text-slate-500">Watch coverage renews by {formatDateTime(connection.watch_expires_at)}.</p>
                       ) : null}
-                      {describeMailboxConnectionState(connection) ? (
-                        <p className="mt-2 text-xs text-slate-500">{describeMailboxConnectionState(connection)}</p>
+                      {connection.continuity_summary ? (
+                        <p className="mt-2 text-xs text-slate-500">{connection.continuity_summary}</p>
                       ) : null}
                       {connection.last_sent_at ? (
                         <p className="mt-2 text-xs text-slate-500">Last provider-backed note sent {formatDateTime(connection.last_sent_at)}.</p>
@@ -1609,8 +1609,8 @@ export function CRMFollowUpWorkspace({
                         </div>
                         <div className="flex flex-wrap gap-2">
                           <MiniFlag label={connection.background_sync_enabled ? "memory on" : "memory paused"} tone={connection.background_sync_enabled ? "neutral" : "warning"} />
-                          {isCalendarMemoryWarm(connection) ? <MiniFlag label="context warm" tone="neutral" /> : null}
-                          {isCalendarSyncStale(connection) ? <MiniFlag label="context quiet" tone="warning" /> : null}
+                          {connection.memory_warm ? <MiniFlag label="context warm" tone="neutral" /> : null}
+                          {connection.sync_stale ? <MiniFlag label="context quiet" tone="warning" /> : null}
                           <Button type="button" variant="outline" disabled={isCalendarPending} onClick={() => toggleCalendarBackgroundSync(connection)}>
                             {connection.background_sync_enabled ? "Pause memory" : "Resume memory"}
                           </Button>
@@ -1625,7 +1625,7 @@ export function CRMFollowUpWorkspace({
                       {connection.last_event_ingested_at ? (
                         <p className="mt-2 text-xs text-slate-500">Latest meeting memory landed {formatDateTime(connection.last_event_ingested_at)}.</p>
                       ) : null}
-                      {describeCalendarConnectionState(connection) ? <p className="mt-2 text-xs text-slate-500">{describeCalendarConnectionState(connection)}</p> : null}
+                      {connection.continuity_summary ? <p className="mt-2 text-xs text-slate-500">{connection.continuity_summary}</p> : null}
                     </div>
                   ))
                 ) : (
@@ -2062,8 +2062,8 @@ function TodayPrioritiesPanel({
   const activeMemoryCount = activeMailboxCount + activeCalendarCount;
   const pausedMemoryCount = pausedMailboxCount + pausedCalendarCount;
   const connectionAttentionCount = mailboxAttentionCount + calendarAttentionCount;
-  const eventReadyMailboxCount = mailboxConnections.filter((item) => isMailboxEventReady(item)).length;
-  const warmCalendarCount = calendarConnections.filter((item) => isCalendarMemoryWarm(item)).length;
+  const eventReadyMailboxCount = mailboxConnections.filter((item) => item.event_ready).length;
+  const warmCalendarCount = calendarConnections.filter((item) => item.memory_warm).length;
   const memoryCoverageLine =
     connectionAttentionCount
       ? activeMemoryCount
@@ -2320,8 +2320,8 @@ function PipelineBoardPanel({
   const activeMemoryCount = activeMailboxCount + activeCalendarCount;
   const pausedMemoryCount = pausedMailboxCount + pausedCalendarCount;
   const connectionAttentionCount = mailboxAttentionCount + calendarAttentionCount;
-  const eventReadyMailboxCount = mailboxConnections.filter((item) => isMailboxEventReady(item)).length;
-  const warmCalendarCount = calendarConnections.filter((item) => isCalendarMemoryWarm(item)).length;
+  const eventReadyMailboxCount = mailboxConnections.filter((item) => item.event_ready).length;
+  const warmCalendarCount = calendarConnections.filter((item) => item.memory_warm).length;
   const memoryCoverageLine =
     connectionAttentionCount
       ? activeMemoryCount
@@ -4519,17 +4519,6 @@ function formatRelationshipState(value: string) {
   return value.replaceAll("_", " ");
 }
 
-function isMailboxSyncStale(connection: CRMMailboxConnection) {
-  if (!connection.background_sync_enabled || !connection.last_sync_at) {
-    return false;
-  }
-  const lastSyncAt = new Date(connection.last_sync_at).getTime();
-  if (Number.isNaN(lastSyncAt)) {
-    return false;
-  }
-  return lastSyncAt <= Date.now() - 1000 * 60 * 60 * 24 * 3;
-}
-
 function isMailboxTokenExpiringSoon(connection: CRMMailboxConnection) {
   if (connection.connection_mode !== "oauth" || !connection.token_expires_at || connection.reauth_required) {
     return false;
@@ -4540,77 +4529,6 @@ function isMailboxTokenExpiringSoon(connection: CRMMailboxConnection) {
   }
   const now = Date.now();
   return expiresAt > now && expiresAt <= now + 1000 * 60 * 60 * 12;
-}
-
-function isMailboxEventReady(connection: CRMMailboxConnection) {
-  if (!connection.background_sync_enabled || connection.status !== "connected" || connection.connection_mode !== "oauth") {
-    return false;
-  }
-  if (connection.watch_status !== "active" || !connection.last_watch_event_at) {
-    return false;
-  }
-  const lastEventAt = new Date(connection.last_watch_event_at).getTime();
-  if (Number.isNaN(lastEventAt)) {
-    return false;
-  }
-  return lastEventAt >= Date.now() - 1000 * 60 * 60 * 24 * 2;
-}
-
-function isCalendarMemoryWarm(connection: CRMCalendarConnection) {
-  if (!connection.background_sync_enabled || connection.status !== "connected" || !connection.last_event_ingested_at) {
-    return false;
-  }
-  const lastEventAt = new Date(connection.last_event_ingested_at).getTime();
-  if (Number.isNaN(lastEventAt)) {
-    return false;
-  }
-  return lastEventAt >= Date.now() - 1000 * 60 * 60 * 24 * 7;
-}
-
-function isCalendarSyncStale(connection: CRMCalendarConnection) {
-  if (!connection.background_sync_enabled || !connection.last_sync_at) {
-    return false;
-  }
-  const lastSyncAt = new Date(connection.last_sync_at).getTime();
-  if (Number.isNaN(lastSyncAt)) {
-    return false;
-  }
-  return lastSyncAt <= Date.now() - 1000 * 60 * 60 * 24 * 7;
-}
-
-function describeCalendarConnectionState(connection: CRMCalendarConnection) {
-  if (connection.health_note.trim()) {
-    return connection.health_note;
-  }
-  if (connection.last_sync_error.trim()) {
-    return connection.last_sync_error;
-  }
-  if (isCalendarMemoryWarm(connection)) {
-    return `Fresh meeting context is warm from ${formatDateTime(connection.last_event_ingested_at)}.`;
-  }
-  if (isCalendarSyncStale(connection)) {
-    return `Meeting memory has been quiet since ${formatDateTime(connection.last_sync_at)}. Bring in the next meeting if you want fresher prep context.`;
-  }
-  if (connection.background_sync_enabled) {
-    return "Calendar memory is ready. Bring one meeting in and Brivoly will hold onto the context for you.";
-  }
-  return "";
-}
-
-function describeMailboxConnectionState(connection: CRMMailboxConnection) {
-  if (connection.reauth_required || connection.status === "needs_reauth") {
-    return "Reconnect this inbox so Brivoly can keep holding relationship memory quietly.";
-  }
-  if (connection.health_note.trim()) {
-    return connection.health_note;
-  }
-  if (isMailboxSyncStale(connection)) {
-    return `This inbox has not refreshed since ${formatDateTime(connection.last_sync_at)}. A quick sync can warm the latest context back up.`;
-  }
-  if (isMailboxTokenExpiringSoon(connection)) {
-    return `Access for this inbox renews around ${formatDateTime(connection.token_expires_at)}. Brivoly will try to keep it quiet, but reconnect if that slips.`;
-  }
-  return "";
 }
 
 function buildSuggestedResponsePresets(lead: CRMLeadFollowUp) {
