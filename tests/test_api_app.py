@@ -375,6 +375,8 @@ def test_crm_follow_up_overview_dto_and_use_case_sort_and_count_values() -> None
     assert payload["items"][0]["relationship_health_score"] >= 75
     assert payload["items"][0]["relationship_health_label"] == "healthy"
     assert payload["items"][0]["relationship_state"] in {"active", "warm"}
+    assert payload["items"][0]["relationship_context_summary"]
+    assert payload["items"][0]["relationship_recent_changes_summary"]
     assert payload["relationship_summary"]["active_count"] == 1
     assert payload["relationship_summary"]["drifting_count"] == 1
     assert payload["pipeline_summary"]["stage_summaries"][0]["stage"] == "Discovery"

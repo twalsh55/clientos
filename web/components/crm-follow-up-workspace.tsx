@@ -2111,8 +2111,21 @@ function LeadMemoryPanel({
       ) : null}
 
       <section className="mt-6 rounded-[1.5rem] border bg-slate-50 p-5">
-        <p className="ui-eyebrow">Latest context</p>
-        <p className="mt-3 text-sm leading-6 text-slate-700">{lead.notes}</p>
+        <p className="ui-eyebrow">Relationship memory</p>
+        <div className="mt-3 grid gap-4 md:grid-cols-2">
+          <div className="rounded-[1.2rem] border bg-white px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">What matters here</p>
+            <p className="mt-2 text-sm leading-6 text-slate-700">{lead.relationship_context_summary || lead.notes}</p>
+          </div>
+          <div className="rounded-[1.2rem] border bg-white px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">What changed recently</p>
+            <p className="mt-2 text-sm leading-6 text-slate-700">{lead.relationship_recent_changes_summary || "No recent changes were captured yet."}</p>
+          </div>
+        </div>
+        <div className="mt-4 rounded-[1.2rem] border bg-white px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">Latest raw context</p>
+          <p className="mt-2 text-sm leading-6 text-slate-700">{lead.notes}</p>
+        </div>
       </section>
 
       <section className="mt-6 rounded-[1.5rem] border bg-white p-5">

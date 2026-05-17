@@ -114,6 +114,8 @@ function makeState() {
         relationship_health_score: 64,
         relationship_health_label: "watch",
         relationship_state: "drifting",
+        relationship_context_summary: "Discovery call completed. Timing and scope were positive, but the recap needs to be tighter. Could you tighten the recap and send two possible times for next week?",
+        relationship_recent_changes_summary: "5 days ago Brivoly logged a call: Discovery call completed. Timing and scope were positive, but the recap needs to be tighter. Today Amber Flores sent a message that still needs a reply.",
         dormant: false,
         relationship_reminders: [],
         timeline: [
@@ -389,6 +391,8 @@ const server = http.createServer(async (request, response) => {
       relationship_health_score: 70,
       relationship_health_label: "watch",
       relationship_state: "warm",
+      relationship_context_summary: message.snippet || message.body_text || "Brivoly has not captured enough relationship context yet.",
+      relationship_recent_changes_summary: `Today Brivoly logged an email update: ${message.subject || "(no subject)"}.`,
       dormant: false,
       relationship_reminders: [],
       timeline: [

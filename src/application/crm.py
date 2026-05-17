@@ -65,12 +65,16 @@ def _enrich_follow_up(item: LeadFollowUp, current_time: datetime) -> LeadFollowU
     health_score = _compute_relationship_health_score(item, last_meaningful, current_time)
     dormant = _is_dormant(item, last_meaningful, current_time)
     reminders = _build_relationship_reminders(item, last_meaningful, current_time)
+    context_summary = _build_relationship_context_summary(item)
+    recent_changes_summary = _build_recent_changes_summary(item, current_time)
     return replace(
         item,
         last_meaningful_interaction_at=last_meaningful,
         relationship_health_score=health_score,
         relationship_health_label=_health_label(health_score),
         relationship_state=_relationship_state(health_score, dormant, item, current_time),
+        relationship_context_summary=context_summary,
+        relationship_recent_changes_summary=recent_changes_summary,
         dormant=dormant,
         relationship_reminders=tuple(reminders),
     )
@@ -190,6 +194,89 @@ def _build_relationship_reminders(
             )
         )
     return reminders
+
+
+def _build_relationship_context_summary(item: LeadFollowUp) -> str:
+    parts: list[str] = []
+    latest_timeline = sorted(item.timeline, key=lambda entry: entry.occurred_at, reverse=True)
+    if latest_timeline:
+        parts.append(latest_timeline[0].summary.rstrip("."))
+
+    latest_reply_thread = next((thread for thread in sorted(item.recent_email_threads, key=lambda thread: thread.last_message_at, reverse=True) if thread.snippet.strip()), None)
+    if latest_reply_thread and latest_reply_thread.snippet.strip():
+        snippet = latest_reply_thread.snippet.strip().rstrip(".")
+        if not any(snippet.lower() in existing.lower() for existing in parts):
+            parts.append(snippet)
+
+    if item.notes.strip():
+        note = item.notes.strip().rstrip(".")
+        if not any(note.lower() in existing.lower() for existing in parts):
+            parts.append(note)
+
+    if not parts:
+        return "Brivoly has not captured enough relationship context yet."
+
+    return " ".join(_sentence_case(part) for part in parts[:2])
+
+
+def _build_recent_changes_summary(item: LeadFollowUp, current_time: datetime) -> str:
+    latest_entries = sorted(item.timeline, key=lambda entry: entry.occurred_at, reverse=True)[:2]
+    changes: list[str] = []
+
+    if latest_entries:
+        latest = latest_entries[0]
+        changes.append(
+            f"{_relative_days(latest.occurred_at, current_time)} Brivoly logged {summarize_timeline_kind(latest.kind)}: {_sentence_case(latest.summary.rstrip('.'))}."
+        )
+
+    latest_thread = sorted(item.recent_email_threads, key=lambda thread: thread.last_message_at, reverse=True)[:1]
+    if latest_thread:
+        thread = latest_thread[0]
+        if thread.needs_reply:
+            changes.append(f"{_relative_days(thread.last_message_at, current_time)} {thread.counterpart_name or item.lead_name} sent a message that still needs a reply.")
+        elif thread.waiting_on_contact:
+            changes.append(f"{_relative_days(thread.last_message_at, current_time)} you sent the latest note and are waiting on them.")
+
+    if item.relationship_reminders:
+        reminder = item.relationship_reminders[0]
+        changes.append(_sentence_case(reminder.message.rstrip(".")) + ".")
+
+    if not changes:
+        return "No major relationship changes were captured recently."
+
+    return " ".join(changes[:2])
+
+
+def summarize_timeline_kind(kind: str) -> str:
+    normalized = kind.strip().lower()
+    mapping = {
+        "call": "a call",
+        "meeting": "a meeting",
+        "proposal": "a proposal update",
+        "qualification": "a qualification update",
+        "negotiation": "a negotiation update",
+        "referral": "a referral note",
+        "outreach": "an outreach touch",
+        "inbound": "an inbound message",
+        "email": "an email update",
+    }
+    return mapping.get(normalized, "an update")
+
+
+def _relative_days(occurred_at: datetime, current_time: datetime) -> str:
+    day_delta = max(0, int((current_time - occurred_at).total_seconds() // 86400))
+    if day_delta == 0:
+        return "Today"
+    if day_delta == 1:
+        return "Yesterday"
+    return f"{day_delta} days ago"
+
+
+def _sentence_case(value: str) -> str:
+    stripped = value.strip()
+    if not stripped:
+        return stripped
+    return stripped[0].upper() + stripped[1:]
 
 
 def _next_occurrence(value: date | None, current_date: date) -> date | None:

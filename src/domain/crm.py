@@ -104,6 +104,8 @@ class LeadFollowUp:
     relationship_health_score: int = 0
     relationship_health_label: str = ""
     relationship_state: str = ""
+    relationship_context_summary: str = ""
+    relationship_recent_changes_summary: str = ""
     dormant: bool = False
     relationship_reminders: tuple[LeadRelationshipReminder, ...] = ()
     recent_email_threads: tuple[LeadEmailThreadSummary, ...] = ()
