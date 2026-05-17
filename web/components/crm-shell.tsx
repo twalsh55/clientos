@@ -24,15 +24,15 @@ export function CRMShell({ data }: { data: CRMPageData }) {
   return (
     <>
       <section className="mt-6 rounded-[1.75rem] border border-amber-200 bg-amber-50 p-6 shadow-sm">
-        <p className="ui-eyebrow-strong text-amber-700">Client OS Load Issue</p>
-        <h2 className="mt-3 text-3xl font-semibold tracking-tight text-amber-950">We could not load your relationships right now.</h2>
+        <p className="ui-eyebrow-strong text-amber-700">Client OS needs a moment</p>
+        <h2 className="mt-3 text-3xl font-semibold tracking-tight text-amber-950">We could not reopen your relationship view right now.</h2>
         <p className="mt-3 max-w-2xl text-sm leading-7 text-amber-900">
           {describeLoadFailure(data)}
         </p>
-        {data.userLabel ? <p className="mt-4 text-sm font-medium text-amber-950">Current account: {data.userLabel}</p> : null}
+        {data.userLabel ? <p className="mt-4 text-sm font-medium text-amber-950">Signed in as {data.userLabel}</p> : null}
         {data.loadErrors.length ? (
           <div className="mt-4 rounded-[1.25rem] border border-amber-200/80 bg-white/70 px-4 py-4 text-sm leading-6 text-amber-950">
-            <p className="ui-eyebrow-strong text-amber-700">Latest error</p>
+            <p className="ui-eyebrow-strong text-amber-700">Latest detail</p>
             <p className="mt-2">{data.loadErrors[0]}</p>
           </div>
         ) : null}
@@ -42,13 +42,13 @@ export function CRMShell({ data }: { data: CRMPageData }) {
             onClick={() => window.location.reload()}
             className="rounded-full bg-amber-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-amber-900"
           >
-            Reload Client OS
+            Try again
           </button>
         </div>
       </section>
       <section className="mt-4 rounded-[1.3rem] border bg-white/85 p-4 shadow-sm">
         <p className="text-sm leading-6 text-slate-600">
-          When this view loads normally, Brivoly brings back Today, relationship memory, inbox continuity, and your saved next touches in one place.
+          When this opens normally, Brivoly brings back Today, relationship memory, inbox continuity, and your saved next touches in one place.
         </p>
       </section>
     </>
@@ -57,7 +57,7 @@ export function CRMShell({ data }: { data: CRMPageData }) {
 
 function describeLoadFailure(data: CRMPageData): string {
   if (data.session?.authenticated) {
-    return "Your account session is active, but the relationship view did not finish loading. Refresh and Brivoly should retry with the same account context.";
+    return "Your session is active, but the relationship view did not finish loading. Refresh and Brivoly should retry with the same account context.";
   }
   return "Brivoly could not finish loading the relationship view. Refresh and it should retry the guest view automatically.";
 }
