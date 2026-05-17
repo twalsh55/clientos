@@ -2186,19 +2186,19 @@ function IntakeTaskHub({
     <section className="grid gap-6 md:grid-cols-2">
       <TaskSummaryCard
         href="/clientos/intake/profile"
-        eyebrow="Step 1"
+        eyebrow="First"
         title="Show the kinds of updates you usually get"
         body={advancedAiUnlocked ? "Your AI memory defaults are ready. Keep them close to what clients actually send." : "Unlock the paid AI layer before relying on note images and messy files to carry client context back in."}
       />
       <TaskSummaryCard
         href="/clientos/intake/routing"
-        eyebrow="Step 2"
+        eyebrow="Next"
         title="Choose the easiest path"
         body={normalizedChannels.length ? `Usual paths are ready: ${normalizedChannels.join(", ")}.` : "Set one path and one short note so sending updates feels obvious."}
       />
       <TaskSummaryCard
         href="/clientos/intake/capture"
-        eyebrow="Step 3"
+        eyebrow="Then"
         title="Share the update link"
         body={hasMagicLink ? "A signed no-login page is live and ready to reuse with clients." : "Turn this on once so clients can send updates from their phone without friction."}
       />
@@ -2314,11 +2314,11 @@ function IntakeRoutingPanel({
 
       <div className="mt-5 flex items-center gap-3">
         <Button onClick={onSave} disabled={isSaving || !canPersistSettings}>
-          {isSaving ? "Saving..." : "Save defaults"}
+          {isSaving ? "Saving..." : "Save"}
         </Button>
         {saveStatus ? <p className="text-sm text-slate-500">{saveStatus}</p> : null}
       </div>
-      {!canPersistSettings ? <p className="mt-3 text-sm text-slate-500">These defaults will appear once your account details finish loading.</p> : null}
+      {!canPersistSettings ? <p className="mt-3 text-sm text-slate-500">These suggestions will appear once your account details finish loading.</p> : null}
     </section>
   );
 }
@@ -2433,11 +2433,11 @@ function AIIntakePanel({
 
       <div className="mt-5 flex items-center gap-3">
         <Button onClick={onSave} disabled={isSaving || !canPersistSettings}>
-          {isSaving ? "Saving..." : "Save defaults"}
+          {isSaving ? "Saving..." : "Save"}
         </Button>
         {saveStatus ? <p className="text-sm text-slate-500">{saveStatus}</p> : null}
       </div>
-      {!canPersistSettings ? <p className="mt-3 text-sm text-slate-500">These defaults will appear once account settings finish loading.</p> : null}
+      {!canPersistSettings ? <p className="mt-3 text-sm text-slate-500">These suggestions will appear once account settings finish loading.</p> : null}
     </section>
   );
 }
