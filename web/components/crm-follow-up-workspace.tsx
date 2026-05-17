@@ -445,7 +445,7 @@ export function CRMFollowUpWorkspace({
     setEmailStatus("Designing a follow-up email...");
     startEmailTransition(async () => {
       try {
-        const response = await fetch(`/api/crm/followups/${selectedLead.id}/email-draft`, {
+        const response = await fetch(`/api/crm/followups/email-draft/${selectedLead.id}`, {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
@@ -1020,38 +1020,109 @@ function TodayPrioritiesPanel({
   selectedLead: CRMLeadFollowUp | null;
   inboxSummary: CRMFollowUpOverview["inbox_summary"];
 }) {
-  const priorities = items.slice(0, 4).map((item) => ({
+  const replyLead = items.find((item) => item.recent_email_threads.some((thread) => thread.needs_reply));
+  const reconnectLead = items.find((item) => item.dormant || item.relationship_health_label === "at_risk");
+  const proposalLead = items.find((item) => isProposalFollowThrough(item));
+  const recentContextLead = items.find((item) => getLatestContextEntry(item));
+
+  const priorities = compactPriorityCards([
+    replyLead
+      ? {
+          id: `${replyLead.id}-reply`,
+          href: "/clientos/inbox",
+          eyebrow: "Reply soon",
+          title: `Reply to ${replyLead.lead_name}`,
+          body: getReplySummary(replyLead),
+          meta: `${replyLead.company_name} · ${formatDateTime(getNewestThreadTime(replyLead) ?? replyLead.next_follow_up_at)}`,
+        }
+      : null,
+    reconnectLead
+      ? {
+          id: `${reconnectLead.id}-reconnect`,
+          href: "/clientos/follow-ups",
+          eyebrow: "Reconnect",
+          title: `Reconnect with ${reconnectLead.lead_name}`,
+          body: reconnectLead.relationship_reminders[0]?.message ?? reconnectLead.next_step,
+          meta: `${reconnectLead.company_name} · last meaningful touch ${formatDateTime(reconnectLead.last_meaningful_interaction_at)}`,
+        }
+      : null,
+    proposalLead
+      ? {
+          id: `${proposalLead.id}-proposal`,
+          href: "/clientos/follow-ups",
+          eyebrow: "Proposal follow-up",
+          title: `Keep momentum with ${proposalLead.lead_name}`,
+          body: proposalLead.next_step,
+          meta: `${proposalLead.company_name} · ${formatStageLabel(proposalLead.stage)}`,
+        }
+      : null,
+    recentContextLead
+      ? {
+          id: `${recentContextLead.id}-context`,
+          href: "/clientos/follow-ups",
+          eyebrow: "Fresh context",
+          title: `New context from ${recentContextLead.lead_name}`,
+          body: getLatestContextEntry(recentContextLead)?.summary ?? recentContextLead.notes,
+          meta: `${recentContextLead.company_name} · ${formatDateTime(getLatestContextEntry(recentContextLead)?.occurred_at ?? null)}`,
+        }
+      : null,
+  ]);
+
+  const fallbackPriorities = items.slice(0, 4).map((item) => ({
     id: item.id,
     href: "/clientos/follow-ups",
+    eyebrow: "Next touch",
     title: summarizePriority(item),
     body: item.next_step,
     meta: `${item.lead_name} · ${formatDateTime(item.next_follow_up_at)}`,
   }));
-  if ((inboxSummary?.needs_reply_count ?? 0) > 0) {
-    priorities.unshift({
-      id: "needs-reply",
-      href: "/clientos/inbox",
-      title: `Reply to ${selectedLead?.lead_name ?? "the next contact"}`,
-      body: `${inboxSummary?.needs_reply_count} conversation${inboxSummary?.needs_reply_count === 1 ? "" : "s"} need a response.`,
-      meta: "Inbox memory",
-    });
-  }
+  const visiblePriorities = (priorities.length ? priorities : fallbackPriorities).slice(0, 4);
+
+  const replyCount = inboxSummary?.needs_reply_count ?? 0;
+  const reconnectCount = items.filter((item) => item.dormant || item.relationship_health_label === "at_risk").length;
+  const proposalCount = items.filter((item) => isProposalFollowThrough(item)).length;
 
   return (
     <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">Today’s priorities</p>
-      <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">Where attention is needed right now.</h2>
+      <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">A short list of who needs your attention right now.</h2>
+      <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
+        Brivoly surfaces the next relationship moves so you can stay responsive without scanning every thread, note, and reminder yourself.
+      </p>
+      <div className="mt-5 grid gap-3 md:grid-cols-3">
+        <TodaySignal
+          label="Reply pressure"
+          value={replyCount ? `${replyCount} conversation${replyCount === 1 ? "" : "s"} waiting on you` : "No replies piling up"}
+        />
+        <TodaySignal
+          label="Reconnects"
+          value={reconnectCount ? `${reconnectCount} relationship${reconnectCount === 1 ? "" : "s"} could cool off` : "No quiet relationships need a nudge"}
+        />
+        <TodaySignal
+          label="Proposal momentum"
+          value={proposalCount ? `${proposalCount} proposal${proposalCount === 1 ? "" : "s"} need follow-through` : "No proposals need a push today"}
+        />
+      </div>
       <div className="mt-5 space-y-3">
-        {priorities.slice(0, 4).map((item) => (
-          <PriorityCard key={item.id} href={item.href} title={item.title} body={item.body} meta={item.meta} />
+        {visiblePriorities.map((item) => (
+          <PriorityCard key={item.id} href={item.href} eyebrow={item.eyebrow} title={item.title} body={item.body} meta={item.meta} />
         ))}
       </div>
       <div className="mt-5 grid gap-4 md:grid-cols-3">
-        <QuickLinkCard href="/clientos/follow-ups" title="Relationship memory" body="Never lose track of where a client relationship stands." />
-        <QuickLinkCard href="/clientos/inbox" title="Inbox continuity" body="Keep context current without logging every conversation by hand." />
-        <QuickLinkCard href="/clientos/intake" title="Client dropzones" body="Make it easy for clients to send context when it matters." />
+        <QuickLinkCard href="/clientos/follow-ups" title="Relationship memory" body="Keep the last touch, the next touch, and the full story together." />
+        <QuickLinkCard href="/clientos/inbox" title="Inbox continuity" body="Let email quietly update context instead of asking you to log everything." />
+        <QuickLinkCard href="/clientos/intake" title="Client dropzones" body="Let clients send files and notes without friction when something changes." />
       </div>
     </section>
+  );
+}
+
+function TodaySignal({ label, value }: { label: string; value: string }) {
+  return (
+    <div className="rounded-[1.2rem] border bg-slate-50/80 px-4 py-4">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{label}</p>
+      <p className="mt-2 text-sm leading-6 text-slate-700">{value}</p>
+    </div>
   );
 }
 
@@ -1082,9 +1153,22 @@ function RelationshipContinuityPanel({ summary }: { summary: NonNullable<CRMFoll
   );
 }
 
-function PriorityCard({ href, title, body, meta }: { href: string; title: string; body: string; meta: string }) {
+function PriorityCard({
+  href,
+  eyebrow,
+  title,
+  body,
+  meta,
+}: {
+  href: string;
+  eyebrow: string;
+  title: string;
+  body: string;
+  meta: string;
+}) {
   return (
     <Link href={href} className="block rounded-[1.35rem] border bg-slate-50/80 px-5 py-5 transition hover:border-slate-400 hover:bg-white">
+      <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">{eyebrow}</p>
       <p className="text-lg font-semibold tracking-tight text-slate-950">{title}</p>
       <p className="mt-2 text-sm leading-6 text-slate-600">{body}</p>
       <p className="mt-3 text-xs text-slate-500">{meta}</p>
@@ -2231,6 +2315,51 @@ function summarizePriority(item: CRMLeadFollowUp) {
     return `${item.lead_name} needs a warmer touch`;
   }
   return `${formatStageLabel(item.stage)} for ${item.lead_name}`;
+}
+
+function compactPriorityCards<T>(items: (T | null)[]) {
+  const seen = new Set<string>();
+  const compacted: T[] = [];
+  for (const item of items) {
+    if (!item || typeof item !== "object" || !("id" in item)) {
+      continue;
+    }
+    const id = String(item.id);
+    const leadScopedId = id.split("-").slice(0, 2).join("-");
+    if (seen.has(leadScopedId)) {
+      continue;
+    }
+    seen.add(leadScopedId);
+    compacted.push(item);
+  }
+  return compacted;
+}
+
+function isProposalFollowThrough(item: CRMLeadFollowUp) {
+  const normalized = item.stage.trim().toLowerCase();
+  return normalized === "proposal" || normalized === "negotiation";
+}
+
+function getNewestThreadTime(item: CRMLeadFollowUp) {
+  const timestamps = item.recent_email_threads.map((thread) => new Date(thread.last_message_at).getTime()).filter((value) => !Number.isNaN(value));
+  if (!timestamps.length) {
+    return null;
+  }
+  return new Date(Math.max(...timestamps)).toISOString();
+}
+
+function getLatestContextEntry(item: CRMLeadFollowUp) {
+  const timeline = [...item.timeline];
+  timeline.sort((left, right) => new Date(right.occurred_at).getTime() - new Date(left.occurred_at).getTime());
+  return timeline[0] ?? null;
+}
+
+function getReplySummary(item: CRMLeadFollowUp) {
+  const replyThread = item.recent_email_threads.find((thread) => thread.needs_reply);
+  if (!replyThread) {
+    return item.next_step;
+  }
+  return replyThread.snippet || item.next_step;
 }
 
 function formatStageLabel(stage: string) {
