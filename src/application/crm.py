@@ -544,6 +544,8 @@ def _build_reconnect_why_now(item: LeadFollowUp, current_time: datetime) -> str:
     if item.relationship_state == "stale":
         if item.last_meaningful_interaction_at:
             return f"It has been {_relative_days(item.last_meaningful_interaction_at, current_time).lower()} since the last meaningful touch."
+        if item.company_name.strip():
+            return f"Things have been quiet with {item.company_name} long enough that a light check-in would feel natural."
         return "This relationship has been quiet long enough that a gentle restart would help."
     if item.relationship_state == "at_risk":
         return item.relationship_timing_nudge or "Momentum is slipping and this relationship could go cold without a light touch."
@@ -578,6 +580,8 @@ def _build_reconnect_next_move(item: LeadFollowUp, current_time: datetime) -> st
         return _sentence_case(_ensure_sentence(item.next_step))
     if item.last_meaningful_interaction_at:
         return f"Reference the last meaningful touch from {_relative_days(item.last_meaningful_interaction_at, current_time).lower()} and suggest one small next step."
+    if item.company_name.strip():
+        return f"Keep it light: ask where things stand with {item.company_name} and offer one easy next step."
     return "Keep it simple: acknowledge the gap, offer context, and make the next move easy."
 
 
@@ -603,6 +607,8 @@ def _build_reconnect_message_hint(item: LeadFollowUp, current_time: datetime) ->
         return f'Quick angle: "Wanted to circle back while the context around {_truncate_sentence(item.relationship_context_summary, 90)} is still fresh."'
     if item.last_meaningful_interaction_at:
         return f'Quick angle: "Wanted to reconnect after {_relative_days(item.last_meaningful_interaction_at, current_time).lower()} and make the next step easy from here."'
+    if item.company_name.strip():
+        return f'Quick angle: "Wanted to check back in on {item.company_name} and see if this is worth picking back up."'
     return 'Quick angle: "Wanted to check back in and see if this is worth picking up again."'
 
 

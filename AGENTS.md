@@ -95,7 +95,7 @@ cd web && npm run e2e
   - left taskbar with dedicated Client OS pages
   - CRM relationship memory now persists in Postgres when `DATABASE_URL` is configured, including imported follow-ups, notes, timeline history, and inbox-ingested thread state
   - anonymous guest mode now bootstraps the sample relationship set once into durable CRM storage instead of rebuilding it from process memory on every restart
-  - Today priorities now collapse into one obvious `Start here` move, lighter `Needs you now` and `Fresh context` summaries, direct draft/review actions, and stronger upload-aware next-touch framing
+  - Today priorities now collapse into one obvious `Start here` move, lighter `Needs you now` and `Fresh context` summaries, direct draft/review actions, stronger upload-aware next-touch framing, and a clearer `Next move` cue on each priority so the daily home asks for less scanning
   - follow-up queue
   - inbox-native relationship page for auto-logging email threads and reconnect-aware next moves
   - inbox cards now surface backend-driven relationship pulse, open-loop memory, thread continuity cues, `what changed` hints, unresolved-thread cues, a clearer long-thread `through-line`, and a carry-forward cue for longer threads, grouped into `Needs you now` and `Still warm`
@@ -130,11 +130,11 @@ cd web && npm run e2e
   - client-facing upload flow with lighter no-login handoff copy, simpler share-link language, and camera-friendly mobile capture
   - relationship history now visually calls out client-shared upload context instead of burying it in generic activity
   - intake setup now has calmer set-once defaults for channels, handoff notes, source formats, and AI memory prompts to reduce typing and configuration
-  - reconnect guidance now includes a clearer `why it can still land` read plus a starter line for reopening stale, drifting, and at-risk relationships
+  - reconnect guidance now includes a clearer `why it can still land` read plus a starter line for reopening stale, drifting, and at-risk relationships, with gentler company-aware fallbacks when Brivoly has thinner history
   - intake and attention copy now lean further into relationship continuity and away from setup / pipeline language
   - text-heavy card layouts now prefer wider 2-column patterns so copy does not collapse into cramped narrow cards
   - shell, taskbar, import, relationship-memory, and handoff copy now consistently point to Client OS instead of older workspace/portal language
-  - overview density is calmer now, with lighter warm-intro panels and a less dashboard-like fallback shell
+  - overview density is calmer now, with lighter warm-intro panels, a simpler relationship continuity read, and a less dashboard-like fallback shell
 
 ### Relationship OS Todo
 

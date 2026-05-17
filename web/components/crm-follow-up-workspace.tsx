@@ -37,6 +37,7 @@ type TodayPriorityCardItem = {
   title: string;
   body: string;
   meta: string;
+  nextMove?: string;
   actionLabel?: string;
   onAction?: () => void;
 };
@@ -1132,6 +1133,7 @@ function TodayPrioritiesPanel({
           title: `Reply to ${replyLead.lead_name}`,
           body: replyThread?.next_touch_hint || replyThread?.memory_summary || getReplySummary(replyLead),
           meta: `${replyLead.company_name} · ${formatDateTime(getNewestThreadTime(replyLead) ?? replyLead.next_follow_up_at)}`,
+          nextMove: replyThread?.open_loop || replyThread?.carry_forward_hint || "Pick up the thread while the context is still fresh.",
           actionLabel: "Draft reply",
           onAction: () =>
             onRunAction(replyLead.id, "/clientos/follow-ups", {
@@ -1148,8 +1150,9 @@ function TodayPrioritiesPanel({
           href: "/clientos/follow-ups",
           eyebrow: "Reconnect",
           title: `Reconnect with ${reconnectLead.lead_name}`,
-          body: reconnectLead.relationship_timing_nudge || reconnectLead.relationship_reminders[0]?.message || reconnectLead.next_step,
+          body: reconnectLead.relationship_reconnect_why_now || reconnectLead.relationship_timing_nudge || reconnectLead.relationship_reminders[0]?.message || reconnectLead.next_step,
           meta: `${reconnectLead.company_name} · last meaningful touch ${formatDateTime(reconnectLead.last_meaningful_interaction_at)}`,
+          nextMove: reconnectLead.relationship_reconnect_next_move || reconnectLead.relationship_reconnect_message_hint || "Use a short, low-pressure check-in.",
           actionLabel: "Draft reconnect",
           onAction: () =>
             onRunAction(reconnectLead.id, "/clientos/follow-ups", {
@@ -1168,6 +1171,7 @@ function TodayPrioritiesPanel({
           title: `Keep momentum with ${proposalLead.lead_name}`,
           body: proposalLead.relationship_timing_nudge || proposalLead.next_step,
           meta: `${proposalLead.company_name} · follow up by ${formatDateTime(proposalLead.next_follow_up_at)}`,
+          nextMove: proposalLead.next_step || "Send the lightest possible nudge that moves the thread forward.",
           actionLabel: "Draft nudge",
           onAction: () =>
             onRunAction(proposalLead.id, "/clientos/follow-ups", {
@@ -1188,6 +1192,7 @@ function TodayPrioritiesPanel({
             recentUploadLead.relationship_upload_follow_through_hint ||
             `${recentUploadLead.relationship_recent_upload_summary}${recentUploadLead.next_step.trim() ? ` Next touch: ${recentUploadLead.next_step}` : ""}`,
           meta: `${recentUploadLead.company_name} · ${formatDateTime(getLatestUploadContextEntry(recentUploadLead)?.occurred_at ?? null)}`,
+          nextMove: recentUploadLead.relationship_upload_follow_through_hint || "Turn the fresh client context into a quick follow-through note.",
           actionLabel: "Draft note",
           onAction: () =>
             onRunAction(recentUploadLead.id, "/clientos/follow-ups", {
@@ -1206,6 +1211,7 @@ function TodayPrioritiesPanel({
           title: `New context from ${recentContextLead.lead_name}`,
           body: getLatestContextEntry(recentContextLead)?.summary ?? recentContextLead.notes,
           meta: `${recentContextLead.company_name} · ${formatDateTime(getLatestContextEntry(recentContextLead)?.occurred_at ?? null)}`,
+          nextMove: recentContextLead.next_step || "Open the relationship and decide whether this changes the next touch.",
           actionLabel: "Open relationship",
           onAction: () => onRunAction(recentContextLead.id, "/clientos/follow-ups"),
         }
@@ -1219,6 +1225,7 @@ function TodayPrioritiesPanel({
     title: summarizePriority(item),
     body: item.next_step,
     meta: `${item.lead_name} · ${formatDateTime(item.next_follow_up_at)}`,
+    nextMove: item.relationship_timing_nudge || "Open the relationship and take the smallest useful next step.",
   }));
   const visiblePriorities = (priorities.length ? priorities : fallbackPriorities).slice(0, 4);
   const primaryPriority = visiblePriorities[0] ?? null;
@@ -1239,7 +1246,7 @@ function TodayPrioritiesPanel({
       <p className="mt-3 max-w-3xl text-sm leading-6 text-slate-600">
         Brivoly pulls together reply pressure, reconnect risk, proposal momentum, and fresh context so you can pick up the right relationships without re-reading everything first.
       </p>
-      <p className="mt-3 text-sm font-medium text-slate-700">Start with one relationship. Brivoly will hold the rest.</p>
+      <p className="mt-3 text-sm font-medium text-slate-700">Start with one relationship and one next move. Brivoly will hold the rest.</p>
       <div className="mt-4 flex flex-wrap gap-2">
         {visiblePriorities.slice(0, 3).map((item) => (
           <button
@@ -1287,6 +1294,12 @@ function TodayPrioritiesPanel({
               <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">Start here</p>
               <p className="mt-2 text-2xl font-semibold tracking-tight">{primaryPriority.title}</p>
               <p className="mt-3 text-sm leading-6 text-slate-200">{primaryPriority.body}</p>
+              {primaryPriority.nextMove ? (
+                <div className="mt-4 rounded-[1rem] border border-white/10 bg-white/5 px-4 py-3">
+                  <p className="text-xs font-semibold uppercase tracking-[0.16em] text-cyan-200">Next move</p>
+                  <p className="mt-2 text-sm leading-6 text-slate-100">{primaryPriority.nextMove}</p>
+                </div>
+              ) : null}
               <p className="mt-3 text-sm leading-6 text-slate-300">Take the smallest next step here first, then let Brivoly hold the rest of the context in place.</p>
               <p className="mt-4 text-xs text-slate-300">{primaryPriority.meta}</p>
               <p className="mt-3 text-xs uppercase tracking-[0.16em] text-slate-400">{primaryPriority.eyebrow}</p>
@@ -1316,16 +1329,16 @@ function TodayPrioritiesPanel({
               title={item.title}
               body={item.body}
               meta={item.meta}
+              nextMove={item.nextMove}
               actionLabel={item.actionLabel}
               onAction={item.onAction}
             />
           ))}
         </div>
       ) : null}
-      <div className="mt-5 grid gap-4 md:grid-cols-3">
+      <div className="mt-5 grid gap-4 md:grid-cols-2">
         <QuickLinkCard href="/clientos/follow-ups" title="Relationship memory" body="Keep the last touch, the next touch, and the full story together." />
         <QuickLinkCard href="/clientos/inbox" title="Inbox continuity" body="Let email quietly carry the thread forward instead of asking you to log everything." />
-        <QuickLinkCard href="/clientos/intake" title="Client updates" body="Let clients send files and notes without friction when something changes." />
       </div>
     </section>
   );
@@ -1375,9 +1388,23 @@ function RelationshipContinuityPanel({ summary }: { summary: NonNullable<CRMFoll
             : "Nothing feels especially fragile right now."}
         </p>
       </div>
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
-        <TimelineTile label="Warm re-entry paths" value={summary.warm_intro_connections.length ? `${summary.warm_intro_connections.length} contact${summary.warm_intro_connections.length === 1 ? "" : "s"} could help reopen a thread` : "No warm intro paths are mapped yet"} />
-        <TimelineTile label="Thoughtful touchpoints" value={warmMoments ? `${warmMoments} personal or referral moment${warmMoments === 1 ? "" : "s"} could help you reconnect naturally` : "No personal or referral touchpoints are waiting right now"} />
+      <div className="mt-4 space-y-3">
+        <div className="rounded-[1.15rem] border bg-slate-50/80 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Warm re-entry paths</p>
+          <p className="mt-2 text-sm leading-6 text-slate-700">
+            {summary.warm_intro_connections.length
+              ? `${summary.warm_intro_connections.length} contact${summary.warm_intro_connections.length === 1 ? "" : "s"} could help reopen a thread more naturally.`
+              : "No warm intro paths are mapped yet."}
+          </p>
+        </div>
+        {warmMoments ? (
+          <div className="rounded-[1.15rem] border bg-slate-50/80 px-4 py-4">
+            <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">Thoughtful touchpoints</p>
+            <p className="mt-2 text-sm leading-6 text-slate-700">
+              {warmMoments} personal or referral moment{warmMoments === 1 ? "" : "s"} could help you reconnect naturally.
+            </p>
+          </div>
+        ) : null}
       </div>
     </section>
   );
@@ -1389,6 +1416,7 @@ function PriorityCard({
   title,
   body,
   meta,
+  nextMove,
   actionLabel,
   onAction,
 }: {
@@ -1397,6 +1425,7 @@ function PriorityCard({
   title: string;
   body: string;
   meta: string;
+  nextMove?: string;
   actionLabel?: string;
   onAction?: () => void;
 }) {
@@ -1406,6 +1435,7 @@ function PriorityCard({
         <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 [overflow-wrap:anywhere] sm:tracking-[0.18em]">{eyebrow}</p>
         <p className="break-words text-lg font-semibold tracking-tight text-slate-950 [overflow-wrap:anywhere]">{title}</p>
         <p className="mt-2 break-words text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">{body}</p>
+        {nextMove ? <p className="mt-3 break-words text-sm leading-6 text-slate-800 [overflow-wrap:anywhere]"><span className="font-medium text-slate-950">Next move:</span> {nextMove}</p> : null}
         <p className="mt-3 break-words text-xs text-slate-500 [overflow-wrap:anywhere]">{meta}</p>
       </Link>
       {actionLabel && onAction ? (

@@ -641,9 +641,11 @@ def test_crm_helper_branches_cover_reconnect_guidance() -> None:
     reminder_lead = build_follow_up(now=now, relationship_state="warm", reminders=(reminder,), referral_source_name="Nina")
     stale_lead = build_follow_up(now=now, relationship_state="stale", last_meaningful_interaction_at=now - timedelta(days=30))
     stale_without_context = build_follow_up(now=now, relationship_state="stale", last_meaningful_interaction_at=None)
+    stale_without_company = replace(stale_without_context, company_name="   ")
     at_risk_lead = build_follow_up(now=now, relationship_state="at_risk", next_step="check in next week")
     drifting_lead = build_follow_up(now=now, relationship_state="drifting")
     plain_lead = build_follow_up(now=now, relationship_state="warm", reminders=(), last_meaningful_interaction_at=None, next_step="   ")
+    plain_without_company = replace(plain_lead, company_name="   ")
     waiting_thread = LeadEmailThreadSummary(
         thread_id="thread-reconnect",
         subject="Checking in",
@@ -659,7 +661,8 @@ def test_crm_helper_branches_cover_reconnect_guidance() -> None:
     thread_lead = build_follow_up(now=now, relationship_state="drifting", threads=(waiting_thread,))
 
     assert "last meaningful touch" in _build_reconnect_why_now(stale_lead, now)
-    assert "gentle restart would help" in _build_reconnect_why_now(stale_without_context, now)
+    assert "quiet with Example Co" in _build_reconnect_why_now(stale_without_context, now)
+    assert "gentle restart would help" in _build_reconnect_why_now(stale_without_company, now)
     assert "could go cold" in _build_reconnect_why_now(at_risk_lead, now)
     assert "momentum is starting to fade" in _build_reconnect_why_now(drifting_lead, now)
     assert _build_reconnect_why_now(reminder_lead, now) == "Send Nina an update."
@@ -670,7 +673,8 @@ def test_crm_helper_branches_cover_reconnect_guidance() -> None:
     assert "Restart around the last open thread" in _build_reconnect_next_move(build_follow_up(now=now, threads=(replace(waiting_thread, waiting_on_contact=False),)), now)
     assert _build_reconnect_next_move(build_follow_up(now=now, next_step="send a lighter pilot option", threads=()), now) == "Send a lighter pilot option."
     assert "last meaningful touch" in _build_reconnect_next_move(build_follow_up(now=now, next_step="   ", last_meaningful_interaction_at=now - timedelta(days=12), threads=()), now)
-    assert _build_reconnect_next_move(plain_lead, now) == "Keep it simple: acknowledge the gap, offer context, and make the next move easy."
+    assert "where things stand with Example Co" in _build_reconnect_next_move(plain_lead, now)
+    assert _build_reconnect_next_move(plain_without_company, now) == "Keep it simple: acknowledge the gap, offer context, and make the next move easy."
 
     assert "introduction from Nina" in _build_reconnect_message_hint(reminder_lead, now)
     assert "lighter pilot option" in _build_reconnect_message_hint(thread_lead, now)
@@ -678,7 +682,8 @@ def test_crm_helper_branches_cover_reconnect_guidance() -> None:
     context_lead = replace(context_lead, relationship_context_summary="Pricing concerns and rollout timing")
     assert "Pricing concerns and rollout timing" in _build_reconnect_message_hint(context_lead, now)
     assert "12 days ago" in _build_reconnect_message_hint(build_follow_up(now=now, next_step="   ", last_meaningful_interaction_at=now - timedelta(days=12)), now)
-    assert "check back in" in _build_reconnect_message_hint(plain_lead, now)
+    assert "check back in on Example Co" in _build_reconnect_message_hint(plain_lead, now)
+    assert "check back in" in _build_reconnect_message_hint(plain_without_company, now)
 
 
 def test_crm_helper_branches_cover_email_ingest_validation_and_email_variants() -> None:
