@@ -38,10 +38,10 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
                 Open Brivoly Client OS.
               </h1>
             </div>
-            <p className="mt-5 text-base leading-7 text-slate-600">Sign in to pick up every client relationship where you left it.</p>
+            <p className="mt-5 text-base leading-7 text-slate-600">Pick up every client relationship where you left it.</p>
             <div className="mt-6 space-y-3">
-              <SimpleAccessRow label="Inside" value="Today, relationships, inbox memory, and dropzones" />
-              <SimpleAccessRow label="After sign-in" value="Brivoly brings you straight back to Client OS" />
+              <SimpleAccessRow label="Inside" value="Today, relationship memory, inbox context, and dropzones" />
+              <SimpleAccessRow label="Next" value="Brivoly opens Client OS right away" />
             </div>
             <div className="mt-8 flex flex-wrap gap-3">
               {bootstrap?.clerk_sign_up_url ? (
@@ -61,7 +61,7 @@ export default async function SignInPage({ searchParams }: SignInPageProps) {
           ) : (
             <section className="rounded-[1.75rem] border bg-white/85 p-6 shadow-sm">
               <p className="ui-eyebrow">Configuration</p>
-              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">Sign-in is not ready yet</h2>
+              <h2 className="mt-3 text-2xl font-semibold tracking-tight text-slate-950">Sign-in is unavailable</h2>
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 Set <code>CLERK_PUBLISHABLE_KEY</code> so the frontend can render the sign-in form for users.
               </p>
