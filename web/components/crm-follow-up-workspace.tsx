@@ -2254,6 +2254,13 @@ function TodayPrioritiesPanel({
                 : "No new client context landed overnight"
           }
         />
+        {ambientMemorySummary ? (
+          <TodaySignal
+            label="Background memory"
+            value={formatAmbientContinuityState(ambientMemorySummary.continuity_state)}
+            detail={ambientMemorySummary.continuity_summary}
+          />
+        ) : null}
       </div>
       {primaryPriority ? (
         <div className="mt-5 rounded-[1.5rem] border border-slate-900 bg-slate-950 px-5 py-5 text-white shadow-sm">
@@ -2324,6 +2331,22 @@ function TodaySignal({ label, value, detail }: { label: string; value: string; d
       <p className="mt-4 max-w-[24rem] break-words text-sm leading-6 text-slate-700 [overflow-wrap:anywhere]">{detail}</p>
     </div>
   );
+}
+
+function formatAmbientContinuityState(value: string): string {
+  if (value === "attention_needed") {
+    return "Needs care";
+  }
+  if (value === "waiting") {
+    return "Waiting";
+  }
+  if (value === "paused") {
+    return "Paused";
+  }
+  if (value === "warm") {
+    return "Warm";
+  }
+  return "Offline";
 }
 
 function QuickLinkPill({ href, title, body }: { href: string; title: string; body: string }) {
@@ -3769,6 +3792,10 @@ function LeadMemoryPanel({
   const launchHref = buildMailtoHref(emailSubjectDraft, emailBodyDraft);
   const suggestedResponses = buildSuggestedResponsePresets(lead);
   const composerSectionRef = useRef<HTMLElement | null>(null);
+  const threadProviderMismatch =
+    Boolean(selectedThread && preferredMailboxConnection && selectedThread.source !== preferredMailboxConnection.provider);
+  const threadProviderLabel = selectedThread?.source === "gmail" ? "Gmail" : selectedThread?.source === "outlook" ? "Outlook" : null;
+  const sendProviderLabel = preferredMailboxConnection?.provider === "gmail" ? "Gmail" : preferredMailboxConnection?.provider === "outlook" ? "Outlook" : null;
   const [memoryView, setMemoryView] = useState<"overview" | "last_30_days" | "meeting_prep" | "recent_changes" | "recent_upload">(initialMemoryView ?? "overview");
   const memoryPanels = [
     { value: "overview" as const, label: "What matters", body: lead.relationship_context_summary || lead.notes || "No summary yet." },
@@ -3809,6 +3836,11 @@ function LeadMemoryPanel({
         <p className="mt-2 text-sm leading-6 text-slate-600">
           Drafting inside <span className="font-medium text-slate-900">{selectedThread.subject}</span>
           {preferredMailboxConnection ? ` through ${preferredMailboxConnection.provider === "gmail" ? "Gmail" : "Outlook"}.` : "."}
+        </p>
+      ) : null}
+      {threadProviderMismatch && threadProviderLabel && sendProviderLabel ? (
+        <p className="mt-2 rounded-[1rem] border border-amber-200 bg-amber-50 px-4 py-3 text-sm leading-6 text-amber-900">
+          No {threadProviderLabel} mailbox is connected for this thread right now, so Brivoly will send through {sendProviderLabel} and keep the thread attached in relationship memory.
         </p>
       ) : null}
 

@@ -2000,7 +2000,11 @@ class SendLeadFollowUpEmailUseCase:
             thread_id=resolved_thread_id,
             sent_at=current_time,
             overview=overview,
-            continuity_note=receipt.continuity_note if connection.connection_mode == "oauth" else "Saved as an outbound note inside Brivoly's relationship memory.",
+            continuity_note=_build_mailbox_send_continuity_note(
+                base_note=receipt.continuity_note if connection.connection_mode == "oauth" else "Saved as an outbound note inside Brivoly's relationship memory.",
+                selected_thread=selected_thread,
+                connection=saved_connection,
+            ),
         )
 
 
@@ -2019,6 +2023,26 @@ def _require_mailbox_connection(items: list[MailboxConnection], connection_id: s
         if item.id == normalized_connection_id:
             return item
     raise KeyError(normalized_connection_id)
+
+
+def _build_mailbox_send_continuity_note(
+    *,
+    base_note: str,
+    selected_thread: LeadEmailThreadSummary | None,
+    connection: MailboxConnection,
+) -> str:
+    normalized_base_note = base_note.strip()
+    if selected_thread is None or selected_thread.source == connection.provider:
+        return normalized_base_note
+
+    thread_provider_label = "Gmail" if selected_thread.source == "gmail" else "Outlook"
+    send_provider_label = "Gmail" if connection.provider == "gmail" else "Outlook"
+    mismatch_note = (
+        f"This note went out through {send_provider_label} while Brivoly kept it attached to the {thread_provider_label} thread in relationship memory."
+    )
+    if not normalized_base_note:
+        return mismatch_note
+    return f"{normalized_base_note} {mismatch_note}"
 
 
 def _require_calendar_connection(items: list[CalendarConnection], connection_id: str | None) -> CalendarConnection:

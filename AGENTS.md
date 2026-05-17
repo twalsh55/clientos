@@ -175,6 +175,7 @@ cd web && npm run e2e
   - Inbox now honors those recovery routes more directly by focusing and visually lifting the mailbox or calendar memory section Brivoly wants the user to check next, and calendar-only waiting states now route there instead of opening a vague meeting-prep screen without a specific relationship in view
   - the shared ambient-memory summary now also carries an explicit focus hint for mailbox, calendar, or both, so Inbox can follow one Python-owned recovery contract instead of reverse-engineering the right source focus from routes alone
   - that same shared recovery contract now also carries an explicit action kind such as connect, reconnect, resume, sync, or bring in meeting context, so Inbox can visually lift the exact button Brivoly wants next instead of only the section
+  - provider-backed sending now explains when Brivoly had to send through a different provider than the thread originally came from while still keeping the relationship memory attached, and `Today` now shows a direct `Background memory` signal sourced from the shared ambient continuity model
 
 ### Relationship OS Todo
 

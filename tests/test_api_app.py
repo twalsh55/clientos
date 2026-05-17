@@ -1259,6 +1259,33 @@ def test_crm_followup_send_endpoint_returns_continuity_note() -> None:
     assert payload["connection"]["last_sync_status"] == "sent"
 
 
+def test_crm_followup_send_endpoint_explains_cross_provider_thread_memory_continuity() -> None:
+    repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 17, 12, 30, tzinfo=UTC))
+    client = make_client(user=make_user(), lead_follow_up_repository=repository)
+
+    connection = client.post(
+        "/api/crm/inbox/mailboxes/oauth/complete",
+        headers={"Authorization": "Bearer session-token"},
+        json={"provider": "outlook", "code": "auth-code", "state": api_app_module._build_mailbox_oauth_state(make_user(), "outlook", datetime(2024, 5, 6, 12, 30, tzinfo=UTC))},
+    )
+    assert connection.status_code == 200
+
+    response = client.post(
+        "/api/crm/followups/lead-amber-studio/send",
+        headers={"Authorization": "Bearer session-token"},
+        json={
+            "subject": "Quick follow-up",
+            "body": "Wanted to keep this moving without making you dig for context.",
+            "thread_id": "thread-amber-recap",
+        },
+    )
+
+    assert response.status_code == 200
+    payload = response.json()
+    assert "Outlook" in payload["continuity_note"]
+    assert "Gmail thread" in payload["continuity_note"]
+
+
 def test_account_privacy_export_returns_settings_mailboxes_and_relationship_memory() -> None:
     user = make_user()
     repository = InMemoryLeadFollowUpRepository(now=lambda: datetime(2024, 5, 17, 12, 30, tzinfo=UTC))
