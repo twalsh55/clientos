@@ -122,7 +122,8 @@ cd web && npm run e2e
   - first-login business onboarding with skip-for-now path
   - paid image-note intake
   - magic-link remote note capture for phone image uploads
-  - client-facing upload flow with lighter no-login handoff copy and simpler share-link language
+  - client-facing upload flow with lighter no-login handoff copy, simpler share-link language, and camera-friendly mobile capture
+  - relationship history now visually calls out client-shared upload context instead of burying it in generic activity
 
 ### Relationship OS Todo
 

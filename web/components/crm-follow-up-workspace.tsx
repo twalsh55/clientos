@@ -2648,17 +2648,28 @@ function LeadMemoryPanel({
       <section className="mt-6">
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">Relationship history</p>
         <div className="mt-4 space-y-4">
-          {lead.timeline.map((entry) => (
-            <div key={entry.id} className="rounded-[1.35rem] border bg-slate-50/80 p-4">
+          {lead.timeline.map((entry) => {
+            const uploadContext = isUploadTimelineEntry(entry);
+            return (
+            <div
+              key={entry.id}
+              className={`rounded-[1.35rem] border p-4 ${
+                uploadContext ? "border-sky-200 bg-sky-50/80" : "bg-slate-50/80"
+              }`}
+            >
               <div className="flex flex-col gap-2 md:flex-row md:items-center md:justify-between">
-                <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
-                  {entry.kind.replaceAll("_", " ")} · {entry.channel}
-                </p>
+                <div className="flex flex-wrap items-center gap-2">
+                  <p className={`text-xs font-semibold uppercase tracking-[0.2em] ${uploadContext ? "text-sky-700" : "text-slate-400"}`}>
+                    {uploadContext ? "client-shared context" : `${entry.kind.replaceAll("_", " ")} · ${entry.channel}`}
+                  </p>
+                  {uploadContext ? <MiniFlag label={formatUploadHistorySource(entry)} tone="neutral" /> : null}
+                </div>
                 <p className="text-xs text-slate-500">{formatDateTime(entry.occurred_at)}</p>
               </div>
               <p className="mt-3 text-sm leading-6 text-slate-700">{entry.summary}</p>
             </div>
-          ))}
+            );
+          })}
         </div>
       </section>
     </section>
@@ -3231,6 +3242,25 @@ function isReconnectMoment(lead: CRMLeadFollowUp) {
 
 function formatReminderKind(value: string) {
   return value.replaceAll("_", " ");
+}
+
+function isUploadTimelineEntry(entry: CRMLeadFollowUp["timeline"][number]) {
+  const normalizedChannel = entry.channel.trim().toLowerCase();
+  return entry.kind === "import" || normalizedChannel === "magic_link" || normalizedChannel === "image" || normalizedChannel === "telegram";
+}
+
+function formatUploadHistorySource(entry: CRMLeadFollowUp["timeline"][number]) {
+  const normalizedChannel = entry.channel.trim().toLowerCase();
+  if (normalizedChannel === "magic_link") {
+    return "shared link";
+  }
+  if (normalizedChannel === "telegram") {
+    return "phone upload";
+  }
+  if (normalizedChannel === "image") {
+    return "image";
+  }
+  return "imported";
 }
 
 function hasAdvancedAiAccess(billing: BillingOverview | null) {

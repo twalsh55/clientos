@@ -30,6 +30,7 @@ export default async function IntakeMagicLinkPage({ params }: IntakePageProps) {
         <p className="mt-6 max-w-2xl text-base leading-7 text-slate-600">
           Use this page from your phone to send a screenshot, whiteboard photo, handwritten note, or quick file. Brivoly will attach it to the right relationship history so the context is easy to pick back up later.
         </p>
+        <p className="mt-3 max-w-2xl text-sm leading-6 text-slate-500">Open it on your phone, snap or choose a photo, and send it when something changes.</p>
 
         <IntakeMagicLinkUpload token={token} />
       </section>

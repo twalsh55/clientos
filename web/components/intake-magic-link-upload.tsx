@@ -56,17 +56,18 @@ export function IntakeMagicLinkUpload({ token }: { token: string }) {
     <form onSubmit={handleSubmit} className="mt-6 space-y-4 rounded-[1.75rem] border bg-white/92 p-6 shadow-sm">
       <div className="rounded-[1.3rem] border bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-700">
         <p className="font-medium text-slate-900">No login is needed.</p>
-        <p className="mt-1">This is meant for quick screenshots, whiteboard photos, handwritten notes, and other small updates you want to send from your phone.</p>
+        <p className="mt-1">This is meant for quick screenshots, whiteboard photos, handwritten notes, and other small updates you want to send from your phone in a few taps.</p>
       </div>
 
       <div>
         <label htmlFor="intake-file" className="text-sm font-medium text-slate-900">
-          File or screenshot
+          Photo or screenshot
         </label>
         <input
           id="intake-file"
           type="file"
           accept="image/png,image/jpeg,image/webp"
+          capture="environment"
           onChange={(event) => {
             setFile(event.currentTarget.files?.[0] ?? null);
             setState({ kind: "idle", message: null });
@@ -75,10 +76,17 @@ export function IntakeMagicLinkUpload({ token }: { token: string }) {
         />
       </div>
 
+      {file ? (
+        <div className="rounded-[1.3rem] border bg-slate-50 px-4 py-4 text-sm leading-6 text-slate-700">
+          <p className="font-medium text-slate-900">Ready to send</p>
+          <p className="mt-1 break-all">{file.name}</p>
+        </div>
+      ) : null}
+
       <button
         type="submit"
         disabled={state.kind === "submitting"}
-        className="inline-flex items-center rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60"
+        className="inline-flex w-full items-center justify-center rounded-full bg-slate-950 px-5 py-3 text-sm font-medium text-white transition hover:bg-slate-800 disabled:cursor-not-allowed disabled:opacity-60 sm:w-auto"
       >
         {state.kind === "submitting" ? "Sending..." : "Send update"}
       </button>
