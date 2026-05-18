@@ -36,7 +36,14 @@ export type CRMWorkspaceView =
   | "import"
   | "intake";
 type CRMIntakeTask = "hub" | "profile" | "routing" | "capture";
-type RelationshipFilter = "all" | "due" | "stale" | "at_risk";
+type RelationshipFilter =
+  | "all"
+  | "due"
+  | "reply"
+  | "fresh_context"
+  | "open_loop"
+  | "stale"
+  | "at_risk";
 type InboxFilter =
   | "all"
   | "reply"
@@ -1803,13 +1810,16 @@ export function CRMFollowUpWorkspace({
                 <input
                   value={relationshipQuery}
                   onChange={(event) => setRelationshipQuery(event.target.value)}
-                  placeholder="Search client, company, notes, owner, or next step"
+                  placeholder="Search client, company, notes, open loop, upload context, or next step"
                   className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
                 />
                 <div className="flex flex-wrap gap-2">
                   {[
                     { value: "all", label: "All" },
                     { value: "due", label: "Today" },
+                    { value: "reply", label: "Reply soon" },
+                    { value: "fresh_context", label: "Fresh context" },
+                    { value: "open_loop", label: "Open loop" },
                     { value: "stale", label: "Reconnect" },
                     { value: "at_risk", label: "At risk" },
                   ].map((item) => (
@@ -1951,6 +1961,41 @@ export function CRMFollowUpWorkspace({
                           }
                         >
                           Draft reconnect
+                        </Button>
+                      ) : null}
+                      {hasOpenLoop(item) &&
+                      !item.recent_email_threads.some(
+                        (thread) => thread.needs_reply,
+                      ) ? (
+                        <Button
+                          variant="outline"
+                          onClick={() =>
+                            runTodayPriorityAction(
+                              item.id,
+                              "/clientos/follow-ups",
+                              {
+                                objective: "close_loop",
+                                tone: "direct",
+                                length: "short",
+                                status:
+                                  "Drafting a close-the-loop note from relationship memory...",
+                              },
+                              undefined,
+                              getReplyThread(item)?.thread_id ??
+                                getNewestThread(item)?.thread_id ??
+                                null,
+                            )
+                          }
+                        >
+                          Close loop
+                        </Button>
+                      ) : null}
+                      {hasRecentUploadContext(item) ? (
+                        <Button
+                          variant="outline"
+                          onClick={() => setSelectedLeadId(item.id)}
+                        >
+                          Review context
                         </Button>
                       ) : null}
                       <Button
@@ -6932,6 +6977,12 @@ function hasRecentUploadContext(item: CRMLeadFollowUp) {
   return Date.now() - latest <= 1000 * 60 * 60 * 24 * 3;
 }
 
+function hasOpenLoop(item: CRMLeadFollowUp) {
+  return item.recent_email_threads.some((thread) =>
+    Boolean(thread.open_loop.trim() || thread.unresolved_hint.trim()),
+  );
+}
+
 function getLeadCardWhyNow(item: CRMLeadFollowUp) {
   if (item.recent_email_threads.some((thread) => thread.needs_reply)) {
     return (
@@ -6955,6 +7006,16 @@ function getLeadCardWhyNow(item: CRMLeadFollowUp) {
     );
   }
   return item.relationship_timing_nudge || item.next_step;
+}
+
+function getNewestThread(item: CRMLeadFollowUp) {
+  return (
+    [...item.recent_email_threads].sort(
+      (left, right) =>
+        new Date(right.last_message_at).getTime() -
+        new Date(left.last_message_at).getTime(),
+    )[0] ?? null
+  );
 }
 
 function getLeadCardStory(item: CRMLeadFollowUp) {
@@ -7195,6 +7256,15 @@ function matchesRelationshipFilter(
   }
   if (filter === "due") {
     return isDueNow(item.next_follow_up_at);
+  }
+  if (filter === "reply") {
+    return item.recent_email_threads.some((thread) => thread.needs_reply);
+  }
+  if (filter === "fresh_context") {
+    return hasFreshContext(item) || hasRecentUploadContext(item);
+  }
+  if (filter === "open_loop") {
+    return hasOpenLoop(item);
   }
   if (filter === "stale") {
     return item.relationship_state === "stale";
