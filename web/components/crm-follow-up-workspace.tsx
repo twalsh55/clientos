@@ -2946,29 +2946,29 @@ function CRMViewHeader({ view }: { view: CRMWorkspaceView }) {
       body: "See where attention matters now, what may be slipping, and which warm follow-through is most worth making first.",
     },
     followups: {
-      eyebrow: "Relationship memory",
+      eyebrow: "Relationships",
       title: "Keep the story, the next touch, and the latest context together.",
-      body: "Keep notes, recent changes, and the next move in one place so continuity does not depend on your memory alone.",
+      body: "Keep notes, recent changes, and the cleanest next move close enough that continuity does not depend on your memory alone.",
     },
     inbox: {
       eyebrow: "Inbox",
-      title: "Let email quietly keep relationship memory up to date.",
+      title: "Let email quietly keep the relationship story up to date.",
       body: "Brivoly turns inbox activity into context, summaries, and follow-through without asking you to log everything by hand.",
     },
     pipeline: {
       eyebrow: "Attention",
       title: "Protect quiet relationships before they cool off.",
-      body: "Use this page to spot reply pressure, quiet threads, and gentle reopening moments before warmth slips out of the relationship.",
+      body: "Use this page to spot reply pressure, quiet threads, and gentle reopening moments before the relationship drifts too far out of reach.",
     },
     import: {
       eyebrow: "Saved context",
       title:
-        "Bring older client context back into memory without extra cleanup.",
+        "Bring older client context back into the story without extra cleanup.",
       body: "Upload spreadsheets and raw note images, let Brivoly make sense of them, and only keep what supports better follow-through.",
     },
     intake: {
       eyebrow: "Dropzones",
-      title: "Make it easy for clients to send context when it matters.",
+      title: "Give clients one easy place to send context when it matters.",
       body: "Use no-login upload links, simple default paths, and mobile-first capture so updates land in relationship memory without extra back-and-forth.",
     },
   }[view];
@@ -3733,12 +3733,12 @@ function TodayPrioritiesPanel({
       <div className="mt-5 flex flex-wrap gap-3">
         <QuickLinkPill
           href="/clientos/follow-ups"
-          title="Relationship memory"
+          title="Relationships"
           body="Keep the last touch, the next touch, and the full story together."
         />
         <QuickLinkPill
           href="/clientos/inbox"
-          title="Inbox continuity"
+          title="Inbox"
           body="Let email carry the thread forward without extra logging."
         />
       </div>

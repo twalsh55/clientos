@@ -10,32 +10,32 @@ const items = [
   {
     href: "/clientos",
     label: "Today",
-    body: "Start with the relationship that matters most",
+    body: "Start with the one relationship that matters most today",
   },
   {
     href: "/clientos/follow-ups",
     label: "Relationships",
-    body: "Pick back up with context intact",
+    body: "Pick the story back up with the latest context intact",
   },
   {
     href: "/clientos/inbox",
     label: "Inbox",
-    body: "Keep email threads and next replies in view",
+    body: "Stay inside live threads without losing the next reply",
   },
   {
     href: "/clientos/pipeline",
     label: "Attention",
-    body: "Protect the relationships starting to cool off",
+    body: "Notice quiet relationships before warmth slips further",
   },
   {
     href: "/clientos/import",
     label: "Saved context",
-    body: "Bring older notes and sheets back into memory",
+    body: "Bring older notes, sheets, and rough context back into the story",
   },
   {
     href: "/clientos/intake",
     label: "Dropzones",
-    body: "Keep simple client handoff pages ready",
+    body: "Leave clients one easy place to send updates",
   },
 ];
 
