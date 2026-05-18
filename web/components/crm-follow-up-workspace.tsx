@@ -4375,6 +4375,7 @@ function InboxActivityPanel({
         isUnresolvedThread(thread)
       ),
   );
+  const primaryUrgentThread = urgentThreads[0] ?? null;
 
   return (
     <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm">
@@ -4483,6 +4484,78 @@ function InboxActivityPanel({
           </div>
         </div>
       </div>
+      {primaryUrgentThread ? (
+        <div className="mt-6 rounded-[1.5rem] border border-slate-900 bg-slate-950 px-5 py-5 text-white shadow-sm">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-cyan-200">
+            Start here
+          </p>
+          <div className="mt-3 flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-2xl font-semibold tracking-tight">
+                {primaryUrgentThread.leadName}
+              </p>
+              <p className="mt-1 text-sm text-slate-300">
+                {primaryUrgentThread.companyName}
+              </p>
+              <p className="mt-3 text-sm leading-6 text-slate-200">
+                {primaryUrgentThread.thread.relationship_pulse}
+              </p>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <TimelineTileDark
+                  label="One read"
+                  value={buildThreadOneRead(primaryUrgentThread.thread)}
+                />
+                <TimelineTileDark
+                  label="Reply angle"
+                  value={buildThreadReplyAngle(primaryUrgentThread.thread)}
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 lg:justify-end">
+              <Button
+                type="button"
+                onClick={() =>
+                  onDraftAction(
+                    primaryUrgentThread.leadId,
+                    primaryUrgentThread.thread.needs_reply
+                      ? {
+                          objective: "follow_up",
+                          tone: "warm",
+                          length: "short",
+                          status: "Drafting a reply from Inbox...",
+                        }
+                      : {
+                          objective: "revive",
+                          tone: "warm",
+                          length: "short",
+                          status: "Drafting a reconnect from Inbox...",
+                        },
+                    primaryUrgentThread.thread.thread_id,
+                  )
+                }
+                className="border border-white/20 bg-white text-slate-950 hover:bg-slate-100"
+              >
+                {primaryUrgentThread.thread.needs_reply
+                  ? "Draft reply"
+                  : "Draft reconnect"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                className="border-white/20 bg-transparent text-white hover:bg-white/10 hover:text-white"
+                onClick={() =>
+                  onSelectLead(
+                    primaryUrgentThread.leadId,
+                    primaryUrgentThread.thread.thread_id,
+                  )
+                }
+              >
+                Open relationship
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
       <div className="mt-6 space-y-6">
         {urgentThreads.length ? (
           <div>
@@ -4586,6 +4659,7 @@ function InboxThreadCard({
   const { leadId, leadName, companyName, stage, thread } = item;
   const oneRead = buildThreadOneRead(thread);
   const replyAngle = buildThreadReplyAngle(thread);
+  const latestStory = thread.recent_change_hint || thread.continuity_memory;
 
   return (
     <div
@@ -4603,7 +4677,7 @@ function InboxThreadCard({
         <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
           <div className="min-w-0">
             <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-              {formatStageLabel(stage)} ·{" "}
+              {thread.needs_reply ? "Reply pressure" : "Thread continuity"} ·{" "}
               {thread.last_message_direction === "inbound"
                 ? "Needs your reply"
                 : "Waiting on them"}
@@ -4662,6 +4736,10 @@ function InboxThreadCard({
         </div>
         <div className="mt-4 grid gap-3 lg:grid-cols-2">
           <TimelineTile label="Brivoly read" value={thread.next_touch_hint} />
+          <TimelineTile
+            label="Latest saved moment"
+            value={latestStory || thread.memory_summary}
+          />
           <TimelineTile label="Reply angle" value={replyAngle} />
           <TimelineTile label="Open loop" value={thread.open_loop} />
           <TimelineTile
