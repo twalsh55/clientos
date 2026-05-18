@@ -6462,6 +6462,56 @@ function RemoteImageCapturePanel({
               </Button>
             </div>
             <div className="mt-4 rounded-[1rem] border bg-white px-4 py-4">
+              <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
+                <div className="max-w-2xl">
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                    What the client sees
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-700">
+                    The handoff page opens straight into a phone-friendly update
+                    flow: open the link, send the context, and move on.
+                  </p>
+                </div>
+                <Button asChild variant="outline">
+                  <a
+                    href={intakeChannel.magic_link_url}
+                    target="_blank"
+                    rel="noreferrer"
+                  >
+                    Open handoff page
+                  </a>
+                </Button>
+              </div>
+              <div className="mt-4 grid gap-3 md:grid-cols-3">
+                {[
+                  {
+                    step: "Open",
+                    body: "The client lands on the page without logging in or explaining where the update belongs.",
+                  },
+                  {
+                    step: "Send",
+                    body: "They can drop in a screenshot, whiteboard photo, or quick note from the device already in hand.",
+                  },
+                  {
+                    step: "Move on",
+                    body: "Brivoly folds the update back into the relationship story so you can use it in Today and the next touch.",
+                  },
+                ].map((item) => (
+                  <div
+                    key={item.step}
+                    className="rounded-[1rem] border bg-slate-50/70 px-4 py-4"
+                  >
+                    <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                      {item.step}
+                    </p>
+                    <p className="mt-2 text-sm leading-6 text-slate-700">
+                      {item.body}
+                    </p>
+                  </div>
+                ))}
+              </div>
+            </div>
+            <div className="mt-4 rounded-[1rem] border bg-white px-4 py-4">
               <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
                 Share note preview
               </p>
