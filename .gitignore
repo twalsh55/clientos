@@ -22,3 +22,5 @@ web/test-results/
 
 # Local runtime artifacts
 var/
+HANDOFF.md
+artifacts/
