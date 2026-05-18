@@ -4913,7 +4913,7 @@ function RemoteImageCapturePanel({
         Client dropzone
       </p>
       <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-        Keep one low-friction handoff page ready.
+        Keep one low-friction client handoff page ready.
       </h2>
       <p className="mt-3 text-sm leading-6 text-slate-600">
         Brivoly gives you one simple no-login page for screenshots, whiteboard
@@ -5005,8 +5005,8 @@ function RemoteImageCapturePanel({
               </Button>
             </div>
             <p className="mt-3 text-xs text-slate-500">
-              Share the link once, then keep reusing it. No login or account
-              setup is required.
+              Share the link once, then keep reusing it. No login or extra
+              account steps are required.
             </p>
             {shareStatus ? (
               <p className="mt-2 text-sm text-slate-600">{shareStatus}</p>
@@ -5107,7 +5107,7 @@ function IntakeTaskHub({
         body={
           advancedAiUnlocked
             ? "Your AI memory defaults are ready. Keep them close to what clients actually send."
-            : "Unlock the paid AI layer before relying on note images and messy files to bring client context back in."
+            : "Turn on the paid AI layer before relying on note images and messy files to bring client context back in."
         }
       />
       <TaskSummaryCard
@@ -5188,7 +5188,7 @@ function IntakeRoutingPanel({
         Usual path
       </p>
       <h2 className="mt-3 text-3xl font-semibold tracking-tight text-slate-950">
-        Set the easiest path once.
+        Keep the easiest handoff path ready.
       </h2>
       <p className="mt-3 text-sm leading-6 text-slate-600">
         Keep this simple: choose the usual paths for this account and leave one
@@ -5254,7 +5254,7 @@ function IntakeRoutingPanel({
         </div>
         <label className="block">
           <span className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
-            What to tell clients
+            Share note
           </span>
           <textarea
             value={routingNotesDraft}
@@ -5275,8 +5275,8 @@ function IntakeRoutingPanel({
       </div>
       {!canPersistSettings ? (
         <p className="mt-3 text-sm text-slate-500">
-          These suggestions will appear once your account details finish
-          loading.
+          These defaults will appear once Brivoly finishes loading your account
+          details.
         </p>
       ) : null}
     </section>
@@ -5333,14 +5333,14 @@ function AIIntakePanel({
         >
           {advancedAiUnlocked
             ? "Advanced AI unlocked"
-            : "Advanced AI paywalled"}
+            : "Advanced AI locked"}
         </div>
       </div>
 
       {!advancedAiUnlocked ? (
         <div className="mt-5 rounded-[1.3rem] border border-amber-200 bg-amber-50 px-4 py-4 text-sm leading-6 text-amber-900">
           AI-assisted file, spreadsheet, and image interpretation stays behind a
-          paid plan. Current billing status:{" "}
+          paid plan for now. Current billing status:{" "}
           {formatBillingStatusLabel(billingStatus)}.
         </div>
       ) : null}
@@ -5383,7 +5383,7 @@ function AIIntakePanel({
                 "spreadsheet_screenshot, whiteboard_photo, handwritten_note",
             },
             {
-              label: "Ops-heavy",
+              label: "Files + screenshots",
               value: "csv, google_sheets, pdf_export, spreadsheet_screenshot",
             },
           ].map((preset) => (
@@ -5431,7 +5431,8 @@ function AIIntakePanel({
       </div>
       {!canPersistSettings ? (
         <p className="mt-3 text-sm text-slate-500">
-          These suggestions will appear once account settings finish loading.
+          These defaults will appear once Brivoly finishes loading account
+          settings.
         </p>
       ) : null}
     </section>
