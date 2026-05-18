@@ -8112,7 +8112,21 @@ function LeadMemoryPanel({
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
             Context on hand
           </p>
-          <p className="mt-2 text-sm leading-6 text-slate-700">{lead.notes}</p>
+          <p className="mt-2 text-sm leading-6 text-slate-700">
+            {lead.notes.trim()
+              ? lead.notes
+              : "No extra notes are saved here yet. Brivoly is leaning on the timeline, email memory, and client-shared context instead."}
+          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <TimelineTile
+              label="Best place to restart"
+              value={storyNextTouch}
+            />
+            <TimelineTile
+              label="Latest saved moment"
+              value={getLeadCardStory(lead)}
+            />
+          </div>
           {lead.relationship_recent_upload_summary ? (
             <div className="mt-4 rounded-[1rem] border bg-slate-50/80 px-4 py-4">
               <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
