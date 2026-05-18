@@ -5911,6 +5911,9 @@ function RemoteImageCapturePanel({
   const shareMessage = shareLink
     ? `Whenever you want to send a quick update, screenshot, or note, just use this page: ${shareLink}`
     : "";
+  const shareTextMessage = shareLink
+    ? `Quickest path: open this link on your phone and send the screenshot or note there. ${shareLink}`
+    : "";
 
   async function copyText(value: string, successMessage: string) {
     if (!value) {
@@ -5969,6 +5972,39 @@ function RemoteImageCapturePanel({
           </p>
         </div>
       </div>
+      <div className="mt-5 rounded-[1.3rem] border bg-slate-50 px-4 py-4">
+        <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+          What the client experience feels like
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-3">
+          {[
+            {
+              step: "Open",
+              body: "They tap one link on their phone instead of being asked to sign in or explain where the update belongs.",
+            },
+            {
+              step: "Send",
+              body: "They drop in a screenshot, whiteboard photo, or quick note while the context is still fresh.",
+            },
+            {
+              step: "Move on",
+              body: "Brivoly folds it back into relationship memory so you can use it later without chasing the file again.",
+            },
+          ].map((item) => (
+            <div
+              key={item.step}
+              className="rounded-[1rem] border bg-white px-4 py-4"
+            >
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                {item.step}
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-700">
+                {item.body}
+              </p>
+            </div>
+          ))}
+        </div>
+      </div>
 
       <div className="mt-5 rounded-[1.3rem] border bg-slate-50 px-4 py-4">
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
@@ -6022,6 +6058,28 @@ function RemoteImageCapturePanel({
               >
                 Copy share note
               </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  copyText(shareTextMessage, "Text-friendly note copied.")
+                }
+              >
+                Copy text message
+              </Button>
+            </div>
+            <div className="mt-4 rounded-[1rem] border bg-white px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                Share note preview
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-700">
+                {shareMessage ||
+                  "Once the handoff link is live, Brivoly will give you a short share note you can paste into email, chat, or text."}
+              </p>
+              <p className="mt-3 text-xs text-slate-500">
+                Keep it short. Clients should understand the next step without
+                reading instructions twice.
+              </p>
             </div>
             <p className="mt-3 text-xs text-slate-500">
               Share the link once, then keep reusing it. No login or extra
