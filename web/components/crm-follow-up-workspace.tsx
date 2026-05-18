@@ -5916,6 +5916,14 @@ function InboxThreadCard({
             <p className="mt-3 text-sm leading-6 text-slate-600">
               {thread.continuity_span}
             </p>
+            <div className="mt-3 rounded-[1rem] border bg-white px-4 py-3">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                Smallest next move
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-700">
+                {replyAngle}
+              </p>
+            </div>
             {thread.carry_forward_hint ? (
               <p className="mt-3 text-sm leading-6 text-slate-700">
                 {thread.carry_forward_hint}
