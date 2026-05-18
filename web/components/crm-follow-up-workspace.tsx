@@ -6625,6 +6625,10 @@ function LeadMemoryPanel({
   const launchHref = buildMailtoHref(emailSubjectDraft, emailBodyDraft);
   const suggestedResponses = buildSuggestedResponsePresets(lead);
   const composerSectionRef = useRef<HTMLElement | null>(null);
+  const storySpineSectionRef = useRef<HTMLElement | null>(null);
+  const keyMomentsSectionRef = useRef<HTMLElement | null>(null);
+  const uploadHistorySectionRef = useRef<HTMLElement | null>(null);
+  const fullTimelineSectionRef = useRef<HTMLElement | null>(null);
   const threadProviderMismatch = Boolean(
     selectedThread &&
     preferredMailboxConnection &&
@@ -6744,6 +6748,13 @@ function LeadMemoryPanel({
     }
   }, [initialMemoryView, lead.id]);
 
+  const jumpToSection = (section: { current: HTMLElement | null }) => {
+    section.current?.scrollIntoView({
+      behavior: "smooth",
+      block: "start",
+    });
+  };
+
   return (
     <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm">
       <p className="text-xs font-semibold uppercase tracking-[0.24em] text-slate-400">
@@ -6830,6 +6841,52 @@ function LeadMemoryPanel({
               Prepare from continuity
             </Button>
           ) : null}
+        </div>
+        <div className="mt-4 rounded-[1rem] border bg-white px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+            Jump into the story
+          </p>
+          <div className="mt-3 flex flex-wrap gap-2">
+            <button
+              type="button"
+              onClick={() => jumpToSection(storySpineSectionRef)}
+              className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 transition hover:border-slate-400 hover:bg-white hover:text-slate-950"
+            >
+              Start with the story spine
+            </button>
+            {keyTimelineMoments.length ? (
+              <button
+                type="button"
+                onClick={() => jumpToSection(keyMomentsSectionRef)}
+                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 transition hover:border-slate-400 hover:bg-white hover:text-slate-950"
+              >
+                Key moments
+              </button>
+            ) : null}
+            {uploadTimelineEntries.length ? (
+              <button
+                type="button"
+                onClick={() => jumpToSection(uploadHistorySectionRef)}
+                className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 transition hover:border-slate-400 hover:bg-white hover:text-slate-950"
+              >
+                Client-shared history
+              </button>
+            ) : null}
+            <button
+              type="button"
+              onClick={() => jumpToSection(fullTimelineSectionRef)}
+              className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 transition hover:border-slate-400 hover:bg-white hover:text-slate-950"
+            >
+              Full timeline
+            </button>
+            <button
+              type="button"
+              onClick={() => jumpToSection(composerSectionRef)}
+              className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 transition hover:border-slate-400 hover:bg-white hover:text-slate-950"
+            >
+              Composer
+            </button>
+          </div>
         </div>
       </section>
 
@@ -7077,6 +7134,35 @@ function LeadMemoryPanel({
         </section>
       ) : null}
 
+      <section
+        ref={storySpineSectionRef}
+        className="mt-6 rounded-[1.5rem] border bg-white p-5"
+      >
+        <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
+          Story spine
+        </p>
+        <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+          Read the relationship in one pass before drafting.
+        </h3>
+        <p className="mt-2 max-w-3xl text-sm leading-6 text-slate-600">
+          This is the shortest route through what happened, what shifted, what
+          still needs attention, and where the next note should begin.
+        </p>
+        <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <TimelineTile
+            label="What happened"
+            value={
+              latestMeaningfulEntry
+                ? `${formatTimelineEntryLabel(latestMeaningfulEntry)} · ${latestMeaningfulEntry.summary}`
+                : "No saved relationship history yet."
+            }
+          />
+          <TimelineTile label="What changed" value={prepRecentShift} />
+          <TimelineTile label="What still needs attention" value={storyOpenLoop} />
+          <TimelineTile label="Where the next note starts" value={storyNextTouch} />
+        </div>
+      </section>
+
       <section className="mt-6 rounded-[1.5rem] border bg-slate-50 p-5">
         <p className="ui-eyebrow">Relationship memory</p>
         <div className="mt-3 flex flex-wrap gap-2">
@@ -7144,7 +7230,10 @@ function LeadMemoryPanel({
       </section>
 
       {keyTimelineMoments.length ? (
-        <section className="mt-6 rounded-[1.5rem] border bg-white p-5">
+        <section
+          ref={keyMomentsSectionRef}
+          className="mt-6 rounded-[1.5rem] border bg-white p-5"
+        >
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
             Key moments
           </p>
@@ -7160,7 +7249,10 @@ function LeadMemoryPanel({
       ) : null}
 
       {uploadTimelineEntries.length ? (
-        <section className="mt-6 rounded-[1.5rem] border bg-sky-50/50 p-5">
+        <section
+          ref={uploadHistorySectionRef}
+          className="mt-6 rounded-[1.5rem] border bg-sky-50/50 p-5"
+        >
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-sky-700">
             Client-shared history
           </p>
@@ -7214,7 +7306,10 @@ function LeadMemoryPanel({
         </section>
       ) : null}
 
-      <section className="mt-6 rounded-[1.5rem] border bg-white p-5">
+      <section
+        ref={fullTimelineSectionRef}
+        className="mt-6 rounded-[1.5rem] border bg-white p-5"
+      >
         <p className="text-xs font-semibold uppercase tracking-[0.2em] text-slate-400">
           Full timeline
         </p>
