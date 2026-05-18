@@ -1024,7 +1024,7 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
                 intake_channel=None,
                 intake_caption=None,
                 magic_link_url=None,
-                instructions="Remote note capture is unavailable until CRM_INTAKE_SECRET and the Telegram bot are configured.",
+                instructions="Remote handoff capture is unavailable until CRM_INTAKE_SECRET and the Telegram bot are configured.",
             )
             return dto.model_dump()
         intake_token = _build_crm_intake_token(user.id, secret)
@@ -1035,7 +1035,7 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
             magic_link_url=f"{get_app_base_url().rstrip('/')}/intake/{intake_token}",
             instructions=(
                 "Open this secure link on your phone, upload a note photo or screenshot, "
-                "and Brivoly will import it into your CRM queue using your saved AI Intake Profile."
+                "and Brivoly will bring it back into relationship memory using your saved AI Intake Profile."
             ),
         )
         return dto.model_dump()
@@ -1056,7 +1056,7 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
             "imported_count": result.imported_count,
             "skipped_duplicates": result.skipped_duplicates,
             "skipped_invalid": result.skipped_invalid,
-            "message": "Brivoly imported your note image into CRM.",
+            "message": "Brivoly brought your note image into relationship memory.",
         }
 
     @app.get("/api/account/billing")
@@ -1685,7 +1685,7 @@ def _commit_crm_image_intake(
 ):
     secret = _get_crm_intake_secret()
     if not secret:
-        raise ValueError("Remote CRM note capture is not configured yet.")
+        raise ValueError("Remote handoff capture is not configured yet.")
     if not _is_supported_crm_image_file_name(file_name):
         raise ValueError("Upload a supported image file: .png, .jpg, .jpeg, or .webp.")
     if not file_bytes:
@@ -1694,10 +1694,10 @@ def _commit_crm_image_intake(
     user_id = _parse_crm_intake_token(intake_token, secret)
     user_repository = deps.user_repository_factory()
     if user_repository is None:
-        raise ValueError("Remote CRM note capture needs the app database to be configured.")
+        raise ValueError("Remote handoff capture needs the app database to be configured.")
     user = user_repository.get_user_by_id(user_id)
     if user is None:
-        raise ValueError("That CRM intake link no longer points to an active Brivoly account.")
+        raise ValueError("That Brivoly handoff link no longer points to an active account.")
     _ensure_advanced_ai_intake_access(user, deps)
     settings = GetUserDashboardSettingsUseCase(
         repository=deps.personalization_repository_factory(),
@@ -1730,14 +1730,14 @@ def _run_telegram_crm_image_intake(
     try:
         secret = _get_crm_intake_secret()
         if not secret:
-            raise ValueError("Remote CRM note capture is not configured yet.")
+            raise ValueError("Remote handoff capture is not configured yet.")
         user_id = _parse_crm_intake_token(intake.intake_token, secret)
         user_repository = deps.user_repository_factory()
         if user_repository is None:
-            raise ValueError("Remote CRM note capture needs the app database to be configured.")
+            raise ValueError("Remote handoff capture needs the app database to be configured.")
         user = user_repository.get_user_by_id(user_id)
         if user is None:
-            raise ValueError("That CRM intake link no longer points to an active Brivoly account.")
+            raise ValueError("That Brivoly handoff link no longer points to an active account.")
         _ensure_advanced_ai_intake_access(user, deps)
         bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
         if not bot_token:
@@ -1750,7 +1750,7 @@ def _run_telegram_crm_image_intake(
             deps=deps,
         )
         notifier.send_message(
-            "Brivoly imported your note image into CRM.\n"
+            "Brivoly brought your note image into relationship memory.\n"
             f"Imported: {result.imported_count}\n"
             f"Skipped duplicates: {result.skipped_duplicates}\n"
             f"Skipped invalid: {result.skipped_invalid}"
@@ -1758,7 +1758,7 @@ def _run_telegram_crm_image_intake(
     except (EmailNotificationError, TelegramNotificationError, ValueError, RuntimeError) as exc:
         api_logger.exception("Telegram CRM image intake failed", exc_info=exc)
         try:
-            notifier.send_message(f"CRM note import failed: {exc}")
+            notifier.send_message(f"Brivoly handoff import failed: {exc}")
         except TelegramNotificationError:
             return
 
