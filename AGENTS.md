@@ -113,11 +113,13 @@ cd web && npm run e2e
   - mailbox beta now includes real Gmail / Outlook OAuth-ready connection start/complete routes, provider-backed sync for OAuth-linked accounts, provider-watch event callbacks, and provider-backed sending through Gmail API / Microsoft Graph when those accounts are connected
   - calendar beta now includes durable Google Calendar / Outlook Calendar connection records plus meeting-event ingest into relationship memory so upcoming conversations can feed Today and meeting prep
   - connected mailbox cards now support disconnecting accounts, pausing or resuming scheduled background sync per mailbox, refreshing provider watch coverage, and clearer reauth / health-state visibility without losing the saved relationship memory
+  - connected mailbox and calendar cards now also surface a clearer `what Brivoly sees` / `smallest useful fix` continuity read, so recovering quiet, paused, or reconnect-needed memory is easier than scanning raw sync fields
   - connected mailbox cards now also surface reconnect-needed and stale-sync cues more explicitly, including a direct reconnect path for OAuth inboxes when Brivoly can no longer quietly refresh them
   - connected calendar cards now support connect/disconnect, pause/resume background meeting memory, and a lightweight meeting-ingest path for bringing scheduled conversations straight into relationship memory
   - connected calendar cards now also keep track of the latest meeting context they saved, surface when meeting memory has gone quiet, and help Today / Attention distinguish between truly warm calendar context and merely connected calendar coverage
   - manual mailbox connection still exists as a fallback beta path when provider credentials are not configured yet
   - inbox cards now surface backend-driven relationship pulse, open-loop memory, thread continuity cues, `what changed` hints, unresolved-thread cues, a clearer long-thread `through-line`, and a carry-forward cue for longer threads, grouped into `Needs you now` and `Still warm`
+  - Inbox now also gives inbox-created relationships their own `New from email` lane and filter so live email activity can turn into relationship memory without disappearing into the generic thread list
   - inbox thread cards and the inbox-side next-move view now surface a tighter `One read` summary plus a clearer `Reply angle`, so longer threads are easier to trust and answer from the list itself
   - Inbox now also lifts the most urgent thread into a `Start here` spotlight so the first reply or reconnect can happen from one high-context card instead of a long scan
   - Inbox now also makes it easier to move in and out of filtered views with a direct `waiting` focus, clearer reset actions, and less fiddly search recovery when a narrowed view comes back empty
@@ -146,6 +148,7 @@ cd web && npm run e2e
   - relationship pages now surface upcoming meeting-like moments with a direct `Prepare me` path into the meeting-prep memory view when Brivoly detects that a near-term next touch looks like a call, demo, review, or sync
   - relationship pages now turn meeting prep into a fuller continuity view by pulling the freshest thread signal, open loop, latest saved moment, and client-shared context into one preparation surface
   - relationship pages now bring the full timeline ahead of drafting and note capture so the running story is easier to read before composing the next touch
+  - relationship pages now also include a lightweight `Jump into the story` path and a `Story spine` summary so the fastest route into key moments, client-shared history, the full timeline, and the composer starts from the relationship story itself
   - explicit calendar events now land as `meeting` timeline context, can temporarily become the next prep moment, and feed the existing meeting-prep summary layer instead of living in a separate calendar silo
   - recent client-shared context now has its own memory view, can be pulled straight into the next drafted note, generates a backend-driven follow-through hint, creates a more natural reconnect path, and now plays a bigger role in meeting prep, 30-day summaries, follow-through guidance, Today priorities, and inbox-side next moves
   - auto note designer for reconnects and follow-ups with in-app draft editing

@@ -50,7 +50,8 @@ type InboxFilter =
   | "waiting"
   | "quiet"
   | "unresolved"
-  | "long_thread";
+  | "long_thread"
+  | "new_from_inbox";
 type TodayDraftPreset = {
   objective: CRMEmailDraft["objective"];
   tone: CRMEmailDraft["tone"];
@@ -4876,6 +4877,11 @@ function InboxActivityPanel({
   const quietCount =
     inboxSummary?.stale_thread_count ??
     filteredThreads.filter(({ thread }) => isQuietThread(thread)).length;
+  const inboxCreatedRelationships = items
+    .filter((item) => isInboxCreatedRelationship(item))
+    .sort(
+      (left, right) => getNewestThreadTimestamp(right) - getNewestThreadTimestamp(left),
+    );
   const urgentThreads = filteredThreads.filter(
     ({ thread }) =>
       thread.needs_reply ||
@@ -4974,6 +4980,13 @@ function InboxActivityPanel({
         >
           Focus long threads
         </button>
+        <button
+          type="button"
+          onClick={() => onInboxFilterChange("new_from_inbox")}
+          className="rounded-full border border-slate-200 bg-slate-50 px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 transition hover:border-slate-400 hover:bg-white hover:text-slate-950"
+        >
+          Focus new from email
+        </button>
       </div>
       <div className="mt-5 rounded-[1.35rem] border bg-slate-50/80 p-4">
         <div className="grid gap-3 lg:grid-cols-[1.2fr_auto] lg:items-center">
@@ -5005,6 +5018,7 @@ function InboxActivityPanel({
               { value: "quiet", label: "Quiet" },
               { value: "unresolved", label: "Open loop" },
               { value: "long_thread", label: "Long thread" },
+              { value: "new_from_inbox", label: "New from email" },
             ].map((item) => (
               <button
                 key={item.value}
@@ -5091,6 +5105,109 @@ function InboxActivityPanel({
                 Open relationship
               </Button>
             </div>
+          </div>
+        </div>
+      ) : null}
+      {inboxCreatedRelationships.length ? (
+        <div className="mt-6 rounded-[1.5rem] border bg-sky-50/60 p-4">
+          <div className="flex flex-col gap-2 md:flex-row md:items-end md:justify-between">
+            <div>
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+                New from email
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-600">
+                These relationships were pulled into Client OS from live inbox
+                activity, so you can turn a real thread into relationship
+                memory without re-entering the basics.
+              </p>
+            </div>
+            <p className="text-xs text-slate-500">
+              {inboxCreatedRelationships.length} relationship
+              {inboxCreatedRelationships.length === 1 ? "" : "s"}
+            </p>
+          </div>
+          <div className="mt-4 grid gap-3 xl:grid-cols-2">
+            {inboxCreatedRelationships.slice(0, 4).map((lead) => {
+              const newestThread = getNewestThread(lead);
+              return (
+                <div
+                  key={`${lead.id}-inbox-born`}
+                  className="rounded-[1.2rem] border bg-white px-4 py-4"
+                >
+                  <div className="flex items-start justify-between gap-3">
+                    <div>
+                      <p className="text-sm font-semibold text-slate-950">
+                        {lead.lead_name}
+                      </p>
+                      <p className="mt-1 text-xs text-slate-500">
+                        {lead.company_name || lead.email_address || "Inbox relationship"}
+                      </p>
+                    </div>
+                    <MiniFlag tone="neutral" label="Inbox-created" />
+                  </div>
+                  <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <TimelineTile
+                      label="Latest thread"
+                      value={
+                        newestThread
+                          ? `${newestThread.subject} · ${formatDateTime(newestThread.last_message_at)}`
+                          : "No synced thread yet."
+                      }
+                    />
+                    <TimelineTile
+                      label="Why it matters now"
+                      value={getLeadCardWhyNow(lead)}
+                    />
+                    <TimelineTile
+                      label="Best next move"
+                      value={
+                        newestThread
+                          ? newestThread.next_touch_hint || newestThread.open_loop || lead.next_step
+                          : lead.next_step
+                      }
+                    />
+                    <TimelineTile
+                      label="Latest saved moment"
+                      value={getLeadCardStory(lead)}
+                    />
+                  </div>
+                  <div className="mt-4 flex flex-wrap gap-2">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => onSelectLead(lead.id, newestThread?.thread_id)}
+                    >
+                      Open relationship
+                    </Button>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() =>
+                        onDraftAction(
+                          lead.id,
+                          newestThread?.needs_reply
+                            ? {
+                                objective: "follow_up",
+                                tone: "warm",
+                                length: "short",
+                                status: "Drafting a reply from Inbox...",
+                              }
+                            : {
+                                objective: "revive",
+                                tone: "warm",
+                                length: "short",
+                                status: "Drafting a first note from inbox-created relationship...",
+                              },
+                          newestThread?.thread_id,
+                        )
+                      }
+                    >
+                      {newestThread?.needs_reply ? "Draft reply" : "Draft first note"}
+                    </Button>
+                  </div>
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : null}
@@ -8183,6 +8300,7 @@ function matchesInboxThread(
   item: {
     leadName: string;
     companyName: string;
+    stage: string;
     thread: {
       subject: string;
       counterpart_email: string;
@@ -8248,6 +8366,9 @@ function matchesInboxThread(
   }
   if (filter === "long_thread") {
     return isLongThread(item.thread);
+  }
+  if (filter === "new_from_inbox") {
+    return item.stage.trim().toLowerCase() === "inbox";
   }
   return true;
 }
@@ -8527,6 +8648,13 @@ function isReconnectMoment(lead: CRMLeadFollowUp) {
     lead.relationship_state === "stale" ||
     lead.relationship_state === "drifting" ||
     lead.relationship_state === "at_risk"
+  );
+}
+
+function isInboxCreatedRelationship(lead: CRMLeadFollowUp) {
+  return (
+    lead.stage.trim().toLowerCase() === "inbox" &&
+    (Boolean(lead.email_address.trim()) || lead.recent_email_threads.length > 0)
   );
 }
 
