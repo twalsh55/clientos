@@ -6797,8 +6797,8 @@ function IntakeRoutingPanel({
       </h2>
       <p className="mt-3 text-sm leading-6 text-slate-600">
         Keep this simple: choose the usual paths for this account and leave one
-        short note so every new update lands in the right place without extra
-        explaining.
+        short note so every new update lands in the right place without making
+        you re-explain the flow each time.
       </p>
 
       <div className="mt-5 space-y-4">
@@ -6929,8 +6929,8 @@ function AIIntakePanel({
           </h2>
           <p className="mt-3 text-sm leading-6 text-slate-600">
             Keep a short memory cue and your usual source formats here so future
-            spreadsheet, file, and image interpretation stays close to how you
-            actually work.
+            spreadsheet, file, and image reads stay close to how you actually
+            work.
           </p>
         </div>
         <div
