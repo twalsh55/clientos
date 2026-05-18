@@ -183,6 +183,7 @@ cd web && npm run e2e
   - the shared upload page now also surfaces a simple `Try this first` share recommendation so the fastest handoff path is obvious before the longer list of copy/share options
   - the ready-to-share capture view now also reinforces that the same handoff path can be reused once it feels right, so the flow reads more like a saved default than a one-off send
   - the ready-to-share capture view now also keeps the main send choices up top and leaves the lower action row for copy tools, which makes the handoff path feel lighter and less repetitive
+  - that lower ready-to-share row is now explicitly labeled as copy tools, so the active send paths and the reusable paste helpers read as two different jobs instead of one crowded action cluster
   - intake, handoff, and AI-format setup surfaces now lean even further into calm defaults and quieter handoff language, with less setup-heavy wording and fewer operator-ish labels
   - Dropzones now lean further into a low-friction handoff-page feel, with calmer `handoff link` language, softer setup copy, and a more phone-friendly `send update` upload flow
   - remote intake instructions and note-image import confirmations now also describe this flow as relationship memory / handoff capture instead of older CRM queue language

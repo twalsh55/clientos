@@ -6614,6 +6614,9 @@ function RemoteImageCapturePanel({
             >
               {intakeChannel.magic_link_url}
             </a>
+            <p className="mt-4 text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+              Copy tools
+            </p>
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
                 type="button"
