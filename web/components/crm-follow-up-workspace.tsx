@@ -1858,7 +1858,8 @@ export function CRMFollowUpWorkspace({
                       <div className="flex flex-col gap-4 md:flex-row md:items-start md:justify-between">
                         <div>
                           <p className="text-xs font-semibold uppercase tracking-[0.22em] text-slate-400">
-                            {item.stage} · {item.contact_channel}
+                            {formatRelationshipState(item.relationship_state)} ·{" "}
+                            {item.contact_channel}
                           </p>
                           <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
                             {item.lead_name}
@@ -1899,22 +1900,27 @@ export function CRMFollowUpWorkspace({
                       </p>
                       <div className="mt-4 grid gap-3 md:grid-cols-2">
                         <TimelineTile
-                          label="Why now"
-                          value={getLeadCardWhyNow(item)}
-                        />
-                        <TimelineTile
                           label="Latest saved moment"
                           value={getLeadCardStory(item)}
+                        />
+                        <TimelineTile
+                          label="Open loop"
+                          value={
+                            getNewestThread(item)?.open_loop ||
+                            getNewestThread(item)?.unresolved_hint ||
+                            item.relationship_reconnect_next_move ||
+                            item.next_step
+                          }
                         />
                       </div>
                       <div className="mt-5 grid gap-3 md:grid-cols-2">
                         <TimelineTile
-                          label="Last touch"
-                          value={formatDateTime(item.last_contacted_at)}
+                          label="Why now"
+                          value={getLeadCardWhyNow(item)}
                         />
                         <TimelineTile
-                          label="Next reminder"
-                          value={formatDateTime(item.next_follow_up_at)}
+                          label="Next timing"
+                          value={`${formatDateTime(item.next_follow_up_at)} · ${formatStageLabel(item.stage)}`}
                         />
                       </div>
                     </button>
@@ -4256,13 +4262,19 @@ function PipelineBoardPanel({
                         </div>
                       </div>
                       <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                        Needs attention by
+                        Latest saved moment
                       </p>
-                      <p className="mt-1 text-sm text-slate-700">
-                        {formatDateTime(item.next_follow_up_at)}
+                      <p className="mt-1 text-sm leading-6 text-slate-700">
+                        {getLeadCardStory(item)}
                       </p>
                       <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
-                        Best next touch
+                        Why now
+                      </p>
+                      <p className="mt-1 text-sm leading-6 text-slate-600">
+                        {getLeadCardWhyNow(item)}
+                      </p>
+                      <p className="mt-3 text-xs font-semibold uppercase tracking-[0.16em] text-slate-400">
+                        Next move
                       </p>
                       <p className="mt-1 text-sm leading-6 text-slate-600">
                         {isReconnectMoment(item)

@@ -126,9 +126,11 @@ cd web && npm run e2e
   - provider-backed sends now also return a calmer continuity note so Brivoly can tell the user whether it truly replied inside the same Gmail / Outlook conversation or had to fall back to a fresh provider note while still keeping relationship memory attached
   - account settings now include locale defaults, retention-window defaults, an AI-processing toggle, and privacy-consent metadata as the first localization/GDPR groundwork layer
   - account settings defaults and handoff-related validation copy now lean further into relationship memory and quieter handoff language instead of CRM setup phrasing
+  - settings save feedback and remote handoff guidance now use calmer `saved defaults` and handoff-ready language instead of dashboard/configuration-heavy phrasing
   - `/api/account/privacy/export` and the settings export action can now download a JSON snapshot of account settings, connected mailboxes, and stored relationship memory for GDPR-oriented export groundwork
   - `/api/account/privacy/erase` and the settings erase actions can now clear stored relationship memory or wipe memory plus connected mailbox links as an early GDPR delete/control path
   - attention view with reconnect-first guidance and direct draft actions
+  - attention view now lifts the most fragile relationship first and gives protect-first cards clearer `latest saved moment`, `reply angle`, and draft actions so fragile threads are easier to save without digging
   - Attention now puts reply pressure, at-risk relationships, reopening moments, and warm openings ahead of the older stage lanes so the page reads more like continuity protection than pipeline tracking
   - complete and snooze actions
   - relationship history + internal notes
@@ -136,6 +138,7 @@ cd web && npm run e2e
   - relationship pages now open with a `Timeline focus` read that pulls the latest saved moment, client-shared context, current open loop, and best next touch together before the full history log
   - relationship pages now also surface `Key moments` ahead of the full timeline so the most meaningful saved events are easier to trust at a glance before reading the full running history
   - relationship memory summaries now blend email, notes, uploads, reconnect cues, recent upload context, and upcoming meeting prep signals, with lighter `Conversation memory` and `Latest saved context` reads instead of repetitive stacked boxes
+  - relationship lists and continuity lanes now lean more on `latest saved moment`, `open loop`, and `why now` so the story leads more often than stage labels when scanning for the next touch
   - relationship pages now surface upcoming meeting-like moments with a direct `Prepare me` path into the meeting-prep memory view when Brivoly detects that a near-term next touch looks like a call, demo, review, or sync
   - relationship pages now turn meeting prep into a fuller continuity view by pulling the freshest thread signal, open loop, latest saved moment, and client-shared context into one preparation surface
   - explicit calendar events now land as `meeting` timeline context, can temporarily become the next prep moment, and feed the existing meeting-prep summary layer instead of living in a separate calendar silo
