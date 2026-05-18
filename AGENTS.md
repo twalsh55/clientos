@@ -282,7 +282,7 @@ cd web && npm run e2e
 - Each coherent change set should include:
   - implementation
   - local verification
-  - commit
+  - commit before starting the next change set
   - push
   - deploy only when the user explicitly asks for it
 - Use existing briefing/email mechanisms to keep the founder updated.
