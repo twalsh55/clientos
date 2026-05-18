@@ -1807,12 +1807,26 @@ export function CRMFollowUpWorkspace({
             ) : null}
             <div className="mt-5 rounded-[1.4rem] border bg-slate-50/80 p-4">
               <div className="grid gap-3 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-center">
-                <input
-                  value={relationshipQuery}
-                  onChange={(event) => setRelationshipQuery(event.target.value)}
-                  placeholder="Search client, company, notes, open loop, upload context, or next step"
-                  className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
-                />
+                <div className="flex flex-col gap-3 sm:flex-row">
+                  <input
+                    value={relationshipQuery}
+                    onChange={(event) => setRelationshipQuery(event.target.value)}
+                    placeholder="Search client, company, notes, open loop, upload context, or next step"
+                    className="w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
+                  />
+                  {(relationshipQuery || relationshipFilter !== "all") && (
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setRelationshipQuery("");
+                        setRelationshipFilter("all");
+                      }}
+                      className="rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm font-medium text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+                    >
+                      Clear view
+                    </button>
+                  )}
+                </div>
                 <div className="flex flex-wrap gap-2">
                   {[
                     { value: "all", label: "All" },
@@ -1920,7 +1934,7 @@ export function CRMFollowUpWorkspace({
                         />
                         <TimelineTile
                           label="Next timing"
-                          value={`${formatDateTime(item.next_follow_up_at)} · ${formatStageLabel(item.stage)}`}
+                          value={formatDateTime(item.next_follow_up_at)}
                         />
                       </div>
                     </button>
@@ -2042,8 +2056,24 @@ export function CRMFollowUpWorkspace({
               })}
               {!filteredFollowUps.length ? (
                 <div className="rounded-[1.5rem] border border-dashed bg-slate-50/70 p-6 text-sm leading-6 text-slate-600">
-                  No relationships match this search yet. Try a different
-                  keyword or filter.
+                  <p>
+                    No relationships match this view yet. Try a different
+                    keyword or filter.
+                  </p>
+                  {(relationshipQuery || relationshipFilter !== "all") && (
+                    <div className="mt-4">
+                      <button
+                        type="button"
+                        onClick={() => {
+                          setRelationshipQuery("");
+                          setRelationshipFilter("all");
+                        }}
+                        className="rounded-full border border-slate-200 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.14em] text-slate-700 transition hover:border-slate-400 hover:text-slate-950"
+                      >
+                        Reset relationship view
+                      </button>
+                    </div>
+                  )}
                 </div>
               ) : null}
             </div>

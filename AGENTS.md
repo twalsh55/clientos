@@ -121,6 +121,7 @@ cd web && npm run e2e
   - inbox thread cards and the inbox-side next-move view now surface a tighter `One read` summary plus a clearer `Reply angle`, so longer threads are easier to trust and answer from the list itself
   - Inbox now also lifts the most urgent thread into a `Start here` spotlight so the first reply or reconnect can happen from one high-context card instead of a long scan
   - Inbox now also makes it easier to move in and out of filtered views with a direct `waiting` focus, clearer reset actions, and less fiddly search recovery when a narrowed view comes back empty
+  - relationship-memory lists now offer the same easier recovery path, with direct `Clear view` / reset actions when a filtered search comes back empty
   - Inbox now also supports open-loop and long-thread filtering plus a direct `Close loop` draft path so longer conversations can move forward with less scanning
   - email-thread ingestion that can auto-create/update contacts from inbox activity
   - mailbox sync now feeds the same inbox-ingest path Brivoly already uses, so provider-synced email activity and provider watch callbacks land in relationship memory instead of a separate mailbox subsystem
@@ -265,6 +266,7 @@ cd web && npm run e2e
   - `cd web && rm -rf .next && npm run typecheck`
 - Current reliable verification standard:
   - `uv run pytest`
+  - keep `pytest` coverage at `100%`
   - `cd web && npm run build`
   - `cd web && npm run e2e`
 
