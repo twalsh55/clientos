@@ -160,6 +160,7 @@ cd web && npm run e2e
   - import wording now leans further into memory recovery, lighter `next touch` language, and cleaner `Google Sheets` labels
   - import now preserves mapped priority, contact channel, and next step from source sheets instead of replacing them with generic defaults
   - import preview now shows the actual staged priority, channel, and next step before commit
+  - import now also keeps a visible `Start over` reset path so half-finished file or sheet checks are easier to clear without hunting through old preview state
   - duplicate detection + validation preview
   - AI header rescue for messy spreadsheets
   - interactive AI clarification questions when mapping is still ambiguous

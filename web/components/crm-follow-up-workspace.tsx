@@ -196,6 +196,32 @@ export function CRMFollowUpWorkspace({
   const [draftFocusToken, setDraftFocusToken] = useState(0);
   const deferredRelationshipQuery = useDeferredValue(relationshipQuery);
   const deferredInboxQuery = useDeferredValue(inboxQuery);
+  const resetImportWorkspace = (
+    nextSourceType?: "file_upload" | "google_sheets",
+  ) => {
+    if (nextSourceType) {
+      setSourceType(nextSourceType);
+    }
+    setSelectedFile(null);
+    setSheetUrl("");
+    setImportPreview(null);
+    setImportFieldMapping({});
+    setClarificationAnswers({});
+    setRowOverrides({});
+    setIsImportMappingDirty(false);
+    setImportStatus(null);
+    setImportError(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
+  const hasImportWorkspaceState = Boolean(
+    selectedFile ||
+      sheetUrl.trim() ||
+      importPreview ||
+      importStatus ||
+      importError,
+  );
 
   useEffect(() => {
     if (!selectedLeadId && initialOverview.items[0]) {
@@ -1616,16 +1642,7 @@ export function CRMFollowUpWorkspace({
               <div className="mt-5 flex flex-wrap gap-3">
                 <Button
                   variant={sourceType === "file_upload" ? "default" : "outline"}
-                  onClick={() => {
-                    setSourceType("file_upload");
-                    setImportPreview(null);
-                    setImportFieldMapping({});
-                    setClarificationAnswers({});
-                    setRowOverrides({});
-                    setIsImportMappingDirty(false);
-                    setImportStatus(null);
-                    setImportError(null);
-                  }}
+                  onClick={() => resetImportWorkspace("file_upload")}
                 >
                   Spreadsheet or file
                 </Button>
@@ -1633,19 +1650,18 @@ export function CRMFollowUpWorkspace({
                   variant={
                     sourceType === "google_sheets" ? "default" : "outline"
                   }
-                  onClick={() => {
-                    setSourceType("google_sheets");
-                    setImportPreview(null);
-                    setImportFieldMapping({});
-                    setClarificationAnswers({});
-                    setRowOverrides({});
-                    setIsImportMappingDirty(false);
-                    setImportStatus(null);
-                    setImportError(null);
-                  }}
+                  onClick={() => resetImportWorkspace("google_sheets")}
                 >
                   Sheet link
                 </Button>
+                {hasImportWorkspaceState ? (
+                  <Button
+                    variant="outline"
+                    onClick={() => resetImportWorkspace(sourceType)}
+                  >
+                    Start over
+                  </Button>
+                ) : null}
               </div>
 
               {sourceType === "file_upload" ? (
@@ -1660,14 +1676,8 @@ export function CRMFollowUpWorkspace({
                     accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xls,application/vnd.ms-excel,.png,image/png,.jpg,image/jpeg,.jpeg,image/jpeg,.webp,image/webp"
                     className="mt-3 block w-full rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-600"
                     onChange={(event) => {
+                      resetImportWorkspace("file_upload");
                       setSelectedFile(event.target.files?.[0] ?? null);
-                      setImportPreview(null);
-                      setImportFieldMapping({});
-                      setClarificationAnswers({});
-                      setRowOverrides({});
-                      setIsImportMappingDirty(false);
-                      setImportStatus(null);
-                      setImportError(null);
                     }}
                   />
                   <p className="mt-3 text-xs text-slate-500">
@@ -1695,14 +1705,8 @@ export function CRMFollowUpWorkspace({
                   <input
                     value={sheetUrl}
                     onChange={(event) => {
+                      resetImportWorkspace("google_sheets");
                       setSheetUrl(event.target.value);
-                      setImportPreview(null);
-                      setImportFieldMapping({});
-                      setClarificationAnswers({});
-                      setRowOverrides({});
-                      setIsImportMappingDirty(false);
-                      setImportStatus(null);
-                      setImportError(null);
                     }}
                     placeholder="https://docs.google.com/spreadsheets/d/..."
                     className="mt-3 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
