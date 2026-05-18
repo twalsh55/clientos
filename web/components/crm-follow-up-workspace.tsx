@@ -6529,6 +6529,16 @@ function RemoteImageCapturePanel({
         {intakeChannel?.magic_link_url ? (
           <>
             <div className="mt-4 rounded-[1rem] border bg-white px-4 py-4">
+              <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+                Reuse this path
+              </p>
+              <p className="mt-2 text-sm leading-6 text-slate-700">
+                Once this link and note feel right, you can keep sending the
+                same handoff path instead of re-explaining where updates should
+                go.
+              </p>
+            </div>
+            <div className="mt-4 rounded-[1rem] border bg-white px-4 py-4">
               <div className="flex flex-col gap-3 md:flex-row md:items-start md:justify-between">
                 <div className="max-w-2xl">
                   <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
