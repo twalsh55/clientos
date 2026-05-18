@@ -5904,6 +5904,7 @@ function InboxNextMovePanel({
     ? isQuietThread(latestThread) && !latestThread.needs_reply
     : false;
   const shouldReconnect = quietReconnect || isReconnectMoment(lead);
+  const inboxCreated = isInboxCreatedRelationship(lead);
   const primaryAction = shouldReconnect
     ? {
         label: "Draft reconnect",
@@ -5958,6 +5959,35 @@ function InboxNextMovePanel({
           }
         />
       </div>
+      {inboxCreated ? (
+        <div className="mt-4 rounded-[1.2rem] border bg-sky-50/60 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.18em] text-sky-700">
+            New from email
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-600">
+            This relationship first came in through live inbox activity, so the
+            job here is usually simple: confirm the thread belongs in your
+            ongoing memory, then send the lightest useful follow-through.
+          </p>
+          <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <TimelineTile
+              label="What already makes this real"
+              value={
+                latestThread?.relationship_pulse ||
+                getLeadCardWhyNow(lead)
+              }
+            />
+            <TimelineTile
+              label="First thing to lock in"
+              value={
+                latestThread?.next_touch_hint ||
+                latestThread?.open_loop ||
+                lead.next_step
+              }
+            />
+          </div>
+        </div>
+      ) : null}
       {latestThread ? (
         <div className="mt-4 rounded-[1.2rem] border bg-slate-50/80 px-4 py-4">
           <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
