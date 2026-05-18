@@ -2899,8 +2899,8 @@ function CRMViewHeader({ view }: { view: CRMWorkspaceView }) {
   const copy = {
     overview: {
       eyebrow: "Today",
-      title: "Today’s relationship priorities.",
-      body: "See who needs your attention, what is slipping, and where a warm follow-through will matter most.",
+      title: "Start with the relationship that matters most today.",
+      body: "See where attention matters now, what may be slipping, and which warm follow-through is most worth making first.",
     },
     followups: {
       eyebrow: "Relationship memory",
@@ -2908,23 +2908,23 @@ function CRMViewHeader({ view }: { view: CRMWorkspaceView }) {
       body: "Keep notes, recent changes, and the next move in one place so continuity does not depend on your memory alone.",
     },
     inbox: {
-      eyebrow: "Inbox memory",
+      eyebrow: "Inbox",
       title: "Let email quietly keep relationship memory up to date.",
       body: "Brivoly turns inbox activity into context, summaries, and follow-through without asking you to log everything by hand.",
     },
     pipeline: {
       eyebrow: "Attention",
-      title: "Protect the relationships that are easiest to lose.",
-      body: "Use this page to spot reply pressure, quiet threads, and gentle reopening moments before the relationship cools.",
+      title: "Protect quiet relationships before they cool off.",
+      body: "Use this page to spot reply pressure, quiet threads, and gentle reopening moments before warmth slips out of the relationship.",
     },
     import: {
-      eyebrow: "Bring context back in",
+      eyebrow: "Saved context",
       title:
         "Bring older client context back into memory without extra cleanup.",
       body: "Upload spreadsheets and raw note images, let Brivoly make sense of them, and only keep what supports better follow-through.",
     },
     intake: {
-      eyebrow: "Client dropzone",
+      eyebrow: "Dropzones",
       title: "Make it easy for clients to send context when it matters.",
       body: "Use no-login upload links, simple default paths, and mobile-first capture so updates land in relationship memory without extra back-and-forth.",
     },

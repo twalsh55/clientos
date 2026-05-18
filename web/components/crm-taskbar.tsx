@@ -10,7 +10,7 @@ const items = [
   {
     href: "/clientos",
     label: "Today",
-    body: "Start where attention matters most",
+    body: "Start with the relationship that matters most",
   },
   {
     href: "/clientos/follow-ups",
@@ -20,22 +20,22 @@ const items = [
   {
     href: "/clientos/inbox",
     label: "Inbox",
-    body: "Hold onto what changed across email threads",
+    body: "Keep email threads and next replies in view",
   },
   {
     href: "/clientos/pipeline",
     label: "Attention",
-    body: "See who may be starting to cool off",
+    body: "Protect the relationships starting to cool off",
   },
   {
     href: "/clientos/import",
     label: "Saved context",
-    body: "Bring old notes and sheets back in",
+    body: "Bring older notes and sheets back into memory",
   },
   {
     href: "/clientos/intake",
     label: "Dropzones",
-    body: "Simple ways for clients to send updates",
+    body: "Keep simple client handoff pages ready",
   },
 ];
 
