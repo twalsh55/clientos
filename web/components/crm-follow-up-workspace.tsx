@@ -3954,31 +3954,50 @@ function TodayPrioritiesPanel({
             </p>
           </div>
           <div className="mt-4 grid gap-3 md:grid-cols-2">
-            {freshContextHighlights.map((item) => (
-              <div
-                key={item.id}
-                className="rounded-[1rem] border bg-white px-4 py-4"
-              >
-                <p className="text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">
-                  {item.label}
-                </p>
-                <p className="mt-2 text-sm font-medium text-slate-900">
-                  {item.title}
-                </p>
-                <p className="mt-2 text-sm leading-6 text-slate-600">
-                  {item.body}
-                </p>
-                <div className="mt-4">
-                  <button
-                    type="button"
-                    onClick={item.onAction}
-                    className="rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition hover:border-slate-500 hover:text-slate-950"
-                  >
-                    {item.actionLabel}
-                  </button>
+            {freshContextHighlights.map((item) => {
+              const relatedLead =
+                items.find((lead) => item.id.startsWith(lead.id)) ?? null;
+              return (
+                <div
+                  key={item.id}
+                  className="rounded-[1rem] border bg-white px-4 py-4"
+                >
+                  <p className="text-xs font-semibold uppercase tracking-[0.14em] text-sky-700">
+                    {item.label}
+                  </p>
+                  <p className="mt-2 text-sm font-medium text-slate-900">
+                    {item.title}
+                  </p>
+                  <p className="mt-2 text-sm leading-6 text-slate-600">
+                    {item.body}
+                  </p>
+                  {relatedLead ? (
+                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                      <TimelineTile
+                        label="Latest saved moment"
+                        value={getLeadCardStory(relatedLead)}
+                      />
+                      <TimelineTile
+                        label="Use in the next touch"
+                        value={
+                          relatedLead.relationship_upload_follow_through_hint ||
+                          relatedLead.next_step
+                        }
+                      />
+                    </div>
+                  ) : null}
+                  <div className="mt-4">
+                    <button
+                      type="button"
+                      onClick={item.onAction}
+                      className="rounded-full border border-slate-300 bg-white px-3 py-2 text-xs font-semibold uppercase tracking-[0.16em] text-slate-700 transition hover:border-slate-500 hover:text-slate-950"
+                    >
+                      {item.actionLabel}
+                    </button>
+                  </div>
                 </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
         </div>
       ) : null}
