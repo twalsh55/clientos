@@ -474,8 +474,8 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
                 occurred_at=deps.now(),
                 category="settings",
                 severity="info",
-                title="Dashboard settings updated",
-                message="Your dashboard defaults were updated through the API layer.",
+                title="Saved defaults updated",
+                message="Your saved Brivoly defaults were updated.",
             ),
         )
         return dto_to_dict(build_user_dashboard_settings_dto(settings))
@@ -1024,7 +1024,7 @@ def create_app(dependencies: ApiDependencies | None = None) -> FastAPI:
                 intake_channel=None,
                 intake_caption=None,
                 magic_link_url=None,
-                instructions="Remote handoff capture is unavailable until CRM_INTAKE_SECRET and the Telegram bot are configured.",
+                instructions="Remote handoff capture is unavailable until Brivoly has a handoff secret and Telegram delivery ready.",
             )
             return dto.model_dump()
         intake_token = _build_crm_intake_token(user.id, secret)

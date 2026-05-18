@@ -162,7 +162,7 @@ export function SettingsEditor({
     }
 
     setForm(body as AccountSettings);
-    setStatus("Settings saved. Refreshing dashboard snapshot...");
+    setStatus("Settings saved. Refreshing your latest Brivoly view...");
     window.dispatchEvent(
       new CustomEvent("brivoly:settings-saved", { detail: body }),
     );
@@ -440,7 +440,7 @@ export function SettingsEditor({
                 updateField("telegram_enabled", event.target.checked)
               }
             />
-            Enable Telegram alerts in dashboard defaults
+            Enable Telegram alerts in your saved defaults
           </label>
         </Field>
         <Field label="Usual memory formats">
