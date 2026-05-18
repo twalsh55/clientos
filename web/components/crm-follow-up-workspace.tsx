@@ -6604,22 +6604,6 @@ function RemoteImageCapturePanel({
             <div className="mt-4 flex flex-wrap gap-2">
               <Button
                 type="button"
-                onClick={shareFromDevice}
-              >
-                Share from this device
-              </Button>
-              {emailShareHref ? (
-                <Button asChild variant="outline">
-                  <a href={emailShareHref}>Send by email</a>
-                </Button>
-              ) : null}
-              {smsShareHref ? (
-                <Button asChild variant="outline">
-                  <a href={smsShareHref}>Send by text</a>
-                </Button>
-              ) : null}
-              <Button
-                type="button"
                 variant="outline"
                 onClick={() => copyText(shareLink, "Client link copied.")}
               >
