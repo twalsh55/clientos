@@ -194,6 +194,7 @@ cd web && npm run e2e
   - overview density is calmer now, with lighter warm-intro panels, a simpler relationship continuity read, a lighter conversation-memory stack in inbox follow-through, a less repetitive relationship-memory panel, and a less dashboard-like fallback shell
   - intake defaults now read more like set-it-and-forget-it guidance, with quieter `Client dropzone` language, lighter `Usual path` / `What to notice` wording, `First / Next / Then` task framing, recommended helper actions, and simple `Save` actions instead of configuration-heavy language
   - intake routing and AI-memory setup copy now lean a little further into saved defaults and reusable guidance, with less setup-heavy phrasing around repeat handoff flows
+  - intake routing now also surfaces a small saved-defaults summary and a clearer `what this saves you from` read, so the handoff path feels more like a reusable default than a settings chore
   - auth, shell fallback, API fallback, loading, draft-composer, and client-upload surfaces now use calmer language and lighter guidance with less system-heavy phrasing
   - Today navigation and other dense summary areas are progressively flattening into lighter pills and calmer summaries instead of equal-weight cards
   - Today now leans more clearly into a daily starting point, with fewer equal-weight summary blocks, a stronger `Start here` move, and a lighter `After that` sequence for the next warm openings

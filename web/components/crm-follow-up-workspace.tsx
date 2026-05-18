@@ -6826,6 +6826,27 @@ function IntakeRoutingPanel({
         short note so every new update lands in the right place without making
         you re-explain the flow each time.
       </p>
+      <div className="mt-5 grid gap-3 md:grid-cols-2">
+        <div className="rounded-[1rem] border bg-slate-50 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+            Saved default
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-700">
+            {channelsDraft.trim()
+              ? `Usual path: ${channelsDraft}.`
+              : "Choose one usual path so Brivoly can keep the handoff flow consistent."}
+          </p>
+        </div>
+        <div className="rounded-[1rem] border bg-slate-50 px-4 py-4">
+          <p className="text-xs font-semibold uppercase tracking-[0.14em] text-slate-400">
+            What this saves you from
+          </p>
+          <p className="mt-2 text-sm leading-6 text-slate-700">
+            Repeating where updates should go, rewriting the same handoff note,
+            or sorting out which channel to ask for each time.
+          </p>
+        </div>
+      </div>
 
       <div className="mt-5 space-y-4">
         <label className="block">
