@@ -5145,6 +5145,7 @@ function InboxActivityPanel({
       ),
   );
   const primaryUrgentThread = urgentThreads[0] ?? null;
+  const primaryInboxCreatedLead = inboxCreatedRelationships[0] ?? null;
 
   return (
     <section className="rounded-[1.75rem] border bg-white/90 p-6 shadow-sm">
@@ -5345,6 +5346,82 @@ function InboxActivityPanel({
                   onSelectLead(
                     primaryUrgentThread.leadId,
                     primaryUrgentThread.thread.thread_id,
+                  )
+                }
+              >
+                Open relationship
+              </Button>
+            </div>
+          </div>
+        </div>
+      ) : null}
+      {primaryInboxCreatedLead ? (
+        <div className="mt-6 rounded-[1.5rem] border bg-white px-5 py-5 shadow-sm">
+          <div className="flex flex-col gap-4 lg:flex-row lg:items-start lg:justify-between">
+            <div className="max-w-2xl">
+              <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
+                Turn new email into relationship memory
+              </p>
+              <p className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
+                {primaryInboxCreatedLead.lead_name}
+              </p>
+              <p className="mt-1 text-sm text-slate-600">
+                {primaryInboxCreatedLead.company_name ||
+                  primaryInboxCreatedLead.email_address}
+              </p>
+              <p className="mt-3 text-sm leading-6 text-slate-600">
+                {getLeadCardWhyNow(primaryInboxCreatedLead)}
+              </p>
+              <div className="mt-4 grid gap-3 md:grid-cols-2">
+                <TimelineTile
+                  label="Latest saved moment"
+                  value={getLeadCardStory(primaryInboxCreatedLead)}
+                />
+                <TimelineTile
+                  label="First move Brivoly would make"
+                  value={
+                    getNewestThread(primaryInboxCreatedLead)?.next_touch_hint ||
+                    getNewestThread(primaryInboxCreatedLead)?.open_loop ||
+                    primaryInboxCreatedLead.next_step
+                  }
+                />
+              </div>
+            </div>
+            <div className="flex flex-wrap gap-2 lg:justify-end">
+              <Button
+                type="button"
+                onClick={() =>
+                  onDraftAction(
+                    primaryInboxCreatedLead.id,
+                    getNewestThread(primaryInboxCreatedLead)?.needs_reply
+                      ? {
+                          objective: "follow_up",
+                          tone: "warm",
+                          length: "short",
+                          status: "Drafting a reply from Inbox...",
+                        }
+                      : {
+                          objective: "revive",
+                          tone: "warm",
+                          length: "short",
+                          status:
+                            "Drafting a first follow-through note from email...",
+                        },
+                    getNewestThread(primaryInboxCreatedLead)?.thread_id ?? null,
+                  )
+                }
+              >
+                {getNewestThread(primaryInboxCreatedLead)?.needs_reply
+                  ? "Draft reply"
+                  : "Draft first note"}
+              </Button>
+              <Button
+                type="button"
+                variant="outline"
+                onClick={() =>
+                  onSelectLead(
+                    primaryInboxCreatedLead.id,
+                    getNewestThread(primaryInboxCreatedLead)?.thread_id,
                   )
                 }
               >
