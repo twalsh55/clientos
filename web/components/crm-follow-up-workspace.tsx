@@ -85,6 +85,9 @@ type TodayRhythmStep = {
   body: string;
 };
 
+const READABLE_TILE_GRID_CLASS =
+  "grid gap-3 [grid-template-columns:repeat(auto-fit,minmax(min(100%,18rem),1fr))]";
+
 export function CRMFollowUpWorkspace({
   initialOverview,
   initialSettings,
@@ -4967,7 +4970,7 @@ function PipelineBoardPanel({
                         item.relationship_timing_nudge ||
                         item.next_step}
                     </p>
-                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <div className={`mt-3 ${READABLE_TILE_GRID_CLASS}`}>
                       <TimelineTile
                         label="Latest saved moment"
                         value={getLeadCardStory(item)}
@@ -5556,7 +5559,7 @@ function InboxActivityPanel({
               <p className="mt-3 text-sm leading-6 text-slate-200">
                 {primaryUrgentThread.thread.relationship_pulse}
               </p>
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className={`mt-4 ${READABLE_TILE_GRID_CLASS}`}>
                 <TimelineTileDark
                   label="One read"
                   value={buildThreadOneRead(primaryUrgentThread.thread)}
@@ -5629,7 +5632,7 @@ function InboxActivityPanel({
               <p className="mt-3 text-sm leading-6 text-slate-600">
                 {getLeadCardWhyNow(primaryInboxCreatedLead)}
               </p>
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className={`mt-4 ${READABLE_TILE_GRID_CLASS}`}>
                 <TimelineTile
                   label="What already makes this real"
                   value={
@@ -6044,7 +6047,7 @@ function InboxThreadCard({
             </div>
           </div>
         </div>
-        <div className="mt-4 grid gap-3 lg:grid-cols-2">
+        <div className={`mt-4 ${READABLE_TILE_GRID_CLASS}`}>
           <TimelineTile label="Brivoly read" value={thread.next_touch_hint} />
           <TimelineTile
             label="Latest saved moment"
@@ -6176,7 +6179,7 @@ function InboxNextMovePanel({
         {lead.lead_name}
       </h3>
       <p className="mt-1 text-sm text-slate-600">{lead.company_name}</p>
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
+      <div className={`mt-4 ${READABLE_TILE_GRID_CLASS}`}>
         <TimelineTile
           label="Brivoly read"
           value={
@@ -6211,7 +6214,7 @@ function InboxNextMovePanel({
             job here is usually simple: confirm the thread belongs in your
             ongoing memory, then send the lightest useful follow-through.
           </p>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className={`mt-4 ${READABLE_TILE_GRID_CLASS}`}>
             <TimelineTile
               label="What already makes this real"
               value={
@@ -7502,7 +7505,7 @@ function ImportPreviewRowCard({
           </p>
         </div>
       </div>
-      <div className="mt-3 grid gap-3 md:grid-cols-2">
+      <div className={`mt-3 ${READABLE_TILE_GRID_CLASS}`}>
         <TimelineTileDark
           label="Priority"
           value={
@@ -7806,7 +7809,7 @@ function LeadMemoryPanel({
           next touch together so you can step back in without piecing the story
           together first.
         </p>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className={`mt-4 ${READABLE_TILE_GRID_CLASS}`}>
           <TimelineTile
             label="Latest saved moment"
             value={
@@ -7901,7 +7904,7 @@ function LeadMemoryPanel({
         </div>
       </section>
 
-      <div className="mt-5 grid gap-3 md:grid-cols-2">
+      <div className={`mt-5 ${READABLE_TILE_GRID_CLASS}`}>
         <TimelineTile
           label="Relationship read"
           value={`${formatRelationshipState(lead.relationship_state)} · ${formatStageLabel(lead.stage)}`}
@@ -7916,7 +7919,7 @@ function LeadMemoryPanel({
         ) : null}
       </div>
 
-      <div className="mt-4 grid gap-3 md:grid-cols-2">
+      <div className={`mt-4 ${READABLE_TILE_GRID_CLASS}`}>
         <TimelineTile
           label="Last meaningful interaction"
           value={formatDateTime(lead.last_meaningful_interaction_at)}
@@ -7979,7 +7982,7 @@ function LeadMemoryPanel({
             and the carry-forward context side by side so you can walk in
             oriented without piecing the story back together.
           </p>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className={`mt-4 ${READABLE_TILE_GRID_CLASS}`}>
             <TimelineTile
               label="Meeting moment"
               value={
@@ -7992,7 +7995,7 @@ function LeadMemoryPanel({
             <TimelineTile label="Carry into the room" value={prepOpenLoop} />
             <TimelineTile label="Best opening" value={prepBestOpening} />
           </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className={`mt-4 ${READABLE_TILE_GRID_CLASS}`}>
             <TimelineTile
               label="Client-shared context"
               value={prepFreshContext}
@@ -8061,7 +8064,7 @@ function LeadMemoryPanel({
               </Button>
             </div>
           </div>
-          <div className="mt-4 grid gap-3 lg:grid-cols-2">
+          <div className={`mt-4 ${READABLE_TILE_GRID_CLASS}`}>
             <TimelineTile
               label="Why now"
               value={
@@ -8116,7 +8119,7 @@ function LeadMemoryPanel({
           <p className="text-xs font-semibold uppercase tracking-[0.2em] text-amber-700">
             Keep this relationship warm
           </p>
-          <div className="mt-3 grid gap-3 md:grid-cols-2">
+          <div className={`mt-3 ${READABLE_TILE_GRID_CLASS}`}>
             <TimelineTile
               label="Warm intro source"
               value={lead.referral_source_name || "No warm intro mapped yet"}
@@ -8159,7 +8162,7 @@ function LeadMemoryPanel({
           This is the shortest route through what happened, what shifted, what
           still needs attention, and where the next note should begin.
         </p>
-        <div className="mt-4 grid gap-3 md:grid-cols-2">
+        <div className={`mt-4 ${READABLE_TILE_GRID_CLASS}`}>
           <TimelineTile
             label="What happened"
             value={
@@ -8244,7 +8247,7 @@ function LeadMemoryPanel({
             {activeMemoryPanel.body}
           </p>
           {memoryView === "meeting_prep" ? (
-            <div className="mt-4 grid gap-3 md:grid-cols-2">
+            <div className={`mt-4 ${READABLE_TILE_GRID_CLASS}`}>
               <TimelineTile label="Carry into the room" value={prepOpenLoop} />
               <TimelineTile label="Freshest shift" value={prepRecentShift} />
             </div>
@@ -8259,7 +8262,7 @@ function LeadMemoryPanel({
               ? lead.notes
               : "No extra notes are saved here yet. Brivoly is leaning on the timeline, email memory, and client-shared context instead."}
           </p>
-          <div className="mt-4 grid gap-3 md:grid-cols-2">
+          <div className={`mt-4 ${READABLE_TILE_GRID_CLASS}`}>
             <TimelineTile
               label="Best place to restart"
               value={storyNextTouch}
@@ -8696,7 +8699,7 @@ function WarmIntroGraphPanel({
         When a past intro or referral gives you a softer re-entry path, Brivoly
         keeps it close instead of leaving it buried in old notes.
       </p>
-      <div className="mt-5 grid gap-3 md:grid-cols-2">
+      <div className={`mt-5 ${READABLE_TILE_GRID_CLASS}`}>
         {summary.warm_intro_connections.length ? (
           summary.warm_intro_connections.map((connection) => (
             <div
