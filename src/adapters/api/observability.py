@@ -55,6 +55,11 @@ def build_runtime_report() -> dict[str, object]:
     database_url = os.getenv("DATABASE_URL", "").strip()
     publishable_key = os.getenv("CLERK_PUBLISHABLE_KEY", "").strip()
     secret_key = os.getenv("CLERK_SECRET_KEY", "").strip()
+    jwks_url = os.getenv("CLERK_JWKS_URL", "").strip()
+    issuer = os.getenv("CLERK_ISSUER", "").strip()
+    authorized_parties = tuple(
+        item.strip() for item in os.getenv("CLERK_AUTHORIZED_PARTIES", "").split(",") if item.strip()
+    )
     frontend_api_base_url = os.getenv("BRIVOLY_API_BASE_URL", "").strip() or os.getenv("TRADE_API_BASE_URL", "").strip()
     telegram_bot_token = os.getenv("TELEGRAM_BOT_TOKEN", "").strip()
     telegram_chat_id = os.getenv("TELEGRAM_CHAT_ID", "").strip()
@@ -66,10 +71,13 @@ def build_runtime_report() -> dict[str, object]:
     production_like_environment = _is_production_like_environment(deployment_environment)
 
     auth_configured = bool(database_url) and bool(publishable_key)
+    clerk_server_configured = bool(secret_key) and bool(jwks_url) and bool(issuer) and bool(authorized_parties)
+    auth_production_ready = auth_configured and clerk_server_configured
     app_base_url_valid = is_absolute_http_url(app_base_url)
     frontend_api_base_url_valid = is_absolute_http_url(frontend_api_base_url) if frontend_api_base_url else None
     anonymous_crm_production_safe = not (anonymous_crm_enabled and production_like_environment)
-    runtime_ok = app_base_url_valid and auth_configured and anonymous_crm_production_safe
+    auth_runtime_safe = auth_production_ready if production_like_environment else auth_configured
+    runtime_ok = app_base_url_valid and auth_runtime_safe and anonymous_crm_production_safe
 
     return {
         "status": "ok" if runtime_ok else "degraded",
@@ -84,7 +92,11 @@ def build_runtime_report() -> dict[str, object]:
             "auth": {
                 "publishable_key_configured": bool(publishable_key),
                 "secret_key_configured": bool(secret_key),
+                "jwks_url_configured": bool(jwks_url),
+                "issuer_configured": bool(issuer),
+                "authorized_parties_configured": bool(authorized_parties),
                 "configured": auth_configured,
+                "production_ready": auth_production_ready,
             },
             "anonymous_crm": {
                 "enabled": anonymous_crm_enabled,

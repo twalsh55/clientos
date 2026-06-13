@@ -34,6 +34,11 @@ The product is functionally broad but should be treated as pre-production until 
   - audits Railway API and Vercel web variables from env or dotenv files
   - blocks placeholder values, localhost URLs, and `ALLOW_ANONYMOUS_CRM=true`
   - requires live Clerk/Stripe key prefixes for production
+- Tightened `/readyz` for production-like environments so it reports and requires Clerk server-side production readiness:
+  - `CLERK_SECRET_KEY`
+  - `CLERK_JWKS_URL`
+  - `CLERK_ISSUER`
+  - `CLERK_AUTHORIZED_PARTIES`
 - Verified locally:
   - `uv run pytest`
   - `cd web && npm run typecheck`
@@ -55,6 +60,7 @@ The application is production-ready only when all of these are true:
 - Export, erase, retention, and consent controls work against real production data.
 - API and web deploys are repeatable from clean checkouts.
 - `/readyz` catches unsafe production guest-mode configuration before a production smoke check passes.
+- `/readyz` catches incomplete production Clerk configuration before a production smoke check passes.
 - Hosted smoke tests pass after deploy.
 - There is a rollback path for both Railway and Vercel.
 

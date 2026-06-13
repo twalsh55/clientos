@@ -2068,6 +2068,7 @@ def test_healthcheck_and_readiness_include_request_ids(monkeypatch) -> None:
     assert readiness.headers["X-Request-ID"]
     assert readiness.json()["status"] == "ok"
     assert readiness.json()["checks"]["auth"]["configured"] is True
+    assert readiness.json()["checks"]["auth"]["production_ready"] is False
     assert readiness.json()["checks"]["anonymous_crm"]["enabled"] is False
     assert readiness.json()["checks"]["anonymous_crm"]["production_safe"] is True
 
@@ -2088,6 +2089,10 @@ def test_readiness_reports_degraded_runtime_when_anonymous_crm_is_enabled_in_pro
     monkeypatch.setenv("APP_BASE_URL", "https://www.brivoly.com")
     monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@db.example.com:5432/brivoly")
     monkeypatch.setenv("CLERK_PUBLISHABLE_KEY", "pk_live_value")
+    monkeypatch.setenv("CLERK_SECRET_KEY", "sk_live_value")
+    monkeypatch.setenv("CLERK_JWKS_URL", "https://clerk.example/.well-known/jwks.json")
+    monkeypatch.setenv("CLERK_ISSUER", "https://clerk.example")
+    monkeypatch.setenv("CLERK_AUTHORIZED_PARTIES", "https://www.brivoly.com")
     monkeypatch.setenv("ALLOW_ANONYMOUS_CRM", "true")
     monkeypatch.setenv("RAILWAY_ENVIRONMENT_NAME", "production")
     client = make_client(user=make_user())
@@ -2101,6 +2106,46 @@ def test_readiness_reports_degraded_runtime_when_anonymous_crm_is_enabled_in_pro
         "production_safe": False,
         "environment": "production",
     }
+
+
+def test_readiness_reports_degraded_runtime_when_production_clerk_config_is_incomplete(monkeypatch) -> None:
+    monkeypatch.setenv("APP_BASE_URL", "https://www.brivoly.com")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@db.example.com:5432/brivoly")
+    monkeypatch.setenv("CLERK_PUBLISHABLE_KEY", "pk_live_value")
+    monkeypatch.setenv("CLERK_SECRET_KEY", "sk_live_value")
+    monkeypatch.setenv("CLERK_JWKS_URL", "https://clerk.example/.well-known/jwks.json")
+    monkeypatch.setenv("CLERK_ISSUER", "https://clerk.example")
+    monkeypatch.delenv("CLERK_AUTHORIZED_PARTIES", raising=False)
+    monkeypatch.setenv("ALLOW_ANONYMOUS_CRM", "false")
+    monkeypatch.setenv("VERCEL_ENV", "production")
+    client = make_client(user=make_user())
+
+    response = client.get("/readyz")
+
+    assert response.status_code == 503
+    assert response.json()["status"] == "degraded"
+    assert response.json()["checks"]["auth"]["configured"] is True
+    assert response.json()["checks"]["auth"]["production_ready"] is False
+    assert response.json()["checks"]["auth"]["authorized_parties_configured"] is False
+
+
+def test_readiness_reports_ok_when_production_clerk_config_is_complete(monkeypatch) -> None:
+    monkeypatch.setenv("APP_BASE_URL", "https://www.brivoly.com")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@db.example.com:5432/brivoly")
+    monkeypatch.setenv("CLERK_PUBLISHABLE_KEY", "pk_live_value")
+    monkeypatch.setenv("CLERK_SECRET_KEY", "sk_live_value")
+    monkeypatch.setenv("CLERK_JWKS_URL", "https://clerk.example/.well-known/jwks.json")
+    monkeypatch.setenv("CLERK_ISSUER", "https://clerk.example")
+    monkeypatch.setenv("CLERK_AUTHORIZED_PARTIES", "https://www.brivoly.com")
+    monkeypatch.setenv("ALLOW_ANONYMOUS_CRM", "false")
+    monkeypatch.setenv("APP_ENV", "production")
+    client = make_client(user=make_user())
+
+    response = client.get("/readyz")
+
+    assert response.status_code == 200
+    assert response.json()["status"] == "ok"
+    assert response.json()["checks"]["auth"]["production_ready"] is True
 
 
 def test_settings_bootstrap_includes_clerk_host_when_configured(monkeypatch) -> None:
