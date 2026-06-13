@@ -563,8 +563,8 @@ def test_build_prospecting_status_message_reports_errors_and_modes(monkeypatch) 
     assert _build_prospecting_status_message() == "Prospecting agent is not ready:\n- Missing SMTP_HOST"
 
     monkeypatch.setattr("src.adapters.api.app.collect_prospecting_config_errors", lambda: [])
-    monkeypatch.delenv("APP_OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("APP_OPENAI_API_KEY", "")
+    monkeypatch.setenv("OPENAI_API_KEY", "")
     assert _build_prospecting_status_message() == "Prospecting agent is ready.\nOpenAI idea drafting disabled; template opportunity ideas will be used."
 
     monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
@@ -576,8 +576,8 @@ def test_build_etf_sentiment_status_message_reports_errors_and_modes(monkeypatch
     assert _build_etf_sentiment_status_message() == "ETF sentiment agent is not ready:\n- Missing prompt"
 
     monkeypatch.setattr("src.adapters.api.app.collect_etf_sentiment_config_errors", lambda: [])
-    monkeypatch.delenv("APP_OPENAI_API_KEY", raising=False)
-    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.setenv("APP_OPENAI_API_KEY", "")
+    monkeypatch.setenv("OPENAI_API_KEY", "")
     assert _build_etf_sentiment_status_message() == (
         "ETF sentiment agent is ready.\nOpenAI analysis disabled; price-action template mode will be used."
     )
@@ -2157,7 +2157,7 @@ def test_readiness_reports_degraded_runtime_when_production_billing_config_is_in
     }
 
 
-def test_readiness_reports_ok_when_production_auth_and_billing_config_are_complete(monkeypatch) -> None:
+def test_readiness_reports_degraded_runtime_when_production_openai_config_is_missing(monkeypatch) -> None:
     monkeypatch.setenv("APP_BASE_URL", "https://www.brivoly.com")
     monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@db.example.com:5432/brivoly")
     monkeypatch.setenv("CLERK_PUBLISHABLE_KEY", "pk_live_value")
@@ -2168,6 +2168,35 @@ def test_readiness_reports_ok_when_production_auth_and_billing_config_are_comple
     monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_live_value")
     monkeypatch.setenv("STRIPE_PRICE_ID", "price_live")
     monkeypatch.setenv("STRIPE_PORTAL_CONFIGURATION_ID", "bpc_live")
+    monkeypatch.setenv("APP_OPENAI_API_KEY", "")
+    monkeypatch.setenv("OPENAI_API_KEY", "")
+    monkeypatch.setenv("ALLOW_ANONYMOUS_CRM", "false")
+    monkeypatch.setenv("APP_ENV", "production")
+    client = make_client(user=make_user())
+
+    response = client.get("/readyz")
+
+    assert response.status_code == 503
+    assert response.json()["status"] == "degraded"
+    assert response.json()["checks"]["openai"] == {
+        "configured": False,
+        "production_ready": False,
+    }
+
+
+def test_readiness_reports_ok_when_production_auth_billing_and_openai_config_are_complete(monkeypatch) -> None:
+    monkeypatch.setenv("APP_BASE_URL", "https://www.brivoly.com")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@db.example.com:5432/brivoly")
+    monkeypatch.setenv("CLERK_PUBLISHABLE_KEY", "pk_live_value")
+    monkeypatch.setenv("CLERK_SECRET_KEY", "sk_live_value")
+    monkeypatch.setenv("CLERK_JWKS_URL", "https://clerk.example/.well-known/jwks.json")
+    monkeypatch.setenv("CLERK_ISSUER", "https://clerk.example")
+    monkeypatch.setenv("CLERK_AUTHORIZED_PARTIES", "https://www.brivoly.com")
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_live_value")
+    monkeypatch.setenv("STRIPE_PRICE_ID", "price_live")
+    monkeypatch.setenv("STRIPE_PORTAL_CONFIGURATION_ID", "bpc_live")
+    monkeypatch.setenv("APP_OPENAI_API_KEY", "sk-live-openai")
+    monkeypatch.delenv("OPENAI_API_KEY", raising=False)
     monkeypatch.setenv("ALLOW_ANONYMOUS_CRM", "false")
     monkeypatch.setenv("APP_ENV", "production")
     client = make_client(user=make_user())
@@ -2178,6 +2207,7 @@ def test_readiness_reports_ok_when_production_auth_and_billing_config_are_comple
     assert response.json()["status"] == "ok"
     assert response.json()["checks"]["auth"]["production_ready"] is True
     assert response.json()["checks"]["billing"]["production_ready"] is True
+    assert response.json()["checks"]["openai"]["production_ready"] is True
 
 
 def test_settings_bootstrap_includes_clerk_host_when_configured(monkeypatch) -> None:

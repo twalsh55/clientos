@@ -64,7 +64,7 @@ def test_build_runtime_report_defaults_to_degraded_without_auth_config(monkeypat
     assert checks["frontend_api_base_url"] == {"configured": False, "valid": None}
     assert checks["telegram"] == {"configured": False}
     assert checks["smtp_email"] == {"configured": False}
-    assert checks["openai"] == {"configured": False}
+    assert checks["openai"] == {"configured": False, "production_ready": False}
 
 
 def test_build_runtime_report_marks_configured_runtime_as_ok(monkeypatch) -> None:
@@ -110,4 +110,4 @@ def test_build_runtime_report_marks_configured_runtime_as_ok(monkeypatch) -> Non
     assert checks["frontend_api_base_url"] == {"configured": True, "valid": True}
     assert checks["telegram"] == {"configured": True}
     assert checks["smtp_email"] == {"configured": True}
-    assert checks["openai"] == {"configured": True}
+    assert checks["openai"] == {"configured": True, "production_ready": True}

@@ -290,6 +290,7 @@ cd web && npm run e2e
 - API readiness now also requires production-like environments to have `CLERK_SECRET_KEY`, `CLERK_JWKS_URL`, `CLERK_ISSUER`, and `CLERK_AUTHORIZED_PARTIES` before reporting `ok`.
 - API readiness now also reports billing configuration and requires production-like environments to have a live Stripe secret key, Stripe price ID, and Stripe billing portal configuration before reporting `ok`.
 - `scripts/audit_production_env.py` now also requires `STRIPE_PORTAL_CONFIGURATION_ID` for staging/production API audits so the preflight matches the production readiness guard.
+- API readiness now also requires production-like environments to have `APP_OPENAI_API_KEY` or `OPENAI_API_KEY` before reporting `ok`, matching the production env audit requirement for backend AI workflows.
 
 ### Next Likely Moves
 
@@ -310,6 +311,7 @@ cd web && npm run e2e
   - deepen GDPR from groundwork into fuller consent, export, erase, retention, processor-disclosure, and data-minimization controls for relationship memory, uploads, and connected mailbox data
   - keep removing the last pockets of CRM-ish, dashboard-ish, or operational language so the product consistently sounds like calm relationship memory rather than management software
   - keep reducing UI density through fewer counters, fewer equal-weight panels, softer hierarchy, and more whitespace
+  - shared relationship-memory tile grids now use readable auto-fit widths instead of forcing narrow two-column layouts, so saved context, inbox, import, and handoff cards have more room before wrapping
   - improve production trust and resilience with stronger empty states, safer auth/session behavior, and fewer smart-prototype moments
   - refine billing and packaging so premium boundaries are clear without adding enterprise-style packaging clutter
   - add a fuller reminder layer outside the app through inbox, calendar, and email touchpoints while still keeping the experience low-admin

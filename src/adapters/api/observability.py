@@ -87,7 +87,15 @@ def build_runtime_report() -> dict[str, object]:
     anonymous_crm_production_safe = not (anonymous_crm_enabled and production_like_environment)
     auth_runtime_safe = auth_production_ready if production_like_environment else auth_configured
     billing_runtime_safe = billing_production_ready if production_like_environment else True
-    runtime_ok = app_base_url_valid and auth_runtime_safe and billing_runtime_safe and anonymous_crm_production_safe
+    openai_production_ready = bool(openai_api_key)
+    openai_runtime_safe = openai_production_ready if production_like_environment else True
+    runtime_ok = (
+        app_base_url_valid
+        and auth_runtime_safe
+        and billing_runtime_safe
+        and openai_runtime_safe
+        and anonymous_crm_production_safe
+    )
 
     return {
         "status": "ok" if runtime_ok else "degraded",
@@ -132,6 +140,7 @@ def build_runtime_report() -> dict[str, object]:
             },
             "openai": {
                 "configured": bool(openai_api_key),
+                "production_ready": openai_production_ready,
             },
         },
     }
