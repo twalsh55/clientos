@@ -2381,7 +2381,7 @@ export function CRMFollowUpWorkspace({
                 context back into relationship memory and send notes from the
                 same account.
               </p>
-              <div className="mt-4 grid gap-3 md:grid-cols-4">
+              <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-3">
                 <CompactMetricLight
                   label="Event-ready inboxes"
                   value={`${mailboxConnections.filter((connection) => connection.event_ready).length} inbox${mailboxConnections.filter((connection) => connection.event_ready).length === 1 ? "" : "es"}`}
@@ -2472,8 +2472,8 @@ export function CRMFollowUpWorkspace({
                   add a manual mailbox connection below and keep using sync
                   preview mode.
                 </p>
-                <div className="mt-4 grid gap-3 xl:grid-cols-[0.8fr_1.2fr_1fr_auto]">
-                  <label className="block">
+                <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] items-end gap-3">
+                  <label className="block min-w-0">
                     <span className="ui-eyebrow">Provider</span>
                     <select
                       value={mailboxProvider}
@@ -2488,7 +2488,7 @@ export function CRMFollowUpWorkspace({
                       <option value="outlook">Outlook</option>
                     </select>
                   </label>
-                  <label className="block">
+                  <label className="block min-w-0">
                     <span className="ui-eyebrow">Mailbox email</span>
                     <input
                       value={mailboxEmail}
@@ -2497,7 +2497,7 @@ export function CRMFollowUpWorkspace({
                       className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
                     />
                   </label>
-                  <label className="block">
+                  <label className="block min-w-0">
                     <span className="ui-eyebrow">Name on the mailbox</span>
                     <input
                       value={mailboxDisplayName}
@@ -2508,17 +2508,17 @@ export function CRMFollowUpWorkspace({
                       className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
                     />
                   </label>
-                  <div className="flex items-end">
+                  <div className="flex min-w-0 items-end">
                     <Button
                       disabled={isMailboxPending}
                       onClick={connectMailbox}
-                      className={
+                      className={`w-full sm:w-auto ${
                         ambientActionKind === "connect" &&
                         (connectionFocus === "mailbox" ||
                           connectionFocus === "all")
                           ? emphasizedActionClass
-                          : undefined
-                      }
+                          : ""
+                      }`}
                     >
                       {isMailboxPending
                         ? "Connecting..."
@@ -2767,7 +2767,7 @@ export function CRMFollowUpWorkspace({
                 then bring meetings into relationship memory so Brivoly can prep
                 the next conversation before it starts.
               </p>
-              <div className="mt-4 grid gap-3 md:grid-cols-4">
+              <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-3">
                 <CompactMetricLight
                   label="Warm calendars"
                   value={`${calendarConnections.filter((connection) => connection.memory_warm).length} calendar${calendarConnections.filter((connection) => connection.memory_warm).length === 1 ? "" : "s"}`}
@@ -2811,8 +2811,8 @@ export function CRMFollowUpWorkspace({
               </div>
               <div className="mt-4 rounded-[1.2rem] border border-dashed bg-white px-4 py-4">
                 <p className="ui-eyebrow">Calendar connection</p>
-                <div className="mt-4 grid gap-3 xl:grid-cols-[0.8fr_1.2fr_1fr_auto]">
-                  <label className="block">
+                <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(12rem,1fr))] items-end gap-3">
+                  <label className="block min-w-0">
                     <span className="ui-eyebrow">Provider</span>
                     <select
                       value={calendarProvider}
@@ -2829,7 +2829,7 @@ export function CRMFollowUpWorkspace({
                       <option value="outlook_calendar">Outlook Calendar</option>
                     </select>
                   </label>
-                  <label className="block">
+                  <label className="block min-w-0">
                     <span className="ui-eyebrow">Calendar address</span>
                     <input
                       value={calendarAddress}
@@ -2840,7 +2840,7 @@ export function CRMFollowUpWorkspace({
                       className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
                     />
                   </label>
-                  <label className="block">
+                  <label className="block min-w-0">
                     <span className="ui-eyebrow">Name on the calendar</span>
                     <input
                       value={calendarDisplayName}
@@ -2851,17 +2851,17 @@ export function CRMFollowUpWorkspace({
                       className="mt-2 w-full rounded-2xl border border-slate-200 bg-white px-4 py-3 text-sm text-slate-800 outline-none transition focus:border-slate-400"
                     />
                   </label>
-                  <div className="flex items-end">
+                  <div className="flex min-w-0 items-end">
                     <Button
                       disabled={isCalendarPending}
                       onClick={connectCalendar}
-                      className={
+                      className={`w-full sm:w-auto ${
                         ambientActionKind === "connect" &&
                         (connectionFocus === "calendar" ||
                           connectionFocus === "all")
                           ? emphasizedActionClass
-                          : undefined
-                      }
+                          : ""
+                      }`}
                     >
                       {isCalendarPending ? "Connecting..." : "Add calendar"}
                     </Button>
@@ -3975,7 +3975,7 @@ function TodayPrioritiesPanel({
                     {item.body}
                   </p>
                   {relatedLead ? (
-                    <div className="mt-3 grid gap-3 md:grid-cols-2">
+                    <div className="mt-3 grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3">
                       <TimelineTile
                         label="Latest saved moment"
                         value={getLeadCardStory(relatedLead)}
@@ -5417,7 +5417,7 @@ function InboxActivityPanel({
         live thread, the latest change, and the cleanest next move close enough
         that you rarely need to reconstruct the story by hand.
       </p>
-      <div className="mt-5 grid gap-3 xl:grid-cols-4">
+      <div className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-3">
         <CompactMetricLight
           label="Reply soon"
           value={
@@ -8889,10 +8889,10 @@ function CompactMetricLight({
     <div
       className={`min-w-0 overflow-hidden rounded-2xl border px-4 py-3 ${className}`}
     >
-      <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] [overflow-wrap:anywhere] sm:tracking-[0.18em]">
+      <p className="break-words text-xs font-semibold uppercase leading-5 tracking-[0.12em]">
         {label}
       </p>
-      <p className="mt-2 break-words text-xl font-semibold [overflow-wrap:anywhere]">
+      <p className="mt-2 text-lg font-semibold leading-7 [overflow-wrap:normal] sm:text-xl">
         {value}
       </p>
     </div>
@@ -8919,10 +8919,10 @@ function PriorityBadge({ priority }: { priority: string }) {
 function TimelineTile({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0 overflow-hidden rounded-2xl border bg-white px-4 py-3">
-      <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 [overflow-wrap:anywhere] sm:tracking-[0.2em]">
+      <p className="text-xs font-semibold uppercase leading-5 tracking-[0.12em] text-slate-400 [overflow-wrap:normal] sm:tracking-[0.14em]">
         {label}
       </p>
-      <p className="mt-2 break-words text-sm text-slate-700 [overflow-wrap:anywhere]">
+      <p className="mt-2 text-sm leading-6 text-slate-700 [overflow-wrap:normal]">
         {value}
       </p>
     </div>
@@ -8932,10 +8932,10 @@ function TimelineTile({ label, value }: { label: string; value: string }) {
 function TimelineTileDark({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-slate-900/40 px-4 py-3">
-      <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 [overflow-wrap:anywhere] sm:tracking-[0.2em]">
+      <p className="text-xs font-semibold uppercase leading-5 tracking-[0.12em] text-slate-400 [overflow-wrap:normal] sm:tracking-[0.14em]">
         {label}
       </p>
-      <p className="mt-2 break-words text-sm text-slate-200 [overflow-wrap:anywhere]">
+      <p className="mt-2 text-sm leading-6 text-slate-200 [overflow-wrap:normal]">
         {value}
       </p>
     </div>
