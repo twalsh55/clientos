@@ -2048,6 +2048,11 @@ def test_healthcheck_and_readiness_include_request_ids(monkeypatch) -> None:
     monkeypatch.setenv("APP_BASE_URL", "https://trade.example.com")
     monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@db.example.com:5432/trade")
     monkeypatch.setenv("CLERK_PUBLISHABLE_KEY", "pk_test_value")
+    monkeypatch.setenv("ALLOW_ANONYMOUS_CRM", "false")
+    monkeypatch.delenv("APP_ENV", raising=False)
+    monkeypatch.delenv("ENVIRONMENT", raising=False)
+    monkeypatch.delenv("RAILWAY_ENVIRONMENT_NAME", raising=False)
+    monkeypatch.delenv("VERCEL_ENV", raising=False)
     client = make_client(user=make_user())
 
     response = client.get("/healthz", headers={"X-Request-ID": "req-123"})
@@ -2063,6 +2068,8 @@ def test_healthcheck_and_readiness_include_request_ids(monkeypatch) -> None:
     assert readiness.headers["X-Request-ID"]
     assert readiness.json()["status"] == "ok"
     assert readiness.json()["checks"]["auth"]["configured"] is True
+    assert readiness.json()["checks"]["anonymous_crm"]["enabled"] is False
+    assert readiness.json()["checks"]["anonymous_crm"]["production_safe"] is True
 
 
 def test_readiness_reports_degraded_runtime_without_auth_config(monkeypatch) -> None:
@@ -2075,6 +2082,25 @@ def test_readiness_reports_degraded_runtime_without_auth_config(monkeypatch) -> 
     assert response.status_code == 503
     assert response.json()["status"] == "degraded"
     assert response.json()["checks"]["auth"]["configured"] is False
+
+
+def test_readiness_reports_degraded_runtime_when_anonymous_crm_is_enabled_in_production(monkeypatch) -> None:
+    monkeypatch.setenv("APP_BASE_URL", "https://www.brivoly.com")
+    monkeypatch.setenv("DATABASE_URL", "postgresql://user:pass@db.example.com:5432/brivoly")
+    monkeypatch.setenv("CLERK_PUBLISHABLE_KEY", "pk_live_value")
+    monkeypatch.setenv("ALLOW_ANONYMOUS_CRM", "true")
+    monkeypatch.setenv("RAILWAY_ENVIRONMENT_NAME", "production")
+    client = make_client(user=make_user())
+
+    response = client.get("/readyz")
+
+    assert response.status_code == 503
+    assert response.json()["status"] == "degraded"
+    assert response.json()["checks"]["anonymous_crm"] == {
+        "enabled": True,
+        "production_safe": False,
+        "environment": "production",
+    }
 
 
 def test_settings_bootstrap_includes_clerk_host_when_configured(monkeypatch) -> None:

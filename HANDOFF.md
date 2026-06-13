@@ -26,6 +26,10 @@ The product is functionally broad but should be treated as pre-production until 
 - Fixed spreadsheet import file selection after the import workspace reset.
 - Removed obsolete `web/pages/_document.tsx`, which conflicted with the current Next build.
 - Made a broad Client OS layout pass to eliminate stacked/chopped text caused by narrow cards and `overflow-wrap:anywhere`.
+- Started the production-readiness checklist by adding a `/readyz` launch guard for anonymous Client OS access:
+  - readiness now reports `checks.anonymous_crm.enabled`
+  - readiness reports `checks.anonymous_crm.production_safe`
+  - readiness degrades in production-like environments when `ALLOW_ANONYMOUS_CRM=true`
 - Verified locally:
   - `uv run pytest`
   - `cd web && npm run typecheck`
@@ -46,6 +50,7 @@ The application is production-ready only when all of these are true:
 - OpenAI usage is configured, observable, rate-limited enough for launch, and respects the user AI-processing setting.
 - Export, erase, retention, and consent controls work against real production data.
 - API and web deploys are repeatable from clean checkouts.
+- `/readyz` catches unsafe production guest-mode configuration before a production smoke check passes.
 - Hosted smoke tests pass after deploy.
 - There is a rollback path for both Railway and Vercel.
 
