@@ -158,6 +158,15 @@ Required service environment variables:
   - `APP_BASE_URL` set to the deployed frontend origin
   - Clerk publishable/sign-in/sign-up variables used by the sign-in bridge
 
+Preflight environment audit:
+
+```bash
+./scripts/audit_production_env.py --env-file .env.staging --target staging
+./scripts/audit_production_env.py --env-file .env.production --target production
+```
+
+The audit checks required Railway API and Vercel web variables, rejects placeholder/local URLs for staging or production, blocks `ALLOW_ANONYMOUS_CRM=true`, and requires live Clerk/Stripe key prefixes for production.
+
 Deployment verification completed locally on 2026-05-14:
 
 ```bash

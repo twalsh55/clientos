@@ -286,6 +286,7 @@ cd web && npm run e2e
   - `cd web && npm run e2e`
 - Local `./scripts/dev.sh` now sources `nvm` when needed and defaults to in-memory storage so Client OS guest mode works even if the `.env` `DATABASE_URL` Postgres on port `5433` is not running. Set `BRIVOLY_DEV_USE_DATABASE=true` when you explicitly want local Postgres-backed dev.
 - API readiness now reports anonymous Client OS mode and degrades in production-like environments when `ALLOW_ANONYMOUS_CRM=true`, so production smoke checks can catch unsafe guest-mode configuration before launch.
+- `scripts/audit_production_env.py` can audit staging or production env files before deploy, including required API/web variables, placeholder/local URL checks, guest-mode blocking, and production Clerk/Stripe key prefixes.
 
 ### Next Likely Moves
 

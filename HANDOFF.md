@@ -30,6 +30,10 @@ The product is functionally broad but should be treated as pre-production until 
   - readiness now reports `checks.anonymous_crm.enabled`
   - readiness reports `checks.anonymous_crm.production_safe`
   - readiness degrades in production-like environments when `ALLOW_ANONYMOUS_CRM=true`
+- Added `scripts/audit_production_env.py` as a local staging/production preflight:
+  - audits Railway API and Vercel web variables from env or dotenv files
+  - blocks placeholder values, localhost URLs, and `ALLOW_ANONYMOUS_CRM=true`
+  - requires live Clerk/Stripe key prefixes for production
 - Verified locally:
   - `uv run pytest`
   - `cd web && npm run typecheck`
@@ -339,6 +343,7 @@ Run from repo root:
 
 ```bash
 uv sync
+./scripts/audit_production_env.py --env-file .env.production --target production
 uv run pytest
 ```
 
