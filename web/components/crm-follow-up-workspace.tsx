@@ -4020,7 +4020,7 @@ function TodayPrioritiesPanel({
               One move is enough to make the day feel lighter.
             </p>
           </div>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3">
             {quickRhythm.map((step) => (
               <div
                 key={step.id}
@@ -4040,7 +4040,7 @@ function TodayPrioritiesPanel({
           </div>
         </div>
       ) : null}
-      <div className="mt-5 grid gap-3 md:grid-cols-3">
+      <div className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(16rem,1fr))] gap-3">
         <TodaySignal
           label="Needs care now"
           value={urgentCount ? String(urgentCount) : "Clear"}
@@ -4273,15 +4273,15 @@ function TodaySignal({
 }) {
   return (
     <div className="min-w-0 overflow-hidden rounded-[1.2rem] border bg-slate-50/80 px-5 py-5">
-      <div className="flex items-start justify-between gap-4">
-        <p className="max-w-[16rem] break-words text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 [overflow-wrap:anywhere] sm:tracking-[0.18em]">
+      <div className="space-y-2">
+        <p className="text-xs font-semibold uppercase leading-5 tracking-[0.12em] text-slate-400 [overflow-wrap:normal] sm:tracking-[0.14em]">
           {label}
         </p>
-        <p className="shrink-0 text-3xl font-semibold tracking-tight text-slate-950">
+        <p className="text-2xl font-semibold leading-8 tracking-tight text-slate-950">
           {value}
         </p>
       </div>
-      <p className="mt-4 max-w-[24rem] break-words text-sm leading-6 text-slate-700 [overflow-wrap:anywhere]">
+      <p className="mt-4 text-sm leading-6 text-slate-700 [overflow-wrap:normal]">
         {detail}
       </p>
     </div>
@@ -4595,22 +4595,22 @@ function PriorityCard({
   return (
     <div className="min-w-0 overflow-hidden rounded-[1.35rem] border bg-slate-50/80 px-5 py-5 transition hover:border-slate-400 hover:bg-white">
       <Link href={href} className="block min-w-0">
-        <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 [overflow-wrap:anywhere] sm:tracking-[0.18em]">
+        <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 [overflow-wrap:normal] sm:tracking-[0.18em]">
           {eyebrow}
         </p>
-        <p className="break-words text-lg font-semibold tracking-tight text-slate-950 [overflow-wrap:anywhere]">
+        <p className="break-words text-lg font-semibold tracking-tight text-slate-950 [overflow-wrap:normal]">
           {title}
         </p>
-        <p className="mt-2 break-words text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">
+        <p className="mt-2 break-words text-sm leading-6 text-slate-600 [overflow-wrap:normal]">
           {body}
         </p>
         {nextMove ? (
-          <p className="mt-3 break-words text-sm leading-6 text-slate-800 [overflow-wrap:anywhere]">
+          <p className="mt-3 break-words text-sm leading-6 text-slate-800 [overflow-wrap:normal]">
             <span className="font-medium text-slate-950">Next move:</span>{" "}
             {nextMove}
           </p>
         ) : null}
-        <p className="mt-3 break-words text-xs text-slate-500 [overflow-wrap:anywhere]">
+        <p className="mt-3 break-words text-xs text-slate-500 [overflow-wrap:normal]">
           {meta}
         </p>
       </Link>
@@ -4761,7 +4761,7 @@ function PipelineBoardPanel({
             </div>
           ) : null}
         </div>
-        <div className="grid gap-3 lg:max-w-md lg:grid-cols-2">
+        <div className="grid grid-cols-[repeat(auto-fit,minmax(13rem,1fr))] gap-3 lg:min-w-[28rem]">
           <CompactMetricLight
             label="Reply pressure"
             value={`${items.filter((item) => item.recent_email_threads.some((thread) => thread.needs_reply)).length} thread${items.filter((item) => item.recent_email_threads.some((thread) => thread.needs_reply)).length === 1 ? "" : "s"}`}
@@ -6506,7 +6506,7 @@ function RemoteImageCapturePanel({
         <p className="text-xs font-semibold uppercase tracking-[0.18em] text-slate-400">
           What the client experience feels like
         </p>
-        <div className="mt-4 grid gap-3 md:grid-cols-3">
+        <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3">
           {[
             {
               step: "Open",
@@ -6664,7 +6664,7 @@ function RemoteImageCapturePanel({
                   </a>
                 </Button>
               </div>
-              <div className="mt-4 grid gap-3 md:grid-cols-3">
+              <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3">
                 {[
                   {
                     step: "Open",
@@ -6866,13 +6866,13 @@ function TaskSummaryCard({
       href={href}
       className="block min-w-0 overflow-hidden rounded-[1.75rem] border bg-white/90 p-6 shadow-sm transition hover:border-slate-400 hover:bg-white"
     >
-      <p className="break-words text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 [overflow-wrap:anywhere] sm:tracking-[0.24em]">
+      <p className="break-words text-xs font-semibold uppercase tracking-[0.18em] text-slate-400 [overflow-wrap:normal] sm:tracking-[0.24em]">
         {eyebrow}
       </p>
-      <h3 className="mt-3 break-words text-2xl font-semibold tracking-tight text-slate-950 [overflow-wrap:anywhere]">
+      <h3 className="mt-3 break-words text-2xl font-semibold tracking-tight text-slate-950 [overflow-wrap:normal]">
         {title}
       </h3>
-      <p className="mt-3 break-words text-sm leading-6 text-slate-600 [overflow-wrap:anywhere]">
+      <p className="mt-3 break-words text-sm leading-6 text-slate-600 [overflow-wrap:normal]">
         {body}
       </p>
     </Link>
@@ -8207,7 +8207,7 @@ function LeadMemoryPanel({
               </Button>
             </div>
           </div>
-          <div className="mt-4 grid gap-3 lg:grid-cols-3">
+          <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3">
             {recentShiftEntries.map((entry) => (
               <StoryMomentCard
                 key={`${entry.occurred_at}-${entry.kind}-${entry.summary}`}
@@ -8309,7 +8309,7 @@ function LeadMemoryPanel({
           <h3 className="mt-2 text-2xl font-semibold tracking-tight text-slate-950">
             The moments most likely to shape the next touch.
           </h3>
-          <div className="mt-4 grid gap-3 md:grid-cols-3">
+          <div className="mt-4 grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-3">
             {keyTimelineMoments.map((entry) => (
               <StoryMomentCard key={`story-${entry.id}`} entry={entry} />
             ))}
@@ -8488,7 +8488,7 @@ function LeadMemoryPanel({
           </p>
         </div>
 
-        <div className="mt-5 grid gap-4 xl:grid-cols-3">
+        <div className="mt-5 grid grid-cols-[repeat(auto-fit,minmax(14rem,1fr))] gap-4">
           <label className="block">
             <span className="ui-eyebrow">Objective</span>
             <select
@@ -8795,7 +8795,7 @@ function MiniFlag({
 }) {
   return (
     <span
-      className={`inline-flex max-w-full items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] [overflow-wrap:anywhere] ${
+      className={`inline-flex max-w-full items-center rounded-full px-2.5 py-1 text-[11px] font-semibold uppercase tracking-[0.12em] [overflow-wrap:normal] ${
         tone === "critical"
           ? "bg-rose-100 text-rose-800"
           : tone === "warning"
@@ -8845,10 +8845,10 @@ function MetricCard({
     <div
       className={`min-w-0 overflow-hidden rounded-[1.4rem] border p-5 shadow-sm ${toneClass}`}
     >
-      <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] [overflow-wrap:anywhere] sm:tracking-[0.2em]">
+      <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] [overflow-wrap:normal] sm:tracking-[0.2em]">
         {label}
       </p>
-      <p className="mt-3 break-words text-3xl font-semibold tracking-tight [overflow-wrap:anywhere]">
+      <p className="mt-3 break-words text-3xl font-semibold tracking-tight [overflow-wrap:normal]">
         {value}
       </p>
     </div>
@@ -8858,10 +8858,10 @@ function MetricCard({
 function CompactMetric({ label, value }: { label: string; value: string }) {
   return (
     <div className="min-w-0 overflow-hidden rounded-2xl border border-white/10 bg-white/5 px-4 py-3">
-      <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 [overflow-wrap:anywhere] sm:tracking-[0.18em]">
+      <p className="break-words text-xs font-semibold uppercase tracking-[0.14em] text-slate-400 [overflow-wrap:normal] sm:tracking-[0.18em]">
         {label}
       </p>
-      <p className="mt-2 break-words text-xl font-semibold text-white [overflow-wrap:anywhere]">
+      <p className="mt-2 break-words text-xl font-semibold text-white [overflow-wrap:normal]">
         {value}
       </p>
     </div>
@@ -8892,7 +8892,7 @@ function CompactMetricLight({
       <p className="break-words text-xs font-semibold uppercase leading-5 tracking-[0.12em]">
         {label}
       </p>
-      <p className="mt-2 text-lg font-semibold leading-7 [overflow-wrap:normal] sm:text-xl">
+      <p className="mt-2 break-words text-lg font-semibold leading-7 [overflow-wrap:break-word] sm:text-xl">
         {value}
       </p>
     </div>
@@ -8909,7 +8909,7 @@ function PriorityBadge({ priority }: { priority: string }) {
 
   return (
     <div
-      className={`inline-flex max-w-full rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] [overflow-wrap:anywhere] sm:tracking-[0.2em] ${className}`}
+      className={`inline-flex max-w-full rounded-full border px-3 py-1 text-xs font-semibold uppercase tracking-[0.14em] [overflow-wrap:normal] sm:tracking-[0.2em] ${className}`}
     >
       {priority} priority
     </div>
