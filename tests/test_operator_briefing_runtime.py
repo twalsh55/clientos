@@ -23,6 +23,7 @@ from src.domain.prospecting import ProspectTokenUsage, SocialPost
 
 
 def build_digest() -> ProspectingDigest:
+    generated_at = datetime.now(UTC)
     post = SocialPost(
         source="reddit",
         external_id="abc",
@@ -30,10 +31,10 @@ def build_digest() -> ProspectingDigest:
         body="We still lose leads because reminders live in spreadsheets and email threads." * 3,
         author="ada",
         permalink="https://example.com/post",
-        created_at=datetime(2026, 5, 16, 10, 0, tzinfo=UTC),
+        created_at=generated_at,
     )
     return ProspectingDigest(
-        generated_at=datetime(2026, 5, 16, 11, 0, tzinfo=UTC),
+        generated_at=generated_at,
         profile="crm_direction",
         scanned_post_count=10,
         shortlisted_count=1,

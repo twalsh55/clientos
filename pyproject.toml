@@ -1,7 +1,7 @@
 [project]
 name = "brivoly"
 version = "0.1.0"
-description = "Market crash monitoring dashboard with de-risk and dip-buy signals"
+description = "Brivoly"
 readme = "README.md"
 requires-python = ">=3.12"
 dependencies = [
