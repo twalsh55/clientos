@@ -288,6 +288,8 @@ cd web && npm run e2e
 - API readiness now reports anonymous Client OS mode and degrades in production-like environments when `ALLOW_ANONYMOUS_CRM=true`, so production smoke checks can catch unsafe guest-mode configuration before launch.
 - `scripts/audit_production_env.py` can audit staging or production env files before deploy, including required API/web variables, placeholder/local URL checks, guest-mode blocking, and production Clerk/Stripe key prefixes.
 - API readiness now also requires production-like environments to have `CLERK_SECRET_KEY`, `CLERK_JWKS_URL`, `CLERK_ISSUER`, and `CLERK_AUTHORIZED_PARTIES` before reporting `ok`.
+- API readiness now also reports billing configuration and requires production-like environments to have a live Stripe secret key, Stripe price ID, and Stripe billing portal configuration before reporting `ok`.
+- `scripts/audit_production_env.py` now also requires `STRIPE_PORTAL_CONFIGURATION_ID` for staging/production API audits so the preflight matches the production readiness guard.
 
 ### Next Likely Moves
 

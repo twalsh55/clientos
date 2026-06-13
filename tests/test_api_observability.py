@@ -35,6 +35,9 @@ def test_build_runtime_report_defaults_to_degraded_without_auth_config(monkeypat
     monkeypatch.delenv("SMTP_USERNAME", raising=False)
     monkeypatch.delenv("APP_OPENAI_API_KEY", raising=False)
     monkeypatch.delenv("OPENAI_API_KEY", raising=False)
+    monkeypatch.delenv("STRIPE_SECRET_KEY", raising=False)
+    monkeypatch.delenv("STRIPE_PRICE_ID", raising=False)
+    monkeypatch.delenv("STRIPE_PORTAL_CONFIGURATION_ID", raising=False)
 
     report = build_runtime_report()
 
@@ -48,6 +51,13 @@ def test_build_runtime_report_defaults_to_degraded_without_auth_config(monkeypat
         "jwks_url_configured": False,
         "issuer_configured": False,
         "authorized_parties_configured": False,
+        "configured": False,
+        "production_ready": False,
+    }
+    assert checks["billing"] == {
+        "secret_key_configured": False,
+        "price_id_configured": False,
+        "portal_configuration_configured": False,
         "configured": False,
         "production_ready": False,
     }
@@ -71,6 +81,9 @@ def test_build_runtime_report_marks_configured_runtime_as_ok(monkeypatch) -> Non
     monkeypatch.setenv("SMTP_HOST", "smtp.example.com")
     monkeypatch.setenv("SMTP_USERNAME", "mailer")
     monkeypatch.setenv("APP_OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("STRIPE_SECRET_KEY", "sk_test_value")
+    monkeypatch.setenv("STRIPE_PRICE_ID", "price_test")
+    monkeypatch.setenv("STRIPE_PORTAL_CONFIGURATION_ID", "bpc_test")
 
     report = build_runtime_report()
 
@@ -86,6 +99,13 @@ def test_build_runtime_report_marks_configured_runtime_as_ok(monkeypatch) -> Non
         "authorized_parties_configured": True,
         "configured": True,
         "production_ready": True,
+    }
+    assert checks["billing"] == {
+        "secret_key_configured": True,
+        "price_id_configured": True,
+        "portal_configuration_configured": True,
+        "configured": True,
+        "production_ready": False,
     }
     assert checks["frontend_api_base_url"] == {"configured": True, "valid": True}
     assert checks["telegram"] == {"configured": True}

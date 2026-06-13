@@ -38,6 +38,7 @@ API_CHECKS = (
     EnvCheck("CLERK_AUTHORIZED_PARTIES", "allowed Clerk token origins"),
     EnvCheck("STRIPE_SECRET_KEY", "Stripe secret key", production_prefix=("sk_live_",)),
     EnvCheck("STRIPE_PRICE_ID", "Stripe price ID", production_prefix=("price_",)),
+    EnvCheck("STRIPE_PORTAL_CONFIGURATION_ID", "Stripe billing portal configuration", production_prefix=("bpc_",)),
     EnvCheck("MAILBOX_WATCH_WEBHOOK_SECRET", "mailbox watch webhook secret"),
 )
 

@@ -28,6 +28,7 @@ def valid_staging_env() -> dict[str, str]:
         "CLERK_AUTHORIZED_PARTIES": "https://staging.brivoly.com",
         "STRIPE_SECRET_KEY": "sk_test_configured",
         "STRIPE_PRICE_ID": "price_staging",
+        "STRIPE_PORTAL_CONFIGURATION_ID": "bpc_staging",
         "MAILBOX_WATCH_WEBHOOK_SECRET": "watch-secret",
         "APP_OPENAI_API_KEY": "openai-secret",
         "ALLOW_ANONYMOUS_CRM": "false",

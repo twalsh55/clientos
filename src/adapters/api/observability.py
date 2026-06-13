@@ -66,6 +66,9 @@ def build_runtime_report() -> dict[str, object]:
     smtp_host = os.getenv("SMTP_HOST", "").strip()
     smtp_username = os.getenv("SMTP_USERNAME", "").strip()
     openai_api_key = get_first_configured_env("APP_OPENAI_API_KEY", "OPENAI_API_KEY")
+    stripe_secret_key = os.getenv("STRIPE_SECRET_KEY", "").strip()
+    stripe_price_id = os.getenv("STRIPE_PRICE_ID", "").strip()
+    stripe_portal_configuration_id = os.getenv("STRIPE_PORTAL_CONFIGURATION_ID", "").strip()
     anonymous_crm_enabled = _env_flag_enabled("ALLOW_ANONYMOUS_CRM")
     deployment_environment = _deployment_environment()
     production_like_environment = _is_production_like_environment(deployment_environment)
@@ -73,11 +76,18 @@ def build_runtime_report() -> dict[str, object]:
     auth_configured = bool(database_url) and bool(publishable_key)
     clerk_server_configured = bool(secret_key) and bool(jwks_url) and bool(issuer) and bool(authorized_parties)
     auth_production_ready = auth_configured and clerk_server_configured
+    billing_configured = bool(database_url) and bool(stripe_secret_key) and bool(stripe_price_id)
+    billing_production_ready = (
+        billing_configured
+        and stripe_secret_key.startswith("sk_live_")
+        and bool(stripe_portal_configuration_id)
+    )
     app_base_url_valid = is_absolute_http_url(app_base_url)
     frontend_api_base_url_valid = is_absolute_http_url(frontend_api_base_url) if frontend_api_base_url else None
     anonymous_crm_production_safe = not (anonymous_crm_enabled and production_like_environment)
     auth_runtime_safe = auth_production_ready if production_like_environment else auth_configured
-    runtime_ok = app_base_url_valid and auth_runtime_safe and anonymous_crm_production_safe
+    billing_runtime_safe = billing_production_ready if production_like_environment else True
+    runtime_ok = app_base_url_valid and auth_runtime_safe and billing_runtime_safe and anonymous_crm_production_safe
 
     return {
         "status": "ok" if runtime_ok else "degraded",
@@ -102,6 +112,13 @@ def build_runtime_report() -> dict[str, object]:
                 "enabled": anonymous_crm_enabled,
                 "production_safe": anonymous_crm_production_safe,
                 "environment": deployment_environment or None,
+            },
+            "billing": {
+                "secret_key_configured": bool(stripe_secret_key),
+                "price_id_configured": bool(stripe_price_id),
+                "portal_configuration_configured": bool(stripe_portal_configuration_id),
+                "configured": billing_configured,
+                "production_ready": billing_production_ready,
             },
             "frontend_api_base_url": {
                 "configured": bool(frontend_api_base_url),
