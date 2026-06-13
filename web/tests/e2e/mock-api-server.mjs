@@ -67,6 +67,12 @@ function makeState() {
       crm_preferred_import_formats: ["csv", "google_sheets", "spreadsheet_screenshot"],
       crm_image_intake_channels: ["upload", "magic_link"],
       crm_image_intake_notes: "Default to uploads inside Brivoly, then use the signed handoff link for phone-captured note images.",
+      preferred_language: "en",
+      preferred_locale: "en-US",
+      data_retention_days: 365,
+      allow_ai_processing: true,
+      privacy_consent_version: "v1",
+      privacy_consent_granted_at: null,
     },
     alertRequests: 0,
     alerts: [
@@ -117,8 +123,16 @@ function makeState() {
         relationship_timing_nudge: "You have not replied to Amber Flores since today.",
         relationship_context_summary: "Discovery call completed. Timing and scope were positive, but the recap needs to be tighter. Could you tighten the recap and send two possible times for next week?",
         relationship_recent_changes_summary: "5 days ago Brivoly logged a call: Discovery call completed. Timing and scope were positive, but the recap needs to be tighter. Today Amber Flores sent a message that still needs a reply.",
+        relationship_recent_upload_summary: "",
+        relationship_upload_follow_through_hint: "",
         relationship_last_30_days_summary: "Over the last 30 days, the most important shift was Discovery call completed. Timing and scope were positive, but the recap needs to be tighter. Before that, Brivoly logged an inbound message: Inbound request mentioned spreadsheet-heavy client onboarding and missed follow-ups.",
         relationship_meeting_prep_summary: "The last meaningful discussion centered on Discovery call completed. Timing and scope were positive, but the recap needs to be tighter. Best next move: Send a concise recap and propose two call slots. You still owe a reply from today.",
+        relationship_upcoming_meeting_at: null,
+        relationship_upcoming_meeting_label: "",
+        relationship_upcoming_meeting_source: "",
+        relationship_reconnect_why_now: "There is an active thread waiting on you.",
+        relationship_reconnect_next_move: "Pick up the thread while the context is still fresh.",
+        relationship_reconnect_message_hint: "Quick angle: tighten the recap and offer two possible times.",
         dormant: false,
         relationship_reminders: [],
         timeline: [
@@ -195,8 +209,64 @@ function buildDashboardSnapshot(benchmark, lookbackYears, universe) {
   };
 }
 
+function normalizeThread(thread) {
+  const snippet = thread.snippet || "";
+  return {
+    source: "",
+    last_message_id: "",
+    last_external_message_id: "",
+    memory_summary: snippet,
+    next_touch_hint: thread.needs_reply ? `Reply to ${thread.counterpart_name || "this contact"}.` : "Hold steady for now.",
+    open_loop: snippet,
+    relationship_pulse: thread.needs_reply
+      ? `${thread.counterpart_name || "This contact"} is waiting on you.`
+      : `You are waiting on ${thread.counterpart_name || "this contact"}.`,
+    continuity_span: `${thread.message_count || 1}-message thread`,
+    recent_change_hint: snippet,
+    carry_forward_hint: snippet,
+    unresolved_hint: thread.needs_reply ? snippet : "",
+    continuity_memory: "",
+    ...thread,
+  };
+}
+
+function normalizeFollowUp(item) {
+  return {
+    priority: "medium",
+    contact_channel: "email",
+    last_contacted_at: null,
+    notes: "",
+    timeline: [],
+    referral_source_name: "",
+    birthday: null,
+    company_milestone_name: "",
+    company_milestone_date: null,
+    last_meaningful_interaction_at: item.last_contacted_at || item.next_follow_up_at || null,
+    relationship_health_score: 72,
+    relationship_health_label: "watch",
+    relationship_state: "warm",
+    relationship_timing_nudge: item.next_step || "",
+    relationship_context_summary: item.notes || item.next_step || "",
+    relationship_recent_changes_summary: item.notes || item.next_step || "",
+    relationship_recent_upload_summary: "",
+    relationship_upload_follow_through_hint: "",
+    relationship_last_30_days_summary: item.notes || item.next_step || "",
+    relationship_meeting_prep_summary: item.next_step || "",
+    relationship_upcoming_meeting_at: null,
+    relationship_upcoming_meeting_label: "",
+    relationship_upcoming_meeting_source: "",
+    relationship_reconnect_why_now: item.relationship_timing_nudge || "",
+    relationship_reconnect_next_move: item.next_step || "",
+    relationship_reconnect_message_hint: item.next_step || "",
+    ...item,
+    recent_email_threads: (item.recent_email_threads || []).map(normalizeThread),
+  };
+}
+
 function buildCrmOverview() {
-  const items = [...state.crmFollowUps].sort((a, b) => new Date(a.next_follow_up_at).getTime() - new Date(b.next_follow_up_at).getTime());
+  const items = state.crmFollowUps
+    .map(normalizeFollowUp)
+    .sort((a, b) => new Date(a.next_follow_up_at).getTime() - new Date(b.next_follow_up_at).getTime());
   const stageMap = new Map();
   for (const item of items) {
     const bucket = stageMap.get(item.stage) || [];
@@ -265,11 +335,6 @@ const server = http.createServer(async (request, response) => {
       return;
     }
     json(response, 200, { authenticated: true, user: makeUser() });
-    return;
-  }
-
-  if (!isAuthenticated(request)) {
-    json(response, 401, { detail: "Authentication required." });
     return;
   }
 
@@ -349,6 +414,11 @@ const server = http.createServer(async (request, response) => {
 
   if (url.pathname === "/api/crm/followups" && request.method === "GET") {
     json(response, 200, buildCrmOverview());
+    return;
+  }
+
+  if (!isAuthenticated(request)) {
+    json(response, 401, { detail: "Authentication required." });
     return;
   }
 

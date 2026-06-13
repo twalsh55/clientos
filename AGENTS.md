@@ -216,6 +216,7 @@ cd web && npm run e2e
   - the shared ambient-memory summary now also carries an explicit focus hint for mailbox, calendar, or both, so Inbox can follow one Python-owned recovery contract instead of reverse-engineering the right source focus from routes alone
   - that same shared recovery contract now also carries an explicit action kind such as connect, reconnect, resume, sync, or bring in meeting context, so Inbox can visually lift the exact button Brivoly wants next instead of only the section
   - provider-backed sending now explains when Brivoly had to send through a different provider than the thread originally came from while still keeping the relationship memory attached, and `Today` now shows a direct `Background memory` signal sourced from the shared ambient continuity model
+  - local Client OS guest checks now keep anonymous relationship memory available in the e2e mock, and the web follow-up proxy preserves backend auth/error statuses instead of flattening them into a generic 500
 
 ### Relationship OS Todo
 
@@ -283,6 +284,7 @@ cd web && npm run e2e
   - keep `pytest` coverage at `100%`
   - `cd web && npm run build`
   - `cd web && npm run e2e`
+- Local `./scripts/dev.sh` now sources `nvm` when needed and defaults to in-memory storage so Client OS guest mode works even if the `.env` `DATABASE_URL` Postgres on port `5433` is not running. Set `BRIVOLY_DEV_USE_DATABASE=true` when you explicitly want local Postgres-backed dev.
 
 ### Next Likely Moves
 

@@ -1691,8 +1691,9 @@ export function CRMFollowUpWorkspace({
                     accept=".csv,text/csv,.xlsx,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,.xls,application/vnd.ms-excel,.png,image/png,.jpg,image/jpeg,.jpeg,image/jpeg,.webp,image/webp"
                     className="mt-3 block w-full rounded-2xl border border-dashed border-slate-300 bg-white px-4 py-5 text-sm text-slate-600"
                     onChange={(event) => {
+                      const nextFile = event.currentTarget.files?.[0] ?? null;
                       resetImportWorkspace("file_upload");
-                      setSelectedFile(event.target.files?.[0] ?? null);
+                      setSelectedFile(nextFile);
                     }}
                   />
                   <p className="mt-3 text-xs text-slate-500">

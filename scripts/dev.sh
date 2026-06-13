@@ -7,11 +7,22 @@ API_PORT="${API_PORT:-8000}"
 WEB_HOST="${WEB_HOST:-127.0.0.1}"
 WEB_PORT="${WEB_PORT:-3000}"
 BRIVOLY_API_BASE_URL="${BRIVOLY_API_BASE_URL:-${TRADE_API_BASE_URL:-http://${API_HOST}:${API_PORT}}}"
+BRIVOLY_DEV_USE_DATABASE="${BRIVOLY_DEV_USE_DATABASE:-false}"
 
 cd "${ROOT_DIR}"
 
 if ! command -v uv >/dev/null 2>&1; then
   echo "Missing required command: uv" >&2
+  exit 1
+fi
+
+if ! command -v node >/dev/null 2>&1 && [[ -s "${HOME}/.nvm/nvm.sh" ]]; then
+  # shellcheck source=/dev/null
+  . "${HOME}/.nvm/nvm.sh"
+fi
+
+if ! command -v node >/dev/null 2>&1; then
+  echo "Missing required command: node. Install Node or source nvm before running this script." >&2
   exit 1
 fi
 
@@ -57,7 +68,15 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "Starting Python API on http://${API_HOST}:${API_PORT}"
-uv run uvicorn src.adapters.api.app:app --reload --host "${API_HOST}" --port "${API_PORT}" &
+if [[ "${BRIVOLY_DEV_USE_DATABASE}" != "true" ]]; then
+  echo "Using in-memory local storage. Set BRIVOLY_DEV_USE_DATABASE=true to use DATABASE_URL."
+fi
+(
+  if [[ "${BRIVOLY_DEV_USE_DATABASE}" != "true" ]]; then
+    export DATABASE_URL=""
+  fi
+  uv run uvicorn src.adapters.api.app:app --reload --host "${API_HOST}" --port "${API_PORT}"
+) &
 api_pid="$!"
 
 echo "Starting Next.js frontend on http://${WEB_HOST}:${WEB_PORT}"
