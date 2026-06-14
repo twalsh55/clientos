@@ -1895,7 +1895,7 @@ export function CRMFollowUpWorkspace({
                     <p className="mt-3 text-sm leading-6 text-slate-200">
                       {getLeadCardWhyNow(filteredFollowUps[0])}
                     </p>
-                    <div className="mt-4 grid gap-3 md:grid-cols-2">
+                    <div className={`mt-4 ${READABLE_TILE_GRID_CLASS}`}>
                       <TimelineTileDark
                         label="Latest saved moment"
                         value={getLeadCardStory(filteredFollowUps[0])}
@@ -2101,7 +2101,7 @@ export function CRMFollowUpWorkspace({
                       <p className="mt-1 text-sm leading-6 text-slate-600">
                         {item.next_step}
                       </p>
-                      <div className="mt-4 grid gap-3 md:grid-cols-2">
+                      <div className={`mt-4 ${READABLE_TILE_GRID_CLASS}`}>
                         <TimelineTile
                           label="Latest saved moment"
                           value={getLeadCardStory(item)}
@@ -2116,7 +2116,7 @@ export function CRMFollowUpWorkspace({
                           }
                         />
                       </div>
-                      <div className="mt-5 grid gap-3 md:grid-cols-2">
+                      <div className={`mt-5 ${READABLE_TILE_GRID_CLASS}`}>
                         <TimelineTile
                           label="Why now"
                           value={getLeadCardWhyNow(item)}
@@ -2426,7 +2426,7 @@ export function CRMFollowUpWorkspace({
                   }
                 />
               </div>
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className={`mt-4 ${READABLE_TILE_GRID_CLASS}`}>
                 <button
                   type="button"
                   disabled={isMailboxPending}
@@ -3062,7 +3062,7 @@ export function CRMFollowUpWorkspace({
                 Use this when you want to bring one thread in by hand or test
                 relationship memory against a specific message.
               </p>
-              <div className="mt-4 grid gap-3 md:grid-cols-2">
+              <div className={`mt-4 ${READABLE_TILE_GRID_CLASS}`}>
                 <input
                   value={inboxThreadId}
                   onChange={(event) => setInboxThreadId(event.target.value)}
