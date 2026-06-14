@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState, useTransition } from "react";
+import { useEffect, useRef, useState, useTransition } from "react";
 
 import { DashboardCharts } from "@/components/charts/dashboard-charts";
 import { Button } from "@/components/ui/button";
@@ -22,6 +22,7 @@ export function DashboardWorkspace({ initialDashboard, settings, bootstrap }: Da
   const [errors, setErrors] = useState<Partial<Record<keyof DashboardFilters, string>>>({});
   const [isPending, startTransition] = useTransition();
   const [filters, setFilters] = useState(() => buildInitialFilters(initialDashboard, settings, bootstrap));
+  const filtersRef = useRef(filters);
 
   useEffect(() => {
     function handleSavedSettings(event: Event) {
@@ -31,6 +32,7 @@ export function DashboardWorkspace({ initialDashboard, settings, bootstrap }: Da
       }
 
       const nextFilters: DashboardFilters = { ...customEvent.detail };
+      filtersRef.current = nextFilters;
       setFilters(nextFilters);
       setStatus("Saved defaults applied. Refreshing dashboard...");
       void refreshDashboard(nextFilters);
@@ -45,18 +47,21 @@ export function DashboardWorkspace({ initialDashboard, settings, bootstrap }: Da
   }, []);
 
   function updateFilter<K extends keyof DashboardFilters>(key: K, value: DashboardFilters[K]) {
-    setFilters((current) => ({ ...current, [key]: value }));
+    const next = { ...filtersRef.current, [key]: value };
+    filtersRef.current = next;
+    setFilters(next);
     setErrors((current) => ({ ...current, [key]: undefined }));
   }
 
   function resetToSavedDefaults() {
     const next = buildInitialFilters(initialDashboard, settings, bootstrap);
+    filtersRef.current = next;
     setFilters(next);
     setErrors({});
     setStatus("Controls reset to saved defaults.");
   }
 
-  async function refreshDashboard(nextFilters: DashboardFilters = filters) {
+  async function refreshDashboard(nextFilters: DashboardFilters = filtersRef.current) {
     const validationErrors = validateFilters(nextFilters);
     setErrors(validationErrors);
     if (Object.keys(validationErrors).length > 0) {

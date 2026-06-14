@@ -24,17 +24,14 @@ test.beforeEach(async ({ request }) => {
 });
 
 test("bootstraps a local app session and renders the authenticated dashboard shell", async ({ page }) => {
-  await page.goto("/");
+  await page.goto("/crash-monitor");
   await expect(page.getByRole("link", { name: "Sign in" })).toBeVisible();
-  await expect(page.getByText("You are browsing as a guest right now.")).toBeVisible();
+  await expect(page.getByText("Account session missing")).toBeVisible();
 
   await bootstrapSession(page);
-  await page.goto("/");
+  await page.goto("/crash-monitor");
 
   await expect(page.locator("main").getByText("Signed in as Ada Lovelace").first()).toBeVisible();
-  await expect(page.getByText("You are signed in and ready to enter either workspace.")).toBeVisible();
-  await page.getByRole("link", { name: "Open Crash Monitor" }).click();
-
   await expect(page.getByText("Account session active")).toBeVisible();
   await expect(page.getByText("Ada Lovelace", { exact: true })).toBeVisible();
   await expect(page.getByTestId("dashboard-benchmark-value")).toHaveText("SPY");
@@ -44,8 +41,11 @@ test("bootstraps a local app session and renders the authenticated dashboard she
 test("refreshes the dashboard with updated filters", async ({ page }) => {
   await bootstrapSession(page);
   await page.goto("/crash-monitor");
+  await page.waitForLoadState("networkidle");
 
-  await page.getByTestId("dashboard-benchmark-input").fill("QQQ");
+  const benchmarkInput = page.getByTestId("dashboard-benchmark-input");
+  await benchmarkInput.fill("QQQ");
+  await expect(benchmarkInput).toHaveValue("QQQ");
   await page.getByTestId("dashboard-refresh-button").click();
 
   await expect(page.getByTestId("dashboard-status")).toHaveText("Dashboard refreshed.");
@@ -56,6 +56,7 @@ test("refreshes the dashboard with updated filters", async ({ page }) => {
 test("saves settings and applies them back to the dashboard", async ({ page }) => {
   await bootstrapSession(page);
   await page.goto("/crash-monitor");
+  await page.waitForLoadState("networkidle");
 
   await page.getByRole("heading", { name: "User dashboard defaults" }).scrollIntoViewIfNeeded();
   await page.getByTestId("settings-benchmark-input").fill("QQQ");
@@ -69,6 +70,7 @@ test("saves settings and applies them back to the dashboard", async ({ page }) =
 test("lets a first-time user defer the business profile setup", async ({ page }) => {
   await bootstrapSession(page);
   await page.goto("/clientos");
+  await page.waitForLoadState("networkidle");
 
   await expect(page.getByText("Set the basics once so Brivoly can sound like your business.")).toBeVisible();
   await page.getByRole("button", { name: "Add later" }).first().click();
@@ -79,6 +81,7 @@ test("lets a first-time user defer the business profile setup", async ({ page })
 test("refreshes the alert feed through the local proxy route", async ({ page }) => {
   await bootstrapSession(page);
   await page.goto("/crash-monitor");
+  await page.waitForLoadState("networkidle");
 
   await expect(page.getByText("Baseline alert")).toBeVisible();
 
@@ -90,9 +93,10 @@ test("refreshes the alert feed through the local proxy route", async ({ page }) 
 
 test("previews and imports CRM spreadsheet rows through the local proxy routes", async ({ page }) => {
   await bootstrapSession(page);
-  await page.goto("/clientos");
+  await page.goto("/clientos/import");
+  await page.waitForLoadState("networkidle");
 
-  await expect(page.getByText("Bring your lead sheet in without retyping it.")).toBeVisible();
+  await expect(page.getByText("Bring relationship context in without retyping it.")).toBeVisible();
 
   await page.setInputFiles('[data-testid="crm-import-file-input"]', {
     name: "crm-import.csv",
@@ -101,15 +105,18 @@ test("previews and imports CRM spreadsheet rows through the local proxy routes",
       "contact,company,owner,status,next follow-up,notes\nTaylor Brooks,Beacon Ridge,Samir Patel,Qualification,2024-05-09,Imported from founder sheet\nAmber Flores,Northstar Studio,Ada Lovelace,Discovery,2024-05-10,Duplicate row\n",
     ),
   });
-  await page.getByRole("button", { name: "Preview import" }).click();
+  await expect(page.getByText("crm-import.csv")).toBeVisible();
+  await page.getByRole("button", { name: "Check context" }).click();
 
   await expect(page.getByText("Preview ready for 1 importable row.")).toBeVisible();
   await expect(page.getByText("Taylor Brooks")).toBeVisible();
   await expect(page.getByText("This lead already exists in the current CRM queue and will be skipped.")).toBeVisible();
 
-  await page.getByRole("button", { name: "Import rows" }).click();
+  await page.getByRole("button", { name: "Bring this in" }).click();
 
   await expect(page.getByText("Imported 1 row, skipped 1 duplicates, and skipped 0 invalid rows.")).toBeVisible();
-  await expect(page.getByText("Beacon Ridge")).toBeVisible();
+  await page.goto("/clientos/follow-ups");
+  await page.waitForLoadState("networkidle");
+  await expect(page.getByText("Beacon Ridge").first()).toBeVisible();
   await expect(page.getByText("Owner · Samir Patel").first()).toBeVisible();
 });

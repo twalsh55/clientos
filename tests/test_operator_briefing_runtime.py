@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -22,7 +22,8 @@ from src.application.prospecting import DraftedProspectEmail, ProspectAuditEntry
 from src.domain.prospecting import ProspectTokenUsage, SocialPost
 
 
-def build_digest() -> ProspectingDigest:
+def build_digest(generated_at: datetime | None = None) -> ProspectingDigest:
+    generated_at = generated_at or datetime(2026, 5, 16, 11, 0, tzinfo=UTC)
     post = SocialPost(
         source="reddit",
         external_id="abc",
@@ -30,10 +31,10 @@ def build_digest() -> ProspectingDigest:
         body="We still lose leads because reminders live in spreadsheets and email threads." * 3,
         author="ada",
         permalink="https://example.com/post",
-        created_at=datetime(2026, 5, 16, 10, 0, tzinfo=UTC),
+        created_at=generated_at - timedelta(hours=1),
     )
     return ProspectingDigest(
-        generated_at=datetime(2026, 5, 16, 11, 0, tzinfo=UTC),
+        generated_at=generated_at,
         profile="crm_direction",
         scanned_post_count=10,
         shortlisted_count=1,
@@ -66,7 +67,7 @@ def test_operator_briefing_runtime_appends_history_and_updates(tmp_path, monkeyp
     monkeypatch.setenv("PROSPECT_RUN_LOG_FILE", str(tmp_path / "prospect_runs.jsonl"))
     monkeypatch.setenv("PRODUCT_UPDATE_LOG_FILE", str(tmp_path / "product_updates.jsonl"))
 
-    append_prospect_digest_to_history(build_digest())
+    append_prospect_digest_to_history(build_digest(datetime.now(tz=UTC)))
     append_product_update_note(
         ProductUpdateRecord(
             recorded_at=datetime(2026, 5, 16, 12, 0, tzinfo=UTC),
@@ -146,7 +147,7 @@ def test_run_daily_operator_briefing_job_from_env(tmp_path, monkeypatch) -> None
     monkeypatch.setenv("SMTP_PASSWORD", "pass")
     monkeypatch.setenv("SMTP_FROM_EMAIL", "from@example.com")
 
-    append_prospect_digest_to_history(build_digest())
+    append_prospect_digest_to_history(build_digest(datetime.now(tz=UTC)))
     sent = []
 
     def fake_send_email(self, recipient: str, subject: str, text_body: str) -> None:
@@ -171,7 +172,7 @@ def test_run_operator_briefing_job_uses_custom_trigger_label(tmp_path, monkeypat
     monkeypatch.setenv("SMTP_PASSWORD", "pass")
     monkeypatch.setenv("SMTP_FROM_EMAIL", "from@example.com")
 
-    append_prospect_digest_to_history(build_digest())
+    append_prospect_digest_to_history(build_digest(datetime.now(tz=UTC)))
     sent = []
 
     def fake_send_email(self, recipient: str, subject: str, text_body: str) -> None:
